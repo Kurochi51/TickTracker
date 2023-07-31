@@ -122,10 +122,12 @@ namespace TickTracker
             var Regen = false;
             if (!PluginEnabled() || !IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || specialState)
             {
-                ConfigWindow.BarVisible = false;
+                ConfigWindow.HPBarVisible = false;
+                ConfigWindow.MPBarVisible = false;
                 return;
             }
-            ConfigWindow.BarVisible = true;
+            ConfigWindow.HPBarVisible = true;
+            ConfigWindow.MPBarVisible = true;
 
             var now = ImGui.GetTime();
             if (now - lastUpdate < PollingInterval)
@@ -152,21 +154,21 @@ namespace TickTracker
             // Use FastTick only if lucid dream or a regen effect is active, and the respecitve resource isn't capped
             if ((Regen && currentHP != maxHP) || (LucidDream && currentMP != maxMP))
             {
-                ConfigWindow.FastTick = true;
+                ConfigWindow.HPFastTick = true;
             }
             else
             {
-                ConfigWindow.FastTick = false;
+                ConfigWindow.HPFastTick = false;
             }
             if (lastHPValue < currentHP || lastMPValue < currentMP)
             {
                 lastTickTime = now;
             }
-            else if (ConfigWindow.FastTick && lastTickTime + FastTickInterval <= now)
+            else if (ConfigWindow.HPFastTick && lastTickTime + FastTickInterval <= now)
             {
                 lastTickTime += FastTickInterval;
             }
-            else if (!ConfigWindow.FastTick && lastTickTime + ActorTickInterval <= now)
+            else if (!ConfigWindow.HPFastTick && lastTickTime + ActorTickInterval <= now)
             {
                 lastTickTime += ActorTickInterval;
             }
