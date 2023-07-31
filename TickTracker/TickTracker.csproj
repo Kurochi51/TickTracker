@@ -21,8 +21,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="..\images\*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    <Content Include="..\images\**">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <Visible>false</Visible>
     </Content>
   </ItemGroup>

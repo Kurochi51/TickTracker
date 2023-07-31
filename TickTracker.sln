@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.6.33815.320
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TickTracker", "TickTracker\TickTracker.csproj", "{13C812E9-0D42-4B95-8646-40EEBF30636F}"
+Project("{F5ACA56F-4245-4F6C-AF4B-3F27C77C3BCC}") = "TickTracker", "TickTracker\TickTracker.csproj", "{1521D0D6-E1C2-4805-8677-BE749CA16034}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,15 +11,15 @@ Global
 		Release|x64 = Release|x64
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{13C812E9-0D42-4B95-8646-40EEBF30636F}.Debug|x64.ActiveCfg = Debug|x64
-		{13C812E9-0D42-4B95-8646-40EEBF30636F}.Debug|x64.Build.0 = Debug|x64
-		{13C812E9-0D42-4B95-8646-40EEBF30636F}.Release|x64.ActiveCfg = Release|x64
-		{13C812E9-0D42-4B95-8646-40EEBF30636F}.Release|x64.Build.0 = Release|x64
+		{1521D0D6-E1C2-4805-8677-BE749CA16034}.Debug|x64.ActiveCfg = Debug|x64
+		{1521D0D6-E1C2-4805-8677-BE749CA16034}.Debug|x64.Build.0 = Debug|x64
+		{1521D0D6-E1C2-4805-8677-BE749CA16034}.Release|x64.ActiveCfg = Release|x64
+		{1521D0D6-E1C2-4805-8677-BE749CA16034}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {B17E85B1-5F60-4440-9F9A-3DDE877E8CDF}
+		SolutionGuid = {95F4D89B-6CF0-4233-95AF-1BCD984845F6}
 	EndGlobalSection
 EndGlobal
