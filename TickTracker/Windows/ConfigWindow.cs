@@ -94,7 +94,7 @@ namespace TickTracker.Windows
                 var topLeft = ImGui.GetWindowContentRegionMin();
                 var bottomRight = ImGui.GetWindowContentRegionMax();
                 var barWidth = bottomRight.X - topLeft.X;
-                var filledSegmentEnd = new Vector2(barWidth * progress + barWindowPadding.X, bottomRight.Y - 1);
+                var filledSegmentEnd = new Vector2((barWidth * progress) + barWindowPadding.X, bottomRight.Y - 1);
 
                 // Convert imgui window-space rects to screen-space
                 var windowPosition = ImGui.GetWindowPos();
@@ -145,7 +145,7 @@ namespace TickTracker.Windows
                 var topLeft = ImGui.GetWindowContentRegionMin();
                 var bottomRight = ImGui.GetWindowContentRegionMax();
                 var barWidth = bottomRight.X - topLeft.X;
-                var filledSegmentEnd = new Vector2(barWidth * progress + barWindowPadding.X, bottomRight.Y - 1);
+                var filledSegmentEnd = new Vector2((barWidth * progress) + barWindowPadding.X, bottomRight.Y - 1);
 
                 // Convert imgui window-space rects to screen-space
                 var windowPosition = ImGui.GetWindowPos();
@@ -332,6 +332,32 @@ namespace TickTracker.Windows
             if (ImGui.BeginTabItem("Behavior"))
             {
                 ImGui.Spacing();
+                var hpVisible = configuration.HPVisible;
+                if (ImGui.Checkbox("Show HP Bar", ref hpVisible))
+                {
+                    configuration.HPVisible = hpVisible;
+                    configuration.Save();
+                }
+                var mpVisible = configuration.MPVisible;
+                if (ImGui.Checkbox("Show MP Bar", ref mpVisible))
+                {
+                    configuration.MPVisible = mpVisible;
+                    configuration.Save();
+                }
+                var fullResource = configuration.HideOnFullResource;
+                if (ImGui.Checkbox("Hide bar on full resource", ref fullResource))
+                {
+                    configuration.HideOnFullResource = fullResource;
+                    configuration.Save();
+                }
+                ImGui.Indent();
+                var showInCombat = configuration.AlwaysShowInCombat;
+                if (ImGui.Checkbox("Always show in combat", ref showInCombat))
+                {
+                    configuration.AlwaysShowInCombat = showInCombat;
+                    configuration.Save();
+                }
+                ImGui.Unindent();
                 var hideOutOfCombat = configuration.HideOutOfCombat;
                 if (ImGui.Checkbox("Hide while not in combat", ref hideOutOfCombat))
                 {
@@ -354,24 +380,6 @@ namespace TickTracker.Windows
                     configuration.Save();
                 }
                 ImGui.Unindent();
-                var hpVisible = configuration.HPVisible;
-                if (ImGui.Checkbox("Show HP Bar", ref hpVisible))
-                {
-                    configuration.HPVisible = hpVisible;
-                    configuration.Save();
-                }
-                var mpVisible = configuration.MPVisible;
-                if (ImGui.Checkbox("Show MP Bar", ref mpVisible))
-                {
-                    configuration.MPVisible = mpVisible;
-                    configuration.Save();
-                }
-                var fullResource = configuration.HideOnFullResource;
-                if (ImGui.Checkbox("Hide bar on full resource", ref fullResource))
-                {
-                    configuration.HideOnFullResource = fullResource;
-                    configuration.Save();
-                }
                 ImGui.EndTabItem();
             }
         }

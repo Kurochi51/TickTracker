@@ -14,6 +14,7 @@ namespace TickTracker
         public bool HideOutOfCombat { get; set; }
         public bool AlwaysShowInDuties { get; set; }
         public bool AlwaysShowWithHostileTarget { get; set; }
+        public bool AlwaysShowInCombat { get; set; }
         public bool HPVisible { get; set; }
         public bool MPVisible { get; set; }
         public bool HideOnFullResource { get; set; }

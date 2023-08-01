@@ -54,7 +54,7 @@ namespace TickTracker
         private const double PollingInterval = 1d / 30;
         private uint currentHP = 1, currentMP = 1, maxHP = 2, maxMP = 2;
         [PluginService] public static IGameGui GameGui { get; private set; } = null!;
-        private AtkUnitBase* NameplateAddon => (AtkUnitBase*)GameGui.GetAddonByName("NamePlate");
+        private static AtkUnitBase* NameplateAddon => (AtkUnitBase*)GameGui.GetAddonByName("NamePlate");
 
         public Plugin(DalamudPluginInterface pluginInterface, 
                       CommandManager commandManager, 
@@ -126,6 +126,7 @@ namespace TickTracker
             specialState = Condition[ConditionFlag.Occupied38];
             var LucidDream=false;
             var Regen = false;
+            var Target = false;
             if (!PluginEnabled() || !IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || specialState)
             {
                 ConfigWindow.HPBarVisible = false;
@@ -143,6 +144,7 @@ namespace TickTracker
                 // Since we got this far, clientState / LocalPlayer is null checked already
                 LucidDream = clientState.LocalPlayer.StatusList.Any(e => e.StatusId == 1204);
                 Regen = clientState.LocalPlayer.StatusList.Any(e => regenStatusID.Contains(e.StatusId));
+                Target = clientState.LocalPlayer.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
                 currentHP = currentHp;
                 maxHP = maxHp;
                 currentMP = currentMp;
@@ -151,8 +153,18 @@ namespace TickTracker
             }
             if (Configuration.HideOnFullResource)
             {
-                ConfigWindow.HPBarVisible = currentHP != maxHP;
-                ConfigWindow.MPBarVisible = currentMP != maxMP;
+                if ((Configuration.AlwaysShowInCombat && inCombat) || 
+                    (Configuration.AlwaysShowWithHostileTarget && Target) || 
+                    (Configuration.AlwaysShowInDuties && Condition[ConditionFlag.BoundByDuty]))
+                {
+                    ConfigWindow.HPBarVisible = true;
+                    ConfigWindow.MPBarVisible = true;
+                }
+                else
+                {
+                    ConfigWindow.HPBarVisible = currentHP != maxHP;
+                    ConfigWindow.MPBarVisible = currentMP != maxMP;
+                }
             }
             else
             {
