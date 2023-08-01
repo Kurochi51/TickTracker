@@ -14,7 +14,7 @@ public class ConfigWindow : Window, IDisposable
     private const string MPBarName = "MPBar";
     private double now;
     private bool configVisible;
-    public double LastTick = 1;
+    public double LastHPTick = 1, LastMPTick = 1;
     public bool HPFastTick, MPFastTick;
     public bool HPBarVisible { get; set; }
     public bool MPBarVisible { get; set; }
@@ -48,12 +48,12 @@ public class ConfigWindow : Window, IDisposable
     public override void Draw()
     {
         now = ImGui.GetTime();
-        if (HPBarVisible) DrawHPBarWindow();
-        if (MPBarVisible) DrawMPBarWindow();
+        if (HPBarVisible && configuration.HPVisible) DrawHPBarWindow();
+        if (MPBarVisible && configuration.MPVisible) DrawMPBarWindow();
         if (ConfigVisible) DrawConfigWindow();
     }
 
-    private void SaveAndClose()
+    private void Close()
     {
         var originPos = ImGui.GetCursorPos();
         // Place close button in bottom right + some padding / extra space
@@ -73,45 +73,47 @@ public class ConfigWindow : Window, IDisposable
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, barWindowPadding);
         var windowFlags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoTitleBar;
         if (configuration.LockBar) windowFlags |= LockedBarFlags;
-        ImGui.Begin(HPBarName, windowFlags);
-        UpdateSavedWindowConfig(ImGui.GetWindowPos(), ImGui.GetWindowSize());
-        float progress;
-        if (HPFastTick)
+        if (ImGui.Begin(HPBarName, windowFlags))
         {
-            progress = (float)((now - LastTick) / FastTickInterval);
-        }
-        else
-        {
-            progress = (float)((now - LastTick) / ActorTickInterval);
-        }
-        if (progress > 1)
-        {
-            progress = 1;
-        }
+            UpdateSavedWindowConfig(ImGui.GetWindowPos(), ImGui.GetWindowSize(), "HP");
+            float progress;
+            if (HPFastTick)
+            {
+                progress = (float)((now - LastHPTick) / FastTickInterval);
+            }
+            else
+            {
+                progress = (float)((now - LastHPTick) / ActorTickInterval);
+            }
+            if (progress > 1)
+            {
+                progress = 1;
+            }
 
-        // Setup bar rects
-        var topLeft = ImGui.GetWindowContentRegionMin();
-        var bottomRight = ImGui.GetWindowContentRegionMax();
-        var barWidth = bottomRight.X - topLeft.X;
-        var filledSegmentEnd = new Vector2(barWidth * progress + barWindowPadding.X, bottomRight.Y - 1);
+            // Setup bar rects
+            var topLeft = ImGui.GetWindowContentRegionMin();
+            var bottomRight = ImGui.GetWindowContentRegionMax();
+            var barWidth = bottomRight.X - topLeft.X;
+            var filledSegmentEnd = new Vector2(barWidth * progress + barWindowPadding.X, bottomRight.Y - 1);
 
-        // Convert imgui window-space rects to screen-space
-        var windowPosition = ImGui.GetWindowPos();
-        topLeft += windowPosition;
-        bottomRight += windowPosition;
-        filledSegmentEnd += windowPosition;
+            // Convert imgui window-space rects to screen-space
+            var windowPosition = ImGui.GetWindowPos();
+            topLeft += windowPosition;
+            bottomRight += windowPosition;
+            filledSegmentEnd += windowPosition;
 
-        // Draw main bar
-        const float cornerSize = 2f;
-        const float borderThickness = 1.35f;
-        var drawList = ImGui.GetWindowDrawList();
-        var barBackgroundColor = ImGui.GetColorU32(configuration.HPBarBackgroundColor);
-        var barFillColor = ImGui.GetColorU32(configuration.HPBarFillColor);
-        var barBorderColor = ImGui.GetColorU32(configuration.HPBarBorderColor);
-        drawList.AddRectFilled(topLeft + barFillPosOffset, bottomRight + barFillSizeOffset, barBackgroundColor);
-        drawList.AddRectFilled(topLeft + barFillPosOffset, filledSegmentEnd, barFillColor);
-        drawList.AddRect(topLeft, bottomRight, barBorderColor, cornerSize, ImDrawFlags.RoundCornersAll,borderThickness);
-        ImGui.End();
+            // Draw main bar
+            const float cornerSize = 2f;
+            const float borderThickness = 1.35f;
+            var drawList = ImGui.GetWindowDrawList();
+            var barBackgroundColor = ImGui.GetColorU32(configuration.HPBarBackgroundColor);
+            var barFillColor = ImGui.GetColorU32(configuration.HPBarFillColor);
+            var barBorderColor = ImGui.GetColorU32(configuration.HPBarBorderColor);
+            drawList.AddRectFilled(topLeft + barFillPosOffset, bottomRight + barFillSizeOffset, barBackgroundColor);
+            drawList.AddRectFilled(topLeft + barFillPosOffset, filledSegmentEnd, barFillColor);
+            drawList.AddRect(topLeft, bottomRight, barBorderColor, cornerSize, ImDrawFlags.RoundCornersAll, borderThickness);
+            ImGui.End();
+        }
         ImGui.PopStyleVar();
     }
 
@@ -122,45 +124,47 @@ public class ConfigWindow : Window, IDisposable
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, barWindowPadding);
         var windowFlags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoTitleBar;
         if (configuration.LockBar) windowFlags |= LockedBarFlags;
-        ImGui.Begin(MPBarName, windowFlags);
-        UpdateSavedWindowConfig(ImGui.GetWindowPos(), ImGui.GetWindowSize());
-        float progress;
-        if (MPFastTick)
+        if (ImGui.Begin(MPBarName, windowFlags))
         {
-            progress = (float)((now - LastTick) / FastTickInterval);
-        }
-        else
-        {
-            progress = (float)((now - LastTick) / ActorTickInterval);
-        }
-        if (progress > 1)
-        {
-            progress = 1;
-        }
+            UpdateSavedWindowConfig(ImGui.GetWindowPos(), ImGui.GetWindowSize(), "MP");
+            float progress;
+            if (MPFastTick)
+            {
+                progress = (float)((now - LastMPTick) / FastTickInterval);
+            }
+            else
+            {
+                progress = (float)((now - LastMPTick) / ActorTickInterval);
+            }
+            if (progress > 1)
+            {
+                progress = 1;
+            }
 
-        // Setup bar rects
-        var topLeft = ImGui.GetWindowContentRegionMin();
-        var bottomRight = ImGui.GetWindowContentRegionMax();
-        var barWidth = bottomRight.X - topLeft.X;
-        var filledSegmentEnd = new Vector2(barWidth * progress + barWindowPadding.X, bottomRight.Y - 1);
+            // Setup bar rects
+            var topLeft = ImGui.GetWindowContentRegionMin();
+            var bottomRight = ImGui.GetWindowContentRegionMax();
+            var barWidth = bottomRight.X - topLeft.X;
+            var filledSegmentEnd = new Vector2(barWidth * progress + barWindowPadding.X, bottomRight.Y - 1);
 
-        // Convert imgui window-space rects to screen-space
-        var windowPosition = ImGui.GetWindowPos();
-        topLeft += windowPosition;
-        bottomRight += windowPosition;
-        filledSegmentEnd += windowPosition;
+            // Convert imgui window-space rects to screen-space
+            var windowPosition = ImGui.GetWindowPos();
+            topLeft += windowPosition;
+            bottomRight += windowPosition;
+            filledSegmentEnd += windowPosition;
 
-        // Draw main bar
-        const float cornerSize = 2f;
-        const float borderThickness = 1.35f;
-        var drawList = ImGui.GetWindowDrawList();
-        var barBackgroundColor = ImGui.GetColorU32(configuration.MPBarBackgroundColor);
-        var barFillColor = ImGui.GetColorU32(configuration.MPBarFillColor);
-        var barBorderColor = ImGui.GetColorU32(configuration.MPBarBorderColor);
-        drawList.AddRectFilled(topLeft + barFillPosOffset, bottomRight + barFillSizeOffset, barBackgroundColor);
-        drawList.AddRectFilled(topLeft + barFillPosOffset, filledSegmentEnd, barFillColor);
-        drawList.AddRect(topLeft, bottomRight, barBorderColor, cornerSize, ImDrawFlags.RoundCornersAll, borderThickness);
-        ImGui.End();
+            // Draw main bar
+            const float cornerSize = 2f;
+            const float borderThickness = 1.35f;
+            var drawList = ImGui.GetWindowDrawList();
+            var barBackgroundColor = ImGui.GetColorU32(configuration.MPBarBackgroundColor);
+            var barFillColor = ImGui.GetColorU32(configuration.MPBarFillColor);
+            var barBorderColor = ImGui.GetColorU32(configuration.MPBarBorderColor);
+            drawList.AddRectFilled(topLeft + barFillPosOffset, bottomRight + barFillSizeOffset, barBackgroundColor);
+            drawList.AddRectFilled(topLeft + barFillPosOffset, filledSegmentEnd, barFillColor);
+            drawList.AddRect(topLeft, bottomRight, barBorderColor, cornerSize, ImDrawFlags.RoundCornersAll, borderThickness);
+            ImGui.End();
+        }
         ImGui.PopStyleVar();
     }
 
@@ -182,7 +186,7 @@ public class ConfigWindow : Window, IDisposable
             DrawBehaviorTab();
             ImGui.EndTabBar();
         }
-        SaveAndClose();
+        Close();
         ImGui.End();
     }
 
@@ -201,35 +205,36 @@ public class ConfigWindow : Window, IDisposable
             if (!configuration.LockBar)
             {
                 ImGui.Indent();
+                ImGui.Spacing();
                 var HPbarPosition = new[] { (int)configuration.HPBarPosition.X, (int)configuration.HPBarPosition.Y };
-                if (DragInput2(HPbarPosition, "HPPositionX", "HPPositionY"))
+                if (DragInput2(ref HPbarPosition, "HPPositionX", "HPPositionY", "HP Bar Position"))
                 {
                     configuration.HPBarPosition = new Vector2(HPbarPosition[0], HPbarPosition[1]);
                     ImGui.SetWindowPos(HPBarName, configuration.HPBarPosition);
                 }
 
                 var HPbarSize = new[] { (int)configuration.HPBarSize.X, (int)configuration.HPBarSize.Y };
-                if(DragInput2(HPbarSize, "HPSizeX", "HPSizeY"))
+                if(DragInput2(ref HPbarSize, "HPSizeX", "HPSizeY", "HP Bar Size"))
                 {
                     configuration.HPBarSize = new Vector2(HPbarSize[0], HPbarSize[1]);
                     ImGui.SetWindowSize(HPBarName, configuration.HPBarSize);
                 }
-
                 ImGui.Spacing();
 
                 var MPbarPosition = new[] { (int)configuration.MPBarPosition.X, (int)configuration.MPBarPosition.Y };
-                if(DragInput2(MPbarPosition, "MPPositionX", "MPPositionY"))
+                if(DragInput2(ref MPbarPosition, "MPPositionX", "MPPositionY", "MP Bar Position"))
                 {
                     configuration.MPBarPosition= new Vector2(MPbarPosition[0], MPbarPosition[1]);
                     ImGui.SetWindowPos(MPBarName, configuration.MPBarPosition);
                 }
 
                 var MPbarSize = new[] { (int)configuration.MPBarSize.X, (int)configuration.MPBarSize.Y };
-                if(DragInput2(MPbarSize, "MPSizeX", "MPSizeY"))
+                if(DragInput2(ref MPbarSize, "MPSizeX", "MPSizeY", "MP Bar Size"))
                 {
                     configuration.MPBarSize = new Vector2(MPbarSize[0], MPbarSize[1]);
                     ImGui.SetWindowSize(MPBarName, configuration.MPBarSize);
                 }
+                ImGui.Spacing();
                 ImGui.Unindent();
             }
 
@@ -349,39 +354,63 @@ public class ConfigWindow : Window, IDisposable
                 configuration.Save();
             }
             ImGui.Unindent();
-
+            var hpVisible = configuration.HPVisible;
+            if (ImGui.Checkbox("Show HP Bar", ref hpVisible))
+            {
+                configuration.HPVisible = hpVisible;
+                configuration.Save();
+            }
+            var mpVisible = configuration.MPVisible;
+            if (ImGui.Checkbox("Show MP Bar", ref mpVisible)) 
+            {
+                configuration.MPVisible = mpVisible;
+                configuration.Save();
+            }
             ImGui.EndTabItem();
         }
     }
 
-    private void UpdateSavedWindowConfig(Vector2 currentPos, Vector2 currentSize)
+    private void UpdateSavedWindowConfig(Vector2 currentPos, Vector2 currentSize, string val)
     {
         if (configuration.LockBar ||
-            currentPos.Equals(configuration.HPBarPosition) && currentSize.Equals(configuration.HPBarSize))
+            (currentPos.Equals(configuration.HPBarPosition) && 
+            currentSize.Equals(configuration.HPBarSize)) ||
+            (currentPos.Equals(configuration.MPBarPosition) &&
+            currentSize.Equals(configuration.MPBarSize)))
         {
             return;
         }
-        configuration.HPBarPosition = currentPos;
-        configuration.HPBarSize = currentSize;
+        if (val.Equals("HP"))
+        {
+            configuration.HPBarPosition = currentPos;
+            configuration.HPBarSize = currentSize;
+        }
+        else if (val.Equals("MP"))
+        {
+            configuration.MPBarPosition = currentPos;
+            configuration.MPBarSize = currentSize;
+        }
         configuration.Save();
     }
 
-    private static bool DragInput2(int[] vector, string label1, string label2)
+    private static bool DragInput2(ref int[] vector, string label1, string label2, string description)
     {
-        bool change=false;
-        ImGui.PushItemWidth(ImGui.GetContentRegionMax().X / 3.0f);
+        var change=false;
+        ImGui.PushItemWidth(ImGui.GetContentRegionMax().X / 3.5f);
         if (ImGui.DragInt($"##{label1}", ref vector[0]))
         {
             change = true;
         }
         ImGui.PopItemWidth();
         ImGui.SameLine();
-        ImGui.PushItemWidth(ImGui.GetContentRegionMax().X / 3.0f);
+        ImGui.PushItemWidth(ImGui.GetContentRegionMax().X / 3.5f);
         if (ImGui.DragInt($"##{label2}", ref vector[1]))
         {
             change = true;
         }
         ImGui.PopItemWidth();
+        ImGui.SameLine();
+        ImGui.Text(description);
         return change;
     }
 }

@@ -48,7 +48,7 @@ namespace TickTracker
             2938,
         };
         private bool inCombat, isLoggedIn, specialState;
-        private double lastUpdate = 0, lastTickTime = 1;
+        private double lastUpdate = 0, lastHPTickTime = 1, lastMPTickTime = 1;
         private int lastHPValue = -1, lastMPValue = -1;
         private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
         private const double PollingInterval = 1d / 30;
@@ -67,13 +67,13 @@ namespace TickTracker
             this.Framework = framework;
             this.Condition = condition;
             this.clientState = clientState;
-            lastTickTime = ImGui.GetTime();
+            lastHPTickTime = ImGui.GetTime();
+            lastMPTickTime = ImGui.GetTime();
 
             Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
             Configuration.Initialize(PluginInterface);
 
             ConfigWindow = new ConfigWindow(this);
-            WindowSystem.AddWindow(ConfigWindow);
 
             CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
             {
@@ -152,28 +152,27 @@ namespace TickTracker
 
             }
             // Use FastTick only if lucid dream or a regen effect is active, and the respecitve resource isn't capped
-            if ((Regen && currentHP != maxHP) || (LucidDream && currentMP != maxMP))
+            ConfigWindow.HPFastTick = (Regen && currentHP != maxHP);
+            ConfigWindow.MPFastTick = (LucidDream && currentMP != maxMP);
+            if (lastHPValue < currentHP)
             {
-                ConfigWindow.HPFastTick = true;
+                lastHPTickTime = now;
             }
-            else
+            else if (lastHPTickTime + (ConfigWindow.HPFastTick ? FastTickInterval : ActorTickInterval) <= now)
             {
-                ConfigWindow.HPFastTick = false;
-            }
-            if (lastHPValue < currentHP || lastMPValue < currentMP)
-            {
-                lastTickTime = now;
-            }
-            else if (ConfigWindow.HPFastTick && lastTickTime + FastTickInterval <= now)
-            {
-                lastTickTime += FastTickInterval;
-            }
-            else if (!ConfigWindow.HPFastTick && lastTickTime + ActorTickInterval <= now)
-            {
-                lastTickTime += ActorTickInterval;
+                lastHPTickTime += ConfigWindow.HPFastTick ? FastTickInterval : ActorTickInterval;
             }
 
-            ConfigWindow.LastTick = lastTickTime;
+            if (lastMPValue < currentMP)
+            {
+                lastMPTickTime = now;
+            }
+            else if (lastMPTickTime + (ConfigWindow.MPFastTick ? FastTickInterval : ActorTickInterval) <= now)
+            {
+                lastMPTickTime += ConfigWindow.MPFastTick ? FastTickInterval : ActorTickInterval;
+            }
+            ConfigWindow.LastHPTick = lastHPTickTime;
+            ConfigWindow.LastMPTick = lastMPTickTime;
             lastHPValue = (int)currentHP;
             lastMPValue = (int)currentMP;
         }
@@ -187,7 +186,6 @@ namespace TickTracker
         public void Dispose()
         {
             WindowSystem.RemoveAllWindows();
-            
             ConfigWindow.Dispose();
             PluginInterface.UiBuilder.Draw -= ConfigWindow.Draw;
             PluginInterface.UiBuilder.OpenConfigUi -= DrawConfigUI;
