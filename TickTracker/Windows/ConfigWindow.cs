@@ -1,14 +1,13 @@
 using System;
 using System.Numerics;
 using Dalamud.Interface.Windowing;
-using Dalamud.Interface.Components;
 using ImGuiNET;
 
 namespace TickTracker.Windows
 {
     public class ConfigWindow : Window, IDisposable
     {
-        private Configuration configuration;
+        private static Configuration config => TickTrackerSystem.config;
         private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
         private const string HPBarName = "HPBar";
         private const string MPBarName = "MPBar";
@@ -37,7 +36,6 @@ namespace TickTracker.Windows
         {
             Size = configInitialSize;
             SizeCondition = ImGuiCond.Appearing;
-            configuration = plugin.Configuration;
         }
 
         public void Dispose()
@@ -48,8 +46,8 @@ namespace TickTracker.Windows
         public override void Draw()
         {
             now = ImGui.GetTime();
-            if (HPBarVisible && configuration.HPVisible) DrawHPBarWindow();
-            if (MPBarVisible && configuration.MPVisible) DrawMPBarWindow();
+            if (HPBarVisible && config.HPVisible) DrawHPBarWindow();
+            if (MPBarVisible && config.MPVisible) DrawMPBarWindow();
             if (ConfigVisible) DrawConfigWindow();
         }
 
@@ -61,6 +59,7 @@ namespace TickTracker.Windows
             ImGui.SetCursorPosY(ImGui.GetWindowContentRegionMax().Y - ImGui.GetFrameHeight() - 5f);
             if (ImGui.Button("Close"))
             {
+                config.Save();
                 configVisible = false;
             }
             ImGui.SetCursorPos(originPos);
@@ -68,11 +67,11 @@ namespace TickTracker.Windows
 
         private void DrawHPBarWindow()
         {
-            ImGui.SetNextWindowSize(configuration.HPBarSize, ImGuiCond.FirstUseEver);
-            ImGui.SetNextWindowPos(configuration.HPBarPosition, ImGuiCond.FirstUseEver);
+            ImGui.SetNextWindowSize(config.HPBarSize, ImGuiCond.FirstUseEver);
+            ImGui.SetNextWindowPos(config.HPBarPosition, ImGuiCond.FirstUseEver);
             ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, barWindowPadding);
             var windowFlags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoTitleBar;
-            if (configuration.LockBar) windowFlags |= LockedBarFlags;
+            if (config.LockBar) windowFlags |= LockedBarFlags;
             if (ImGui.Begin(HPBarName, windowFlags))
             {
                 UpdateSavedWindowConfig(ImGui.GetWindowPos(), ImGui.GetWindowSize(), "HP");
@@ -106,9 +105,9 @@ namespace TickTracker.Windows
                 const float cornerSize = 4f;
                 const float borderThickness = 1.35f;
                 var drawList = ImGui.GetWindowDrawList();
-                var barBackgroundColor = ImGui.GetColorU32(configuration.HPBarBackgroundColor);
-                var barFillColor = ImGui.GetColorU32(configuration.HPBarFillColor);
-                var barBorderColor = ImGui.GetColorU32(configuration.HPBarBorderColor);
+                var barBackgroundColor = ImGui.GetColorU32(config.HPBarBackgroundColor);
+                var barFillColor = ImGui.GetColorU32(config.HPBarFillColor);
+                var barBorderColor = ImGui.GetColorU32(config.HPBarBorderColor);
                 drawList.AddRectFilled(topLeft + barFillPosOffset, bottomRight + barFillSizeOffset, barBackgroundColor, cornerSize, ImDrawFlags.RoundCornersAll);
                 drawList.AddRectFilled(topLeft + barFillPosOffset, filledSegmentEnd, barFillColor, cornerSize, ImDrawFlags.RoundCornersAll);
                 drawList.AddRect(topLeft, bottomRight, barBorderColor, cornerSize, ImDrawFlags.RoundCornersAll, borderThickness);
@@ -119,11 +118,11 @@ namespace TickTracker.Windows
 
         private void DrawMPBarWindow()
         {
-            ImGui.SetNextWindowSize(configuration.MPBarSize, ImGuiCond.FirstUseEver);
-            ImGui.SetNextWindowPos(configuration.MPBarPosition, ImGuiCond.FirstUseEver);
+            ImGui.SetNextWindowSize(config.MPBarSize, ImGuiCond.FirstUseEver);
+            ImGui.SetNextWindowPos(config.MPBarPosition, ImGuiCond.FirstUseEver);
             ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, barWindowPadding);
             var windowFlags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoTitleBar;
-            if (configuration.LockBar) windowFlags |= LockedBarFlags;
+            if (config.LockBar) windowFlags |= LockedBarFlags;
             if (ImGui.Begin(MPBarName, windowFlags))
             {
                 UpdateSavedWindowConfig(ImGui.GetWindowPos(), ImGui.GetWindowSize(), "MP");
@@ -157,9 +156,9 @@ namespace TickTracker.Windows
                 const float cornerSize = 4f;
                 const float borderThickness = 1.35f;
                 var drawList = ImGui.GetWindowDrawList();
-                var barBackgroundColor = ImGui.GetColorU32(configuration.MPBarBackgroundColor);
-                var barFillColor = ImGui.GetColorU32(configuration.MPBarFillColor);
-                var barBorderColor = ImGui.GetColorU32(configuration.MPBarBorderColor);
+                var barBackgroundColor = ImGui.GetColorU32(config.MPBarBackgroundColor);
+                var barFillColor = ImGui.GetColorU32(config.MPBarFillColor);
+                var barBorderColor = ImGui.GetColorU32(config.MPBarBorderColor);
                 drawList.AddRectFilled(topLeft + barFillPosOffset, bottomRight + barFillSizeOffset, barBackgroundColor, cornerSize, ImDrawFlags.RoundCornersAll);
                 drawList.AddRectFilled(topLeft + barFillPosOffset, filledSegmentEnd, barFillColor, cornerSize, ImDrawFlags.RoundCornersAll);
                 drawList.AddRect(topLeft, bottomRight, barBorderColor, cornerSize, ImDrawFlags.RoundCornersAll, borderThickness);
@@ -173,11 +172,11 @@ namespace TickTracker.Windows
             ImGui.SetNextWindowSize(configInitialSize, ImGuiCond.Appearing);
             ImGui.Begin("Timer Settings", ref configVisible, ImGuiWindowFlags.NoResize);
 
-            var pluginEnabled = configuration.PluginEnabled;
+            var pluginEnabled = config.PluginEnabled;
             if (ImGui.Checkbox("Enable plugin", ref pluginEnabled))
             {
-                configuration.PluginEnabled = pluginEnabled;
-                configuration.Save();
+                config.PluginEnabled = pluginEnabled;
+                config.Save();
             }
 
             if (ImGui.BeginTabBar("ConfigTabBar", ImGuiTabBarFlags.None))
@@ -190,221 +189,219 @@ namespace TickTracker.Windows
             ImGui.End();
         }
 
-        private void DrawAppearanceTab()
+        private static void DrawAppearanceTab()
         {
             if (ImGui.BeginTabItem("Appearance"))
             {
                 ImGui.Spacing();
-                var lockBar = configuration.LockBar;
+                var lockBar = config.LockBar;
                 if (ImGui.Checkbox("Lock bar size and position", ref lockBar))
                 {
-                    configuration.LockBar = lockBar;
-                    configuration.Save();
+                    config.LockBar = lockBar;
+                    config.Save();
                 }
 
-                if (!configuration.LockBar)
+                if (!config.LockBar)
                 {
-                    ImGui.Indent();
-                    ImGui.Spacing();
-                    var HPbarPosition = new[] { (int)configuration.HPBarPosition.X, (int)configuration.HPBarPosition.Y };
-                    if (DragInput2(ref HPbarPosition, "HPPositionX", "HPPositionY", "HP Bar Position"))
-                    {
-                        configuration.HPBarPosition = new Vector2(HPbarPosition[0], HPbarPosition[1]);
-                        ImGui.SetWindowPos(HPBarName, configuration.HPBarPosition);
-                    }
-
-                    var HPbarSize = new[] { (int)configuration.HPBarSize.X, (int)configuration.HPBarSize.Y };
-                    if (DragInput2(ref HPbarSize, "HPSizeX", "HPSizeY", "HP Bar Size"))
-                    {
-                        configuration.HPBarSize = new Vector2(HPbarSize[0], HPbarSize[1]);
-                        ImGui.SetWindowSize(HPBarName, configuration.HPBarSize);
-                    }
-                    ImGui.Spacing();
-
-                    var MPbarPosition = new[] { (int)configuration.MPBarPosition.X, (int)configuration.MPBarPosition.Y };
-                    if (DragInput2(ref MPbarPosition, "MPPositionX", "MPPositionY", "MP Bar Position"))
-                    {
-                        configuration.MPBarPosition = new Vector2(MPbarPosition[0], MPbarPosition[1]);
-                        ImGui.SetWindowPos(MPBarName, configuration.MPBarPosition);
-                    }
-
-                    var MPbarSize = new[] { (int)configuration.MPBarSize.X, (int)configuration.MPBarSize.Y };
-                    if (DragInput2(ref MPbarSize, "MPSizeX", "MPSizeY", "MP Bar Size"))
-                    {
-                        configuration.MPBarSize = new Vector2(MPbarSize[0], MPbarSize[1]);
-                        ImGui.SetWindowSize(MPBarName, configuration.MPBarSize);
-                    }
-                    ImGui.Spacing();
-                    ImGui.Unindent();
+                    DrawBarPositions();
                 }
-
-                ImGui.Text("HP Bar Background Color");
-                ImGui.SameLine();
-                var newHPBarBackgroundColor = ImGuiComponents.ColorPickerWithPalette(2, "HP Bar Background Color",
-                    configuration.HPBarBackgroundColor);
-                ImGui.SameLine();
-                if (ImGui.Button("Reset##ResetHPBarBackgroundColor"))
-                {
-                    configuration.ResetPropertyToDefault("HPBarBackgroundColor");
-                    newHPBarBackgroundColor = configuration.HPBarBackgroundColor;
-                }
-
-                ImGui.Text("HP Bar Fill Color");
-                ImGui.SameLine();
-                var newHPBarFillColor = ImGuiComponents.ColorPickerWithPalette(3, "HP Bar Fill Color",
-                    configuration.HPBarFillColor);
-                ImGui.SameLine();
-                if (ImGui.Button("Reset##HPResetBarFillColor"))
-                {
-                    configuration.ResetPropertyToDefault("HPBarFillColor");
-                    newHPBarFillColor = configuration.HPBarFillColor;
-                }
-
-                ImGui.Text("HP Bar Border Color");
-                ImGui.SameLine();
-                var newHPBarBorderColor = ImGuiComponents.ColorPickerWithPalette(4, "HP Bar Border Color",
-                    configuration.HPBarBorderColor);
-                ImGui.SameLine();
-                if (ImGui.Button("Reset##HPResetBarBorderColor"))
-                {
-                    configuration.ResetPropertyToDefault("HPBarBorderColor");
-                    newHPBarBorderColor = configuration.HPBarBorderColor;
-                }
-                ImGui.Spacing();
-                ImGui.Separator();
-                ImGui.Spacing();
-
-                ImGui.Text("MP Bar Background Color");
-                ImGui.SameLine();
-                var newMPBarBackgroundColor = ImGuiComponents.ColorPickerWithPalette(5, "MP Bar Background Color",
-                    configuration.MPBarBackgroundColor);
-                ImGui.SameLine();
-                if (ImGui.Button("Reset##ResetMPBarBackgroundColor"))
-                {
-                    configuration.ResetPropertyToDefault("MPBarBackgroundColor");
-                    newMPBarBackgroundColor = configuration.MPBarBackgroundColor;
-                }
-
-                ImGui.Text("MP Bar Fill Color");
-                ImGui.SameLine();
-                var newMPBarFillColor = ImGuiComponents.ColorPickerWithPalette(6, "MP Bar Fill Color",
-                    configuration.MPBarFillColor);
-                ImGui.SameLine();
-                if (ImGui.Button("Reset##MPResetBarFillColor"))
-                {
-                    configuration.ResetPropertyToDefault("MPBarFillColor");
-                    newMPBarFillColor = configuration.MPBarFillColor;
-                }
-
-                ImGui.Text("MP Bar Border Color");
-                ImGui.SameLine();
-                var newMPBarBorderColor = ImGuiComponents.ColorPickerWithPalette(7, "MP Bar Border Color",
-                    configuration.MPBarBorderColor);
-                ImGui.SameLine();
-                if (ImGui.Button("Reset##MPResetBarBorderColor"))
-                {
-                    configuration.ResetPropertyToDefault("MPBarBorderColor");
-                    newMPBarBorderColor = configuration.MPBarBorderColor;
-                }
-
-                if (!newHPBarBackgroundColor.Equals(configuration.HPBarBackgroundColor) ||
-                    !newHPBarFillColor.Equals(configuration.HPBarFillColor) ||
-                    !newHPBarBorderColor.Equals(configuration.HPBarBorderColor) ||
-                    !newMPBarBackgroundColor.Equals(configuration.MPBarBackgroundColor) ||
-                    !newMPBarFillColor.Equals(configuration.MPBarFillColor) ||
-                    !newMPBarBorderColor.Equals(configuration.MPBarBorderColor))
-                {
-                    configuration.HPBarBackgroundColor = newHPBarBackgroundColor;
-                    configuration.HPBarFillColor = newHPBarFillColor;
-                    configuration.HPBarBorderColor = newHPBarBorderColor;
-                    configuration.MPBarBackgroundColor = newMPBarBackgroundColor;
-                    configuration.MPBarFillColor = newMPBarFillColor;
-                    configuration.MPBarBorderColor = newMPBarBorderColor;
-                    configuration.Save();
-                }
-
+                DrawColorOptions();
                 ImGui.EndTabItem();
             }
         }
 
-        private void DrawBehaviorTab()
+        private static void DrawBehaviorTab()
         {
             if (ImGui.BeginTabItem("Behavior"))
             {
                 ImGui.Spacing();
-                var hpVisible = configuration.HPVisible;
+                var hpVisible = config.HPVisible;
                 if (ImGui.Checkbox("Show HP Bar", ref hpVisible))
                 {
-                    configuration.HPVisible = hpVisible;
-                    configuration.Save();
+                    config.HPVisible = hpVisible;
+                    config.Save();
                 }
-                var mpVisible = configuration.MPVisible;
+                var mpVisible = config.MPVisible;
                 if (ImGui.Checkbox("Show MP Bar", ref mpVisible))
                 {
-                    configuration.MPVisible = mpVisible;
-                    configuration.Save();
+                    config.MPVisible = mpVisible;
+                    config.Save();
                 }
-                var fullResource = configuration.HideOnFullResource;
+                var fullResource = config.HideOnFullResource;
                 if (ImGui.Checkbox("Hide bar on full resource", ref fullResource))
                 {
-                    configuration.HideOnFullResource = fullResource;
-                    configuration.Save();
+                    config.HideOnFullResource = fullResource;
+                    config.Save();
                 }
                 ImGui.Indent();
-                var showInCombat = configuration.AlwaysShowInCombat;
+                var showInCombat = config.AlwaysShowInCombat;
                 if (ImGui.Checkbox("Always show in combat", ref showInCombat))
                 {
-                    configuration.AlwaysShowInCombat = showInCombat;
-                    configuration.Save();
+                    config.AlwaysShowInCombat = showInCombat;
+                    config.Save();
                 }
                 ImGui.Unindent();
-                var hideOutOfCombat = configuration.HideOutOfCombat;
+                var hideOutOfCombat = config.HideOutOfCombat;
                 if (ImGui.Checkbox("Hide while not in combat", ref hideOutOfCombat))
                 {
-                    configuration.HideOutOfCombat = hideOutOfCombat;
-                    configuration.Save();
+                    config.HideOutOfCombat = hideOutOfCombat;
+                    config.Save();
                 }
 
                 ImGui.Indent();
-                var showInDuties = configuration.AlwaysShowInDuties;
+                var showInDuties = config.AlwaysShowInDuties;
                 if (ImGui.Checkbox("Always show while in duties", ref showInDuties))
                 {
-                    configuration.AlwaysShowInDuties = showInDuties;
-                    configuration.Save();
+                    config.AlwaysShowInDuties = showInDuties;
+                    config.Save();
                 }
 
-                var showWithHostileTarget = configuration.AlwaysShowWithHostileTarget;
+                var showWithHostileTarget = config.AlwaysShowWithHostileTarget;
                 if (ImGui.Checkbox("Always show with enemy target", ref showWithHostileTarget))
                 {
-                    configuration.AlwaysShowWithHostileTarget = showWithHostileTarget;
-                    configuration.Save();
+                    config.AlwaysShowWithHostileTarget = showWithHostileTarget;
+                    config.Save();
                 }
                 ImGui.Unindent();
                 ImGui.EndTabItem();
             }
         }
 
-        private void UpdateSavedWindowConfig(Vector2 currentPos, Vector2 currentSize, string val)
+        private static void DrawColorOptions()
         {
-            if (configuration.LockBar ||
-                (currentPos.Equals(configuration.HPBarPosition) &&
-                currentSize.Equals(configuration.HPBarSize)) ||
-                (currentPos.Equals(configuration.MPBarPosition) &&
-                currentSize.Equals(configuration.MPBarSize)))
+            if (ImGui.ColorEdit4("HP Bar Background Color", ref config.HPBarBackgroundColor, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar))
+            {
+                config.Save();
+            }
+            ImGui.SameLine();
+            var resetButtonX = ImGui.GetCursorPosX();
+            if (ImGui.Button("Reset##ResetHPBarBackgroundColor"))
+            {
+                config.HPBarBackgroundColor = new(0f, 0f, 0f, 1f);
+                config.Save();
+            }
+
+            if (ImGui.ColorEdit4("HP Bar Fill Color", ref config.HPBarFillColor, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar))
+            {
+                config.Save();
+            }
+            ImGui.SameLine();
+            ImGui.SetCursorPosX(resetButtonX);
+            if (ImGui.Button("Reset##HPResetBarFillColor"))
+            {
+                config.HPBarFillColor = new(0.276f, 0.8f, 0.24f, 1f);
+                config.Save();
+            }
+
+            if (ImGui.ColorEdit4("HP Bar Border Color", ref config.HPBarBorderColor, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar))
+            {
+                config.Save();
+            }
+            ImGui.SameLine();
+            ImGui.SetCursorPosX(resetButtonX);
+            if (ImGui.Button("Reset##HPResetBarBorderColor"))
+            {
+                config.HPBarBorderColor = new(0.246f, 0.262f, 0.270f, 1f);
+                config.Save();
+            }
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            if (ImGui.ColorEdit4("MP Bar Background Color", ref config.MPBarBackgroundColor, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar))
+            {
+                config.Save();
+            }
+            ImGui.SameLine();
+            resetButtonX = ImGui.GetCursorPosX();
+            if (ImGui.Button("Reset##ResetMPBarBackgroundColor"))
+            {
+                config.MPBarBackgroundColor = new(0f, 0f, 0f, 1f);
+                config.Save();
+            }
+
+            if (ImGui.ColorEdit4("MP Bar Fill Color", ref config.MPBarFillColor, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar))
+            {
+                config.Save();
+            }
+            ImGui.SameLine();
+            ImGui.SetCursorPosX(resetButtonX);
+            if (ImGui.Button("Reset##MPResetBarFillColor"))
+            {
+                config.MPBarFillColor = new(0.753f, 0.271f, 0.482f, 1f);
+                config.Save();
+            }
+
+            if (ImGui.ColorEdit4("MP Bar Border Color", ref config.MPBarBorderColor, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar))
+            {
+                config.Save();
+            }
+            ImGui.SameLine();
+            ImGui.SetCursorPosX(resetButtonX);
+            if (ImGui.Button("Reset##MPResetBarBorderColor"))
+            {
+                config.MPBarBorderColor = new(0.246f, 0.262f, 0.270f, 1f);
+                config.Save();
+            }
+        }
+
+        private static void DrawBarPositions()
+        {
+            ImGui.Indent();
+            ImGui.Spacing();
+            var HPbarPosition = new[] { (int)config.HPBarPosition.X, (int)config.HPBarPosition.Y };
+            if (DragInput2(ref HPbarPosition, "HPPositionX", "HPPositionY", "HP Bar Position"))
+            {
+                config.HPBarPosition = new Vector2(HPbarPosition[0], HPbarPosition[1]);
+                ImGui.SetWindowPos(HPBarName, config.HPBarPosition);
+            }
+
+            var HPbarSize = new[] { (int)config.HPBarSize.X, (int)config.HPBarSize.Y };
+            if (DragInput2(ref HPbarSize, "HPSizeX", "HPSizeY", "HP Bar Size"))
+            {
+                config.HPBarSize = new Vector2(HPbarSize[0], HPbarSize[1]);
+                ImGui.SetWindowSize(HPBarName, config.HPBarSize);
+            }
+            ImGui.Spacing();
+
+            var MPbarPosition = new[] { (int)config.MPBarPosition.X, (int)config.MPBarPosition.Y };
+            if (DragInput2(ref MPbarPosition, "MPPositionX", "MPPositionY", "MP Bar Position"))
+            {
+                config.MPBarPosition = new Vector2(MPbarPosition[0], MPbarPosition[1]);
+                ImGui.SetWindowPos(MPBarName, config.MPBarPosition);
+            }
+
+            var MPbarSize = new[] { (int)config.MPBarSize.X, (int)config.MPBarSize.Y };
+            if (DragInput2(ref MPbarSize, "MPSizeX", "MPSizeY", "MP Bar Size"))
+            {
+                config.MPBarSize = new Vector2(MPbarSize[0], MPbarSize[1]);
+                ImGui.SetWindowSize(MPBarName, config.MPBarSize);
+            }
+            ImGui.Spacing();
+            ImGui.Unindent();
+        }
+
+        private static void UpdateSavedWindowConfig(Vector2 currentPos, Vector2 currentSize, string val)
+        {
+            if (config.LockBar ||
+                (currentPos.Equals(config.HPBarPosition) &&
+                currentSize.Equals(config.HPBarSize)) ||
+                (currentPos.Equals(config.MPBarPosition) &&
+                currentSize.Equals(config.MPBarSize)))
             {
                 return;
             }
             if (val.Equals("HP"))
             {
-                configuration.HPBarPosition = currentPos;
-                configuration.HPBarSize = currentSize;
+                config.HPBarPosition = currentPos;
+                config.HPBarSize = currentSize;
             }
             else if (val.Equals("MP"))
             {
-                configuration.MPBarPosition = currentPos;
-                configuration.MPBarSize = currentSize;
+                config.MPBarPosition = currentPos;
+                config.MPBarSize = currentSize;
             }
-            configuration.Save();
+            config.Save();
         }
 
         private static bool DragInput2(ref int[] vector, string label1, string label2, string description)
