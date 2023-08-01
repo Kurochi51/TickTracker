@@ -120,36 +120,36 @@ namespace TickTracker
             {
                 return;
             }
+            if (clientState is { IsLoggedIn: var loggedIn })
+            {
+                isLoggedIn = loggedIn;
+                if (!isLoggedIn)
+                {
+                    return;
+                }
+            }
             lastUpdate = now;
-            isLoggedIn = clientState.IsLoggedIn;
-            inCombat = Condition[ConditionFlag.InCombat];
-            specialState = Condition[ConditionFlag.Occupied38];
-            var LucidDream=false;
+            var LucidDream = false;
             var Regen = false;
             var Target = false;
-            if (!PluginEnabled() || !IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || specialState)
-            {
-                ConfigWindow.HPBarVisible = false;
-                ConfigWindow.MPBarVisible = false;
-                return;
-            }
-            if (clientState is
-                {
-                    LocalPlayer.CurrentHp: var currentHp,
-                    LocalPlayer.CurrentMp: var currentMp,
-                    LocalPlayer.MaxHp: var maxHp,
-                    LocalPlayer.MaxMp: var maxMp,
-                })
+            if (clientState is { LocalPlayer: { } player })
             {
                 // Since we got this far, clientState / LocalPlayer is null checked already
                 LucidDream = clientState.LocalPlayer.StatusList.Any(e => e.StatusId == 1204);
                 Regen = clientState.LocalPlayer.StatusList.Any(e => regenStatusID.Contains(e.StatusId));
                 Target = clientState.LocalPlayer.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
-                currentHP = currentHp;
-                maxHP = maxHp;
-                currentMP = currentMp;
-                maxMP = maxMp;
-
+                inCombat = Condition[ConditionFlag.InCombat];
+                specialState = Condition[ConditionFlag.Occupied38];
+                currentHP = player.CurrentHp;
+                maxHP = player.MaxHp;
+                currentMP = player.CurrentMp;
+                maxMP = player.MaxMp;
+            }
+            if (!PluginEnabled() || !IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || specialState)
+            {
+                ConfigWindow.HPBarVisible = false;
+                ConfigWindow.MPBarVisible = false;
+                return;
             }
             if (Configuration.HideOnFullResource)
             {
