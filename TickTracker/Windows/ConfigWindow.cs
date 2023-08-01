@@ -103,14 +103,14 @@ namespace TickTracker.Windows
                 filledSegmentEnd += windowPosition;
 
                 // Draw main bar
-                const float cornerSize = 2f;
+                const float cornerSize = 4f;
                 const float borderThickness = 1.35f;
                 var drawList = ImGui.GetWindowDrawList();
                 var barBackgroundColor = ImGui.GetColorU32(configuration.HPBarBackgroundColor);
                 var barFillColor = ImGui.GetColorU32(configuration.HPBarFillColor);
                 var barBorderColor = ImGui.GetColorU32(configuration.HPBarBorderColor);
-                drawList.AddRectFilled(topLeft + barFillPosOffset, bottomRight + barFillSizeOffset, barBackgroundColor);
-                drawList.AddRectFilled(topLeft + barFillPosOffset, filledSegmentEnd, barFillColor);
+                drawList.AddRectFilled(topLeft + barFillPosOffset, bottomRight + barFillSizeOffset, barBackgroundColor, cornerSize, ImDrawFlags.RoundCornersAll);
+                drawList.AddRectFilled(topLeft + barFillPosOffset, filledSegmentEnd, barFillColor, cornerSize, ImDrawFlags.RoundCornersAll);
                 drawList.AddRect(topLeft, bottomRight, barBorderColor, cornerSize, ImDrawFlags.RoundCornersAll, borderThickness);
                 ImGui.End();
             }
@@ -154,14 +154,14 @@ namespace TickTracker.Windows
                 filledSegmentEnd += windowPosition;
 
                 // Draw main bar
-                const float cornerSize = 2f;
+                const float cornerSize = 4f;
                 const float borderThickness = 1.35f;
                 var drawList = ImGui.GetWindowDrawList();
                 var barBackgroundColor = ImGui.GetColorU32(configuration.MPBarBackgroundColor);
                 var barFillColor = ImGui.GetColorU32(configuration.MPBarFillColor);
                 var barBorderColor = ImGui.GetColorU32(configuration.MPBarBorderColor);
-                drawList.AddRectFilled(topLeft + barFillPosOffset, bottomRight + barFillSizeOffset, barBackgroundColor);
-                drawList.AddRectFilled(topLeft + barFillPosOffset, filledSegmentEnd, barFillColor);
+                drawList.AddRectFilled(topLeft + barFillPosOffset, bottomRight + barFillSizeOffset, barBackgroundColor, cornerSize, ImDrawFlags.RoundCornersAll);
+                drawList.AddRectFilled(topLeft + barFillPosOffset, filledSegmentEnd, barFillColor, cornerSize, ImDrawFlags.RoundCornersAll);
                 drawList.AddRect(topLeft, bottomRight, barBorderColor, cornerSize, ImDrawFlags.RoundCornersAll, borderThickness);
                 ImGui.End();
             }
