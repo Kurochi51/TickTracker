@@ -16,6 +16,7 @@ namespace TickTracker
         public bool AlwaysShowWithHostileTarget { get; set; }
         public bool HPVisible { get; set; }
         public bool MPVisible { get; set; }
+        public bool HideOnFullResource { get; set; }
         public Vector2 HPBarSize { get; set; } = new Vector2(190, 40);
         public Vector2 HPBarPosition { get; set; } = new Vector2(800, 500);
         public Vector4 HPBarBorderColor { get; set; } = new Vector4(0.246f, 0.262f, 0.270f, 1f);

@@ -366,6 +366,12 @@ namespace TickTracker.Windows
                     configuration.MPVisible = mpVisible;
                     configuration.Save();
                 }
+                var fullResource = configuration.HideOnFullResource;
+                if (ImGui.Checkbox("Hide bar on full resource", ref fullResource))
+                {
+                    configuration.HideOnFullResource = fullResource;
+                    configuration.Save();
+                }
                 ImGui.EndTabItem();
             }
         }

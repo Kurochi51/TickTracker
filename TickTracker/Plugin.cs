@@ -98,7 +98,7 @@ namespace TickTracker
             if (Configuration.HideOutOfCombat && !inCombat && isLoggedIn)
             {
                 var inDuty = Condition[ConditionFlag.BoundByDuty];
-                var battleTarget = clientState?.LocalPlayer?.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
+                var battleTarget = clientState.LocalPlayer?.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
                 var showingBecauseInDuty = Configuration.AlwaysShowInDuties && inDuty;
                 var showingBecauseHasTarget = Configuration.AlwaysShowWithHostileTarget && battleTarget;
                 if (!(showingBecauseInDuty || showingBecauseHasTarget))
@@ -115,6 +115,12 @@ namespace TickTracker
 
         private void FrameworkOnUpdateEvent(Framework framework)
         {
+            var now = ImGui.GetTime();
+            if (now - lastUpdate < PollingInterval)
+            {
+                return;
+            }
+            lastUpdate = now;
             isLoggedIn = clientState.IsLoggedIn;
             inCombat = Condition[ConditionFlag.InCombat];
             specialState = Condition[ConditionFlag.Occupied38];
@@ -126,21 +132,13 @@ namespace TickTracker
                 ConfigWindow.MPBarVisible = false;
                 return;
             }
-            ConfigWindow.HPBarVisible = true;
-            ConfigWindow.MPBarVisible = true;
-
-            var now = ImGui.GetTime();
-            if (now - lastUpdate < PollingInterval)
-            {
-                return;
-            }
-            lastUpdate = now;
-            if (clientState is { 
-                LocalPlayer.CurrentHp: var currentHp,
-                LocalPlayer.CurrentMp: var currentMp,
-                LocalPlayer.MaxHp: var maxHp,
-                LocalPlayer.MaxMp: var maxMp
-            })
+            if (clientState is
+                {
+                    LocalPlayer.CurrentHp: var currentHp,
+                    LocalPlayer.CurrentMp: var currentMp,
+                    LocalPlayer.MaxHp: var maxHp,
+                    LocalPlayer.MaxMp: var maxMp,
+                })
             {
                 // Since we got this far, clientState / LocalPlayer is null checked already
                 LucidDream = clientState.LocalPlayer.StatusList.Any(e => e.StatusId == 1204);
@@ -150,6 +148,16 @@ namespace TickTracker
                 currentMP = currentMp;
                 maxMP = maxMp;
 
+            }
+            if (Configuration.HideOnFullResource)
+            {
+                ConfigWindow.HPBarVisible = currentHP != maxHP;
+                ConfigWindow.MPBarVisible = currentMP != maxMP;
+            }
+            else
+            {
+                ConfigWindow.HPBarVisible = true;
+                ConfigWindow.MPBarVisible = true;
             }
             // Use FastTick only if lucid dream or a regen effect is active, and the respecitve resource isn't capped
             ConfigWindow.HPFastTick = (Regen && currentHP != maxHP);
