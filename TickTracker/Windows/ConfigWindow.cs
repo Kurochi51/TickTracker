@@ -8,34 +8,12 @@ namespace TickTracker.Windows
     public class ConfigWindow : Window, IDisposable
     {
         private static Configuration config => TickTrackerSystem.config;
-        private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
-        private const string HPBarName = "HPBar";
-        private const string MPBarName = "MPBar";
-        private double now;
-        private bool configVisible;
-        public double LastHPTick = 1, LastMPTick = 1;
-        public bool HPFastTick, MPFastTick;
-        public bool HPBarVisible { get; set; }
-        public bool MPBarVisible { get; set; }
-        public bool ConfigVisible
-        {
-            get => this.configVisible;
-            set => this.configVisible = value;
-        }
-        private readonly Vector2 barFillPosOffset = new(1, 1);
-        private readonly Vector2 barFillSizeOffset = new(-1, 0);
-        private readonly Vector2 barWindowPadding = new(8, 14);
-        private readonly Vector2 configInitialSize = new(350, 450);
-        private const ImGuiWindowFlags LockedBarFlags = ImGuiWindowFlags.NoBackground |
-                                                        ImGuiWindowFlags.NoMove |
-                                                        ImGuiWindowFlags.NoResize |
-                                                        ImGuiWindowFlags.NoNav |
-                                                        ImGuiWindowFlags.NoInputs;
 
         public ConfigWindow(Plugin plugin) : base("Timer Settings")
         {
-            Size = configInitialSize;
+            Size = new(300, 400);
             SizeCondition = ImGuiCond.Appearing;
+            Flags = ImGuiWindowFlags.NoResize;
         }
 
         public void Dispose()
@@ -45,10 +23,20 @@ namespace TickTracker.Windows
 
         public override void Draw()
         {
-            now = ImGui.GetTime();
-            //if (HPBarVisible && config.HPVisible) DrawHPBarWindow();
-            if (MPBarVisible && config.MPVisible) DrawMPBarWindow();
-            if (ConfigVisible) DrawConfigWindow();
+            var pluginEnabled = config.PluginEnabled;
+            if (ImGui.Checkbox("Enable plugin", ref pluginEnabled))
+            {
+                config.PluginEnabled = pluginEnabled;
+                config.Save();
+            }
+
+            if (ImGui.BeginTabBar("ConfigTabBar", ImGuiTabBarFlags.None))
+            {
+                DrawAppearanceTab();
+                DrawBehaviorTab();
+                ImGui.EndTabBar();
+            }
+            Close();
         }
 
         public override void OnClose()
@@ -65,133 +53,9 @@ namespace TickTracker.Windows
             if (ImGui.Button("Close"))
             {
                 config.Save();
-                configVisible = false;
+                this.IsOpen = false;
             }
             ImGui.SetCursorPos(originPos);
-        }
-
-        private void DrawHPBarWindow()
-        {
-            ImGui.SetNextWindowSize(config.HPBarSize, ImGuiCond.FirstUseEver);
-            ImGui.SetNextWindowPos(config.HPBarPosition, ImGuiCond.FirstUseEver);
-            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, barWindowPadding);
-            var windowFlags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoTitleBar;
-            if (config.LockBar) windowFlags |= LockedBarFlags;
-            if (ImGui.Begin(HPBarName, windowFlags))
-            {
-                UpdateSavedWindowConfig(ImGui.GetWindowPos(), ImGui.GetWindowSize(), "HP");
-                float progress;
-                if (HPFastTick)
-                {
-                    progress = (float)((now - LastHPTick) / FastTickInterval);
-                }
-                else
-                {
-                    progress = (float)((now - LastHPTick) / ActorTickInterval);
-                }
-                if (progress > 1)
-                {
-                    progress = 1;
-                }
-
-                // Setup bar rects
-                var topLeft = ImGui.GetWindowContentRegionMin();
-                var bottomRight = ImGui.GetWindowContentRegionMax();
-                var barWidth = bottomRight.X - topLeft.X;
-                var filledSegmentEnd = new Vector2((barWidth * progress) + barWindowPadding.X, bottomRight.Y - 1);
-
-                // Convert imgui window-space rects to screen-space
-                var windowPosition = ImGui.GetWindowPos();
-                topLeft += windowPosition;
-                bottomRight += windowPosition;
-                filledSegmentEnd += windowPosition;
-
-                // Draw main bar
-                const float cornerSize = 4f;
-                const float borderThickness = 1.35f;
-                var drawList = ImGui.GetWindowDrawList();
-                var barBackgroundColor = ImGui.GetColorU32(config.HPBarBackgroundColor);
-                var barFillColor = ImGui.GetColorU32(config.HPBarFillColor);
-                var barBorderColor = ImGui.GetColorU32(config.HPBarBorderColor);
-                drawList.AddRectFilled(topLeft + barFillPosOffset, bottomRight + barFillSizeOffset, barBackgroundColor, cornerSize, ImDrawFlags.RoundCornersAll);
-                drawList.AddRectFilled(topLeft + barFillPosOffset, filledSegmentEnd, barFillColor, cornerSize, ImDrawFlags.RoundCornersAll);
-                drawList.AddRect(topLeft, bottomRight, barBorderColor, cornerSize, ImDrawFlags.RoundCornersAll, borderThickness);
-                ImGui.End();
-            }
-            ImGui.PopStyleVar();
-        }
-
-        private void DrawMPBarWindow()
-        {
-            ImGui.SetNextWindowSize(config.MPBarSize, ImGuiCond.FirstUseEver);
-            ImGui.SetNextWindowPos(config.MPBarPosition, ImGuiCond.FirstUseEver);
-            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, barWindowPadding);
-            var windowFlags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoTitleBar;
-            if (config.LockBar) windowFlags |= LockedBarFlags;
-            if (ImGui.Begin(MPBarName, windowFlags))
-            {
-                UpdateSavedWindowConfig(ImGui.GetWindowPos(), ImGui.GetWindowSize(), "MP");
-                float progress;
-                if (MPFastTick)
-                {
-                    progress = (float)((now - LastMPTick) / FastTickInterval);
-                }
-                else
-                {
-                    progress = (float)((now - LastMPTick) / ActorTickInterval);
-                }
-                if (progress > 1)
-                {
-                    progress = 1;
-                }
-
-                // Setup bar rects
-                var topLeft = ImGui.GetWindowContentRegionMin();
-                var bottomRight = ImGui.GetWindowContentRegionMax();
-                var barWidth = bottomRight.X - topLeft.X;
-                var filledSegmentEnd = new Vector2((barWidth * progress) + barWindowPadding.X, bottomRight.Y - 1);
-
-                // Convert imgui window-space rects to screen-space
-                var windowPosition = ImGui.GetWindowPos();
-                topLeft += windowPosition;
-                bottomRight += windowPosition;
-                filledSegmentEnd += windowPosition;
-
-                // Draw main bar
-                const float cornerSize = 4f;
-                const float borderThickness = 1.35f;
-                var drawList = ImGui.GetWindowDrawList();
-                var barBackgroundColor = ImGui.GetColorU32(config.MPBarBackgroundColor);
-                var barFillColor = ImGui.GetColorU32(config.MPBarFillColor);
-                var barBorderColor = ImGui.GetColorU32(config.MPBarBorderColor);
-                drawList.AddRectFilled(topLeft + barFillPosOffset, bottomRight + barFillSizeOffset, barBackgroundColor, cornerSize, ImDrawFlags.RoundCornersAll);
-                drawList.AddRectFilled(topLeft + barFillPosOffset, filledSegmentEnd, barFillColor, cornerSize, ImDrawFlags.RoundCornersAll);
-                drawList.AddRect(topLeft, bottomRight, barBorderColor, cornerSize, ImDrawFlags.RoundCornersAll, borderThickness);
-                ImGui.End();
-            }
-            ImGui.PopStyleVar();
-        }
-
-        private void DrawConfigWindow()
-        {
-            ImGui.SetNextWindowSize(configInitialSize, ImGuiCond.Appearing);
-            ImGui.Begin("Timer Settings", ref configVisible, ImGuiWindowFlags.NoResize);
-
-            var pluginEnabled = config.PluginEnabled;
-            if (ImGui.Checkbox("Enable plugin", ref pluginEnabled))
-            {
-                config.PluginEnabled = pluginEnabled;
-                config.Save();
-            }
-
-            if (ImGui.BeginTabBar("ConfigTabBar", ImGuiTabBarFlags.None))
-            {
-                DrawAppearanceTab();
-                DrawBehaviorTab();
-                ImGui.EndTabBar();
-            }
-            Close();
-            ImGui.End();
         }
 
         private static void DrawAppearanceTab()
@@ -354,74 +218,52 @@ namespace TickTracker.Windows
         {
             ImGui.Indent();
             ImGui.Spacing();
-            var HPbarPosition = new[] { (int)config.HPBarPosition.X, (int)config.HPBarPosition.Y };
-            if (DragInput2(ref HPbarPosition, "HPPositionX", "HPPositionY", "HP Bar Position"))
+            var HPBarPos = config.HPBarPosition;
+            var HPBarSize = config.HPBarSize;
+            if (DragInput2(ref HPBarPos, "HPPositionX", "HPPositionY", "HP Bar Position"))
             {
-                config.HPBarPosition = new Vector2(HPbarPosition[0], HPbarPosition[1]);
-                ImGui.SetWindowPos(HPBarName, config.HPBarPosition);
+                Utilities.UpdateWindowConfig(HPBarPos, HPBarSize, WindowType.HpWindow);
             }
 
-            var HPbarSize = new[] { (int)config.HPBarSize.X, (int)config.HPBarSize.Y };
-            if (DragInput2(ref HPbarSize, "HPSizeX", "HPSizeY", "HP Bar Size"))
+            if (DragInput2(ref HPBarSize, "HPSizeX", "HPSizeY", "HP Bar Size"))
             {
-                config.HPBarSize = new Vector2(HPbarSize[0], HPbarSize[1]);
-                ImGui.SetWindowSize(HPBarName, config.HPBarSize);
+                Utilities.UpdateWindowConfig(HPBarPos, HPBarSize, WindowType.HpWindow);
             }
+
             ImGui.Spacing();
 
-            var MPbarPosition = new[] { (int)config.MPBarPosition.X, (int)config.MPBarPosition.Y };
-            if (DragInput2(ref MPbarPosition, "MPPositionX", "MPPositionY", "MP Bar Position"))
+            var MPBarPos = config.MPBarPosition;
+            var MPBarSize = config.MPBarSize;
+            if (DragInput2(ref MPBarPos, "MPPositionX", "MPPositionY", "MP Bar Position"))
             {
-                config.MPBarPosition = new Vector2(MPbarPosition[0], MPbarPosition[1]);
-                ImGui.SetWindowPos(MPBarName, config.MPBarPosition);
+                Utilities.UpdateWindowConfig(MPBarPos, MPBarSize, WindowType.MpWindow);
             }
 
-            var MPbarSize = new[] { (int)config.MPBarSize.X, (int)config.MPBarSize.Y };
-            if (DragInput2(ref MPbarSize, "MPSizeX", "MPSizeY", "MP Bar Size"))
+            if (DragInput2(ref MPBarSize, "MPSizeX", "MPSizeY", "MP Bar Size"))
             {
-                config.MPBarSize = new Vector2(MPbarSize[0], MPbarSize[1]);
-                ImGui.SetWindowSize(MPBarName, config.MPBarSize);
+                Utilities.UpdateWindowConfig(MPBarPos, MPBarSize, WindowType.MpWindow);
             }
             ImGui.Spacing();
             ImGui.Unindent();
         }
 
-        private static void UpdateSavedWindowConfig(Vector2 currentPos, Vector2 currentSize, string val)
-        {
-            if (config.LockBar ||
-                (currentPos.Equals(config.HPBarPosition) &&
-                currentSize.Equals(config.HPBarSize)) ||
-                (currentPos.Equals(config.MPBarPosition) &&
-                currentSize.Equals(config.MPBarSize)))
-            {
-                return;
-            }
-            if (val.Equals("HP"))
-            {
-                config.HPBarPosition = currentPos;
-                config.HPBarSize = currentSize;
-            }
-            else if (val.Equals("MP"))
-            {
-                config.MPBarPosition = currentPos;
-                config.MPBarSize = currentSize;
-            }
-            config.Save();
-        }
-
-        private static bool DragInput2(ref int[] vector, string label1, string label2, string description)
+        private static bool DragInput2(ref Vector2 vector, string label1, string label2, string description)
         {
             var change = false;
+            var x = (int)vector.X;
+            var y = (int)vector.Y;
             ImGui.PushItemWidth(ImGui.GetContentRegionMax().X / 3.5f);
-            if (ImGui.DragInt($"##{label1}", ref vector[0]))
+            if (ImGui.DragInt($"##{label1}", ref x))
             {
+                vector.X = x;
                 change = true;
             }
             ImGui.PopItemWidth();
             ImGui.SameLine();
             ImGui.PushItemWidth(ImGui.GetContentRegionMax().X / 3.5f);
-            if (ImGui.DragInt($"##{label2}", ref vector[1]))
+            if (ImGui.DragInt($"##{label2}", ref y))
             {
+                vector.Y = y;
                 change = true;
             }
             ImGui.PopItemWidth();

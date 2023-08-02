@@ -1,22 +1,57 @@
-using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Interface.Windowing;
+using ImGuiNET;
 using System;
+using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace TickTracker;
 
 public class Utilities
 {
+    private static Configuration config => TickTrackerSystem.config;
+
     public static bool WindowCondition(WindowType type)
     {
-        if (!TickTrackerSystem.config.PluginEnabled || !TickTrackerSystem.config.HPVisible)
+        if (!config.PluginEnabled)
         {
             return false;
         }
         var DisplayThisWindow = type switch
         {
-            WindowType.HpWindow => TickTrackerSystem.config.HPVisible,
-            WindowType.MpWindow => TickTrackerSystem.config.MPVisible,
+            WindowType.HpWindow => config.HPVisible,
+            WindowType.MpWindow => config.MPVisible,
             _ => throw new Exception("Unknown Window")
         };
-        return true;
+        return DisplayThisWindow;
+    }
+
+    public static void UpdateWindowConfig(Vector2 currentPos, Vector2 currentSize, WindowType window)
+    {
+        if (window == WindowType.HpWindow)
+        {
+            if (!currentPos.Equals(config.HPBarPosition))
+            {
+                config.HPBarPosition = currentPos;
+                config.Save();
+            }
+            if (!currentSize.Equals(config.HPBarSize))
+            {
+                config.HPBarSize = currentSize;
+                config.Save();
+            }
+        }
+        if (window == WindowType.MpWindow)
+        {
+            if (!currentPos.Equals(config.MPBarPosition))
+            {
+                config.MPBarPosition = currentPos;
+                config.Save();
+            }
+            if (!currentSize.Equals(config.MPBarSize))
+            {
+                config.MPBarSize = currentSize;
+                config.Save();
+            }
+        }
     }
 }

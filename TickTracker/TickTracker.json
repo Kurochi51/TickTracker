@@ -2,7 +2,7 @@
     "Author": "Kurochi",
     "Name": "Tick Tracker",
     "Punchline": "Tracks the current tick for HP/MP regen",
-    "Description": "Customizable bar that indicates the tick progress of HP/MP regen",
+    "Description": "Customizable bars that indicate the tick progress of HP/MP regen",
     "InternalName": "TickTracker",
     "ApplicableVersion": "any",
     "Tags": [

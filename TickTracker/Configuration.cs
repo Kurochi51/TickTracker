@@ -3,7 +3,6 @@ using System.Numerics;
 
 namespace TickTracker;
 
-//[Serializable]
 public class Configuration : IPluginConfiguration
 {
     public int Version { get; set; } = 0;
@@ -27,25 +26,6 @@ public class Configuration : IPluginConfiguration
     public Vector4 MPBarBackgroundColor = new(0f, 0f, 0f, 1f);
     public Vector4 MPBarFillColor = new(0.753f, 0.271f, 0.482f, 1f);
 
-    /*// the below exist just to make saving less cumbersome
-    [NonSerialized]
-    private DalamudPluginInterface? pluginInterface;
-
-    public void Initialize(DalamudPluginInterface pluginInterface)
-    {
-        this.pluginInterface = pluginInterface;
-    }*/
-
     public void Save() => Services.PluginInterface.SavePluginConfig(this);
-    /*{
-        this.pluginInterface!.SavePluginConfig(this);
-    }*/
-    /*public void ResetPropertyToDefault(string colorProp)
-    {
-        var configType = this.GetType();
-        var instance = Activator.CreateInstance(configType);
-        var defaultValue = configType.GetProperty(colorProp)?.GetValue(instance);
-        configType.GetProperty(colorProp)?.SetValue(this, defaultValue);
-        this.Save();
-    }*/
+
 }

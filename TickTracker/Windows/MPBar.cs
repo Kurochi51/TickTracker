@@ -2,19 +2,17 @@ using Dalamud.Interface.Windowing;
 using System;
 using System.Numerics;
 using ImGuiNET;
-using Dalamud.Game.ClientState.Conditions;
-using Dalamud.Game.ClientState.Objects.Enums;
 
 namespace TickTracker.Windows;
 
-public class HPBar : Window, IDisposable
+public class MPBar : Window, IDisposable
 {
     private static Configuration config => TickTrackerSystem.config;
-    private readonly WindowType window = WindowType.HpWindow;
+    private readonly WindowType window = WindowType.MpWindow;
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
     private double now;
-    public double LastHPTick = 1;
-    public bool HPFastTick;
+    public double LastMPTick = 1;
+    public bool MPFastTick;
     private readonly Vector2 barFillPosOffset = new(1, 1);
     private readonly Vector2 barFillSizeOffset = new(-1, 0);
     private readonly Vector2 barWindowPadding = new(8, 14);
@@ -28,12 +26,12 @@ public class HPBar : Window, IDisposable
                                                     ImGuiWindowFlags.NoResize |
                                                     ImGuiWindowFlags.NoNav |
                                                     ImGuiWindowFlags.NoInputs;
-    public HPBar() : base ("HPBarWindow")
+    public MPBar() : base("MPBarWindow")
     {
-        Size = config.HPBarSize;
+        Size = config.MPBarSize;
         SizeCondition = ImGuiCond.Once;
 
-        Position = config.HPBarPosition;
+        Position = config.MPBarPosition;
         PositionCondition = ImGuiCond.Once;
     }
 
@@ -43,7 +41,7 @@ public class HPBar : Window, IDisposable
         {
             return false;
         }
-        if (!Utilities.WindowCondition(WindowType.HpWindow))
+        if (!Utilities.WindowCondition(WindowType.MpWindow))
         {
             return false;
         }
@@ -65,13 +63,13 @@ public class HPBar : Window, IDisposable
     {
         UpdateWindow();
         float progress;
-        if (HPFastTick)
+        if (MPFastTick)
         {
-            progress = (float)((now - LastHPTick) / FastTickInterval);
+            progress = (float)((now - LastMPTick) / FastTickInterval);
         }
         else
         {
-            progress = (float)((now - LastHPTick) / ActorTickInterval);
+            progress = (float)((now - LastMPTick) / ActorTickInterval);
         }
         if (progress > 1)
         {
@@ -94,9 +92,9 @@ public class HPBar : Window, IDisposable
         const float cornerSize = 4f;
         const float borderThickness = 1.35f;
         var drawList = ImGui.GetWindowDrawList();
-        var barBackgroundColor = ImGui.GetColorU32(config.HPBarBackgroundColor);
-        var barFillColor = ImGui.GetColorU32(config.HPBarFillColor);
-        var barBorderColor = ImGui.GetColorU32(config.HPBarBorderColor);
+        var barBackgroundColor = ImGui.GetColorU32(config.MPBarBackgroundColor);
+        var barFillColor = ImGui.GetColorU32(config.MPBarFillColor);
+        var barBorderColor = ImGui.GetColorU32(config.MPBarBorderColor);
         drawList.AddRectFilled(topLeft + barFillPosOffset, bottomRight + barFillSizeOffset, barBackgroundColor, cornerSize, ImDrawFlags.RoundCornersAll);
         drawList.AddRectFilled(topLeft + barFillPosOffset, filledSegmentEnd, barFillColor, cornerSize, ImDrawFlags.RoundCornersAll);
         drawList.AddRect(topLeft, bottomRight, barBorderColor, cornerSize, ImDrawFlags.RoundCornersAll, borderThickness);
@@ -121,13 +119,13 @@ public class HPBar : Window, IDisposable
         }
         else
         {
-            if (windowPos != config.HPBarPosition)
+            if (windowPos != config.MPBarPosition)
             {
-                ImGui.SetWindowPos(config.HPBarPosition);
+                ImGui.SetWindowPos(config.MPBarPosition);
             }
-            if (windowSize != config.HPBarSize)
+            if (windowSize != config.MPBarSize)
             {
-                ImGui.SetWindowSize(config.HPBarSize);
+                ImGui.SetWindowSize(config.MPBarSize);
             }
         }
     }

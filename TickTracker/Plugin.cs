@@ -9,6 +9,8 @@ using ImGuiNET;
 using TickTracker.Windows;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
+using System.Diagnostics;
 
 namespace TickTracker
 {
@@ -18,7 +20,8 @@ namespace TickTracker
         private const string CommandName = "/tick";
         public WindowSystem WindowSystem = new("TickTracker");
         private ConfigWindow ConfigWindow { get; init; }
-        private HPBar HPBar { get; init; }
+        private HPBar HPBarWindow { get; init; }
+        private MPBar MPBarWindow { get; init; }
         private static Configuration config => TickTrackerSystem.config;
         private readonly HashSet<uint> regenStatusID = new()
         {
@@ -38,8 +41,8 @@ namespace TickTracker
             2637,
             2938,
         };
-        private bool inCombat, isLoggedIn, specialState;
-        private double lastUpdate = 0, lastHPTickTime = 1, lastMPTickTime = 1;
+        private bool inCombat, specialState, inDuty;
+        private double lastHPTickTime = 1, lastMPTickTime = 1;
         private int lastHPValue = -1, lastMPValue = -1;
         private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
         private const double PollingInterval = 1d / 30;
@@ -53,15 +56,17 @@ namespace TickTracker
             lastHPTickTime = ImGui.GetTime();
             lastMPTickTime = ImGui.GetTime();
             ConfigWindow = new ConfigWindow(this);
-            HPBar = new HPBar();
+            HPBarWindow = new HPBar();
+            MPBarWindow = new MPBar();
             WindowSystem.AddWindow(ConfigWindow);
-            WindowSystem.AddWindow(HPBar);
+            WindowSystem.AddWindow(HPBarWindow);
+            WindowSystem.AddWindow(MPBarWindow);
 
             Services.CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
             {
                 HelpMessage = "Open or close Tick Tracker's config window."
             });
-            Services.PluginInterface.UiBuilder.Draw += ConfigWindow.Draw;
+            Services.PluginInterface.UiBuilder.Draw += DrawUI;
             Services.PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
             Services.Framework.Update += FrameworkOnUpdateEvent;
             Services.ClientState.TerritoryChanged += TerritoryChanged;
@@ -75,22 +80,16 @@ namespace TickTracker
             return true;
         }
 
-        private bool PluginEnabled()
+        private bool PluginEnabled(bool enemy)
         {
-            if (config.HideOutOfCombat && !inCombat && isLoggedIn)
+            if (config.HideOutOfCombat && !inCombat)
             {
-                var inDuty = Services.Condition[ConditionFlag.BoundByDuty];
-                var battleTarget = Services.ClientState.LocalPlayer?.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
                 var showingBecauseInDuty = config.AlwaysShowInDuties && inDuty;
-                var showingBecauseHasTarget = config.AlwaysShowWithHostileTarget && battleTarget;
+                var showingBecauseHasTarget = config.AlwaysShowWithHostileTarget && enemy;
                 if (!(showingBecauseInDuty || showingBecauseHasTarget))
                 {
                     return false;
                 }
-            }
-            if (!isLoggedIn)
-            {
-                return false;
             }
             return config.PluginEnabled;
         }
@@ -98,87 +97,73 @@ namespace TickTracker
         private void FrameworkOnUpdateEvent(Framework framework)
         {
             var now = ImGui.GetTime();
-            if (now - lastUpdate < PollingInterval)
+            if (Services.ClientState is { IsLoggedIn: false })
             {
                 return;
             }
-            if (Services.ClientState is { IsLoggedIn: var loggedIn })
-            {
-                isLoggedIn = loggedIn;
-                if (!isLoggedIn)
-                {
-                    return;
-                }
-            }
-            lastUpdate = now;
             var LucidDream = false;
             var Regen = false;
             var Target = false;
             if (Services.ClientState is { LocalPlayer: { } player })
             {
-                // Since we got this far, clientState / LocalPlayer is null checked already
                 LucidDream = player.StatusList.Any(e => e.StatusId == 1204);
                 Regen = player.StatusList.Any(e => regenStatusID.Contains(e.StatusId));
                 Target = player.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
                 inCombat = Services.Condition[ConditionFlag.InCombat];
                 specialState = Services.Condition[ConditionFlag.Occupied38];
+                inDuty = Services.Condition[ConditionFlag.BoundByDuty];
                 currentHP = player.CurrentHp;
                 maxHP = player.MaxHp;
                 currentMP = player.CurrentMp;
                 maxMP = player.MaxMp;
             }
-            if (!PluginEnabled() || !IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || specialState)
-            {
-                HPBar.IsOpen = false;
-                ConfigWindow.HPBarVisible = false;
-                ConfigWindow.MPBarVisible = false;
-                return;
-            }
-            if (config.HideOnFullResource)
-            {
-                if ((config.AlwaysShowInCombat && inCombat) || 
-                    (config.AlwaysShowWithHostileTarget && Target) || 
-                    (config.AlwaysShowInDuties && Services.Condition[ConditionFlag.BoundByDuty]))
-                {
-                    //ConfigWindow.HPBarVisible = true;
-                    HPBar.IsOpen = true;
-                    ConfigWindow.MPBarVisible = true;
-                }
-                else
-                {
-                    HPBar.IsOpen = currentHP != maxHP;
-                    //ConfigWindow.HPBarVisible = currentHP != maxHP;
-                    ConfigWindow.MPBarVisible = currentMP != maxMP;
-                }
-            }
             else
             {
-                HPBar.IsOpen = true;
-                //ConfigWindow.HPBarVisible = true;
-                ConfigWindow.MPBarVisible = true;
+                return;
             }
-            // Use FastTick only if lucid dream or a regen effect is active, and the respecitve resource isn't capped
-            ConfigWindow.HPFastTick = (Regen && currentHP != maxHP);
-            ConfigWindow.MPFastTick = (LucidDream && currentMP != maxMP);
+            if (!PluginEnabled(Target) || !IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || specialState)
+            {
+                HPBarWindow.IsOpen = false;
+                MPBarWindow.IsOpen = false;
+                return;
+            }
+            var shouldShowHPBar = !config.HideOnFullResource || 
+                                (config.AlwaysShowInCombat && inCombat) ||
+                                (config.AlwaysShowWithHostileTarget && Target) ||
+                                (config.AlwaysShowInDuties && Services.Condition[ConditionFlag.BoundByDuty]);
+            var shouldShowMPBar = !config.HideOnFullResource || 
+                                (config.AlwaysShowInCombat && inCombat) ||
+                                (config.AlwaysShowWithHostileTarget && Target) ||
+                                (config.AlwaysShowInDuties && Services.Condition[ConditionFlag.BoundByDuty]);
+            HPBarWindow.IsOpen = shouldShowHPBar || (currentHP != maxHP);
+            MPBarWindow.IsOpen = shouldShowMPBar || (currentMP != maxMP);
+            ProcessTick(now, Regen, LucidDream);
+        }
+
+        private void ProcessTick(double currentTime, bool regen, bool lucid)
+        {
+            // Use FastTick only if lucid dream or a regen effect is active
+            HPBarWindow.HPFastTick = (regen && currentHP != maxHP);
+            MPBarWindow.MPFastTick = (lucid && currentMP != maxMP);
             if (lastHPValue < currentHP)
             {
-                lastHPTickTime = now;
+                lastHPTickTime = currentTime;
             }
-            else if (lastHPTickTime + (ConfigWindow.HPFastTick ? FastTickInterval : ActorTickInterval) <= now)
+            else if (lastHPTickTime + (HPBarWindow.HPFastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
             {
-                lastHPTickTime += ConfigWindow.HPFastTick ? FastTickInterval : ActorTickInterval;
+                lastHPTickTime += HPBarWindow.HPFastTick ? FastTickInterval : ActorTickInterval;
             }
 
             if (lastMPValue < currentMP)
             {
-                lastMPTickTime = now;
+                lastMPTickTime = currentTime;
             }
-            else if (lastMPTickTime + (ConfigWindow.MPFastTick ? FastTickInterval : ActorTickInterval) <= now)
+            else if (lastMPTickTime + (MPBarWindow.MPFastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
             {
-                lastMPTickTime += ConfigWindow.MPFastTick ? FastTickInterval : ActorTickInterval;
+                lastMPTickTime += MPBarWindow.MPFastTick ? FastTickInterval : ActorTickInterval;
             }
-            ConfigWindow.LastHPTick = lastHPTickTime;
-            ConfigWindow.LastMPTick = lastMPTickTime;
+            HPBarWindow.LastHPTick = lastHPTickTime;
+            MPBarWindow.LastMPTick = lastMPTickTime;
             lastHPValue = (int)currentHP;
             lastMPValue = (int)currentMP;
         }
@@ -192,7 +177,7 @@ namespace TickTracker
         public void Dispose()
         {
             WindowSystem.RemoveAllWindows();
-            HPBar.Dispose();
+            HPBarWindow.Dispose();
             ConfigWindow.Dispose();
             Services.PluginInterface.UiBuilder.Draw -= ConfigWindow.Draw;
             Services.PluginInterface.UiBuilder.OpenConfigUi -= DrawConfigUI;
@@ -204,13 +189,16 @@ namespace TickTracker
         private void OnCommand(string command, string args)
         {
             // in response to the slash command, just display our main ui
-            ConfigWindow.ConfigVisible = !ConfigWindow.ConfigVisible;
             ConfigWindow.Toggle();
+        }
+
+        private void DrawUI()
+        {
+            WindowSystem.Draw();
         }
 
         public void DrawConfigUI()
         {
-            ConfigWindow.ConfigVisible = !ConfigWindow.ConfigVisible;
             ConfigWindow.Toggle();
         }
     }
