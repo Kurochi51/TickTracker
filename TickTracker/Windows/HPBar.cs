@@ -5,7 +5,7 @@ using ImGuiNET;
 
 namespace TickTracker.Windows;
 
-public class HPBar : Window
+public class HPBar : Window, IDisposable
 {
     private static Configuration config => TickTrackerSystem.config;
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;

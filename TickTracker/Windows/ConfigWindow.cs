@@ -46,7 +46,7 @@ namespace TickTracker.Windows
         public override void Draw()
         {
             now = ImGui.GetTime();
-            if (HPBarVisible && config.HPVisible) DrawHPBarWindow();
+            //if (HPBarVisible && config.HPVisible) DrawHPBarWindow();
             if (MPBarVisible && config.MPVisible) DrawMPBarWindow();
             if (ConfigVisible) DrawConfigWindow();
         }
