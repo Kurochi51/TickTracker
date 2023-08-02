@@ -51,6 +51,11 @@ namespace TickTracker.Windows
             if (ConfigVisible) DrawConfigWindow();
         }
 
+        public override void OnClose()
+        {
+            config.Save();
+        }
+
         private void Close()
         {
             var originPos = ImGui.GetCursorPos();

@@ -18,6 +18,7 @@ namespace TickTracker
         private const string CommandName = "/tick";
         public WindowSystem WindowSystem = new("TickTracker");
         private ConfigWindow ConfigWindow { get; init; }
+        private HPBar HPBar { get; init; }
         private static Configuration config => TickTrackerSystem.config;
         private readonly HashSet<uint> regenStatusID = new()
         {
@@ -43,24 +44,18 @@ namespace TickTracker
         private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
         private const double PollingInterval = 1d / 30;
         private uint currentHP = 1, currentMP = 1, maxHP = 2, maxMP = 2;
-        //[PluginService] public static IGameGui GameGui { get; private set; } = null!;
         private static AtkUnitBase* NameplateAddon => (AtkUnitBase*)Services.GameGui.GetAddonByName("NamePlate");
 
         public Plugin(DalamudPluginInterface pluginInterface)
         {
             pluginInterface.Create<Services>();
             pluginInterface.Create<TickTrackerSystem>();
-            /*this.PluginInterface = pluginInterface;
-            this.CommandManager = commandManager;
-            this.Framework = framework;
-            this.Condition = condition;
-            this.clientState = clientState;*/
             lastHPTickTime = ImGui.GetTime();
             lastMPTickTime = ImGui.GetTime();
-            //Configuration = Services.PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-            //Configuration.Initialize(PluginInterface);
-
             ConfigWindow = new ConfigWindow(this);
+            HPBar = new HPBar();
+            WindowSystem.AddWindow(ConfigWindow);
+            WindowSystem.AddWindow(HPBar);
 
             Services.CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
             {
@@ -134,6 +129,7 @@ namespace TickTracker
             }
             if (!PluginEnabled() || !IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || specialState)
             {
+                HPBar.IsOpen = false;
                 ConfigWindow.HPBarVisible = false;
                 ConfigWindow.MPBarVisible = false;
                 return;
@@ -144,18 +140,21 @@ namespace TickTracker
                     (config.AlwaysShowWithHostileTarget && Target) || 
                     (config.AlwaysShowInDuties && Services.Condition[ConditionFlag.BoundByDuty]))
                 {
-                    ConfigWindow.HPBarVisible = true;
+                    //ConfigWindow.HPBarVisible = true;
+                    HPBar.IsOpen = true;
                     ConfigWindow.MPBarVisible = true;
                 }
                 else
                 {
-                    ConfigWindow.HPBarVisible = currentHP != maxHP;
+                    HPBar.IsOpen = currentHP != maxHP;
+                    //ConfigWindow.HPBarVisible = currentHP != maxHP;
                     ConfigWindow.MPBarVisible = currentMP != maxMP;
                 }
             }
             else
             {
-                ConfigWindow.HPBarVisible = true;
+                HPBar.IsOpen = true;
+                //ConfigWindow.HPBarVisible = true;
                 ConfigWindow.MPBarVisible = true;
             }
             // Use FastTick only if lucid dream or a regen effect is active, and the respecitve resource isn't capped
@@ -193,6 +192,7 @@ namespace TickTracker
         public void Dispose()
         {
             WindowSystem.RemoveAllWindows();
+            HPBar.Dispose();
             ConfigWindow.Dispose();
             Services.PluginInterface.UiBuilder.Draw -= ConfigWindow.Draw;
             Services.PluginInterface.UiBuilder.OpenConfigUi -= DrawConfigUI;
