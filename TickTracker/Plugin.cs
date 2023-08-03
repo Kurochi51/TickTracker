@@ -192,7 +192,7 @@ namespace TickTracker
             // Use FastTick only if lucid dream or a regen effect is active
             HPBarWindow.HPFastTick = (regen && currentHP != maxHP);
             MPBarWindow.MPFastTick = (lucid && currentMP != maxMP);
-            if ((int)HPBarWindow.LastHPTick != (int)MPBarWindow.LastMPTick && (currentHP == maxHP || currentMP == maxMP) && DateTime.Now.TimeOfDay.TotalSeconds - logTime > 1)
+            /*if ((int)HPBarWindow.LastHPTick != (int)MPBarWindow.LastMPTick && (currentHP == maxHP || currentMP == maxMP) && DateTime.Now.TimeOfDay.TotalSeconds - logTime > 1)
             {
                 var yes = HPBarWindow.LastHPTick + (HPBarWindow.HPFastTick ? FastTickInterval : ActorTickInterval);
                 var hpTick = HPBarWindow.LastHPTick;
@@ -206,7 +206,7 @@ namespace TickTracker
                 PluginLog.Debug("MP: {currentMP}, lastMP: {lastMPValue}, MPTick: {mpTick}, Fast: {mpFast}", currentMP, lastMPValue, mpTick, mpFast);
                 PluginLog.Debug("Next MP Tick: {no}",no);
                 logTime = DateTime.Now.TimeOfDay.TotalSeconds;
-        }
+            }*/
 
             if (currentHP == maxHP && MPBarWindow.LastMPTick + (MPBarWindow.MPFastTick ? FastTickInterval : ActorTickInterval) <= currentTime) 
             {
