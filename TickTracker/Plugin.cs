@@ -5,12 +5,11 @@ using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using ImGuiNET;
 using TickTracker.Windows;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
-using System.Diagnostics;
+using System;
+using Dalamud.Logging;
 
 namespace TickTracker
 {
@@ -42,10 +41,9 @@ namespace TickTracker
             2938,
         };
         private bool inCombat, specialState, inDuty;
-        private double lastHPTickTime = 1, lastMPTickTime = 1;
+        private double logTime = -1;
         private int lastHPValue = -1, lastMPValue = -1;
         private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
-        private const double PollingInterval = 1d / 30;
         private uint currentHP = 1, currentMP = 1, maxHP = 2, maxMP = 2;
         private static AtkUnitBase* NameplateAddon => (AtkUnitBase*)Services.GameGui.GetAddonByName("NamePlate");
 
@@ -53,8 +51,6 @@ namespace TickTracker
         {
             pluginInterface.Create<Services>();
             pluginInterface.Create<TickTrackerSystem>();
-            lastHPTickTime = ImGui.GetTime();
-            lastMPTickTime = ImGui.GetTime();
             ConfigWindow = new ConfigWindow(this);
             HPBarWindow = new HPBar();
             MPBarWindow = new MPBar();
@@ -96,14 +92,14 @@ namespace TickTracker
 
         private void FrameworkOnUpdateEvent(Framework framework)
         {
-            var now = ImGui.GetTime();
+            var now = DateTime.Now.TimeOfDay.TotalSeconds;
             if (Services.ClientState is { IsLoggedIn: false })
             {
                 return;
             }
-            var LucidDream = false;
-            var Regen = false;
-            var Target = false;
+            bool LucidDream;
+            bool Regen;
+            bool Target;
             if (Services.ClientState is { LocalPlayer: { } player })
             {
                 LucidDream = player.StatusList.Any(e => e.StatusId == 1204);
@@ -124,7 +120,7 @@ namespace TickTracker
             if (!PluginEnabled(Target) || !IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || specialState)
             {
                 HPBarWindow.IsOpen = false;
-                MPBarWindow.IsOpen = false;
+                MPBarWindow.IsOpen = false; 
                 return;
             }
             var shouldShowHPBar = !config.HideOnFullResource || 
@@ -137,7 +133,58 @@ namespace TickTracker
                                 (config.AlwaysShowInDuties && Services.Condition[ConditionFlag.BoundByDuty]);
             HPBarWindow.IsOpen = shouldShowHPBar || (currentHP != maxHP);
             MPBarWindow.IsOpen = shouldShowMPBar || (currentMP != maxMP);
+            //lastHPValue = HPBarWindow.ProcessHPTick(now, Regen, currentHP, maxHP, lastHPValue, MPBarWindow.LastMPTick, MPBarWindow.MPFastTick);
+            //lastMPValue = MPBarWindow.ProcessMPTick(now, LucidDream, currentMP, maxMP, lastMPValue, HPBarWindow.LastHPTick, HPBarWindow.HPFastTick);
+            //HPBarWindow.UpdateAvailable = true;
+            //MPBarWindow.UpdateAvailable = true;
+            //SyncBars(now, Regen, LucidDream);
             ProcessTick(now, Regen, LucidDream);
+        }
+
+        private void SyncBars(double currentTime, bool regen, bool lucid)
+        {
+            HPBarWindow.HPFastTick = (regen && currentHP != maxHP);
+            MPBarWindow.MPFastTick = (lucid && currentMP != maxMP);
+            if ((int)HPBarWindow.LastHPTick != (int)MPBarWindow.LastMPTick && (currentHP == maxHP || currentMP == maxMP) && DateTime.Now.TimeOfDay.TotalSeconds - logTime > 1)
+            {
+                var yes = HPBarWindow.LastHPTick + (HPBarWindow.HPFastTick ? FastTickInterval : ActorTickInterval);
+                var hpTick = HPBarWindow.LastHPTick;
+                var hpFast = HPBarWindow.HPFastTick;
+                var no = MPBarWindow.LastMPTick + (MPBarWindow.MPFastTick ? FastTickInterval : ActorTickInterval);
+                var mpTick = MPBarWindow.LastMPTick;
+                var mpFast = MPBarWindow.MPFastTick;
+                PluginLog.Debug("Different ticks!");
+                PluginLog.Debug("HP: {HP}, lastHP: {lastHP}, HPTick: {hpTick}, Fast: {hpFast}", currentHP, lastHPValue, hpTick, hpFast);
+                PluginLog.Debug("Next HP Tick: {yes}", yes);
+                PluginLog.Debug("MP: {MP}, lastMP: {lastMP}, MPTick: {mpTick}, Fast: {mpFast}", currentMP, lastMPValue, mpTick, mpFast);
+                PluginLog.Debug("Next MP Tick: {no}", no);
+                logTime = DateTime.Now.TimeOfDay.TotalSeconds;
+            }
+            if (currentHP == maxHP && MPBarWindow.LastMPTick + (MPBarWindow.MPFastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
+            {
+                if (lastHPValue < currentHP)
+                {
+                    HPBarWindow.LastHPTick = currentTime;
+                }
+                else
+                {
+                    HPBarWindow.LastHPTick = MPBarWindow.LastMPTick + (MPBarWindow.MPFastTick ? FastTickInterval : ActorTickInterval);
+                }
+            }
+
+            if (currentMP == maxMP && HPBarWindow.LastHPTick + (HPBarWindow.HPFastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
+            {
+                if (lastMPValue < currentMP)
+                {
+                    MPBarWindow.LastMPTick = currentTime;
+                }
+                else
+                {
+                    MPBarWindow.LastMPTick = HPBarWindow.LastHPTick + (HPBarWindow.HPFastTick ? FastTickInterval : ActorTickInterval);
+                }
+            }
+            HPBarWindow.UpdateAvailable = true;
+            MPBarWindow.UpdateAvailable = true;
         }
 
         private void ProcessTick(double currentTime, bool regen, bool lucid)
@@ -145,25 +192,61 @@ namespace TickTracker
             // Use FastTick only if lucid dream or a regen effect is active
             HPBarWindow.HPFastTick = (regen && currentHP != maxHP);
             MPBarWindow.MPFastTick = (lucid && currentMP != maxMP);
-            if (lastHPValue < currentHP)
+            if ((int)HPBarWindow.LastHPTick != (int)MPBarWindow.LastMPTick && (currentHP == maxHP || currentMP == maxMP) && DateTime.Now.TimeOfDay.TotalSeconds - logTime > 1)
             {
-                lastHPTickTime = currentTime;
+                var yes = HPBarWindow.LastHPTick + (HPBarWindow.HPFastTick ? FastTickInterval : ActorTickInterval);
+                var hpTick = HPBarWindow.LastHPTick;
+                var hpFast = HPBarWindow.HPFastTick;
+                var no = MPBarWindow.LastMPTick + (MPBarWindow.MPFastTick ? FastTickInterval : ActorTickInterval);
+                var mpTick = MPBarWindow.LastMPTick;
+                var mpFast = MPBarWindow.MPFastTick;
+                PluginLog.Debug("Different ticks!");
+                PluginLog.Debug("HP: {currentHP}, lastHP: {lastHPValue}, HPTick: {hpTick}, Fast: {hpFast}", currentHP, lastHPValue, hpTick, hpFast);
+                PluginLog.Debug("Next HP Tick: {yes}",yes);
+                PluginLog.Debug("MP: {currentMP}, lastMP: {lastMPValue}, MPTick: {mpTick}, Fast: {mpFast}", currentMP, lastMPValue, mpTick, mpFast);
+                PluginLog.Debug("Next MP Tick: {no}",no);
+                logTime = DateTime.Now.TimeOfDay.TotalSeconds;
+        }
+
+            if (currentHP == maxHP && MPBarWindow.LastMPTick + (MPBarWindow.MPFastTick ? FastTickInterval : ActorTickInterval) <= currentTime) 
+            {
+                if (lastHPValue < currentHP)
+                {
+                    HPBarWindow.LastHPTick = currentTime;
+                }
+                else
+                {
+                    HPBarWindow.LastHPTick = MPBarWindow.LastMPTick + (MPBarWindow.MPFastTick ? FastTickInterval : ActorTickInterval);
+                }
             }
-            else if (lastHPTickTime + (HPBarWindow.HPFastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
+            else if (lastHPValue < currentHP)
             {
-                lastHPTickTime += HPBarWindow.HPFastTick ? FastTickInterval : ActorTickInterval;
+                HPBarWindow.LastHPTick = currentTime;
+            }
+            else if (HPBarWindow.LastHPTick + (HPBarWindow.HPFastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
+            {
+                HPBarWindow.LastHPTick += HPBarWindow.HPFastTick ? FastTickInterval : ActorTickInterval;
             }
 
-            if (lastMPValue < currentMP)
+            if (currentMP == maxMP && HPBarWindow.LastHPTick + (HPBarWindow.HPFastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
             {
-                lastMPTickTime = currentTime;
+                if (lastMPValue < currentMP)
+                {
+                    MPBarWindow.LastMPTick = currentTime;
+                }
+                else
+                {
+                    MPBarWindow.LastMPTick = HPBarWindow.LastHPTick + (HPBarWindow.HPFastTick ? FastTickInterval : ActorTickInterval);
+                }
             }
-            else if (lastMPTickTime + (MPBarWindow.MPFastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
+            else if (lastMPValue < currentMP)
             {
-                lastMPTickTime += MPBarWindow.MPFastTick ? FastTickInterval : ActorTickInterval;
+                MPBarWindow.LastMPTick = currentTime;
             }
-            HPBarWindow.LastHPTick = lastHPTickTime;
-            MPBarWindow.LastMPTick = lastMPTickTime;
+            else if (MPBarWindow.LastMPTick + (MPBarWindow.MPFastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
+            {
+                MPBarWindow.LastMPTick += MPBarWindow.MPFastTick ? FastTickInterval : ActorTickInterval;
+            }
             lastHPValue = (int)currentHP;
             lastMPValue = (int)currentMP;
         }
@@ -178,8 +261,9 @@ namespace TickTracker
         {
             WindowSystem.RemoveAllWindows();
             HPBarWindow.Dispose();
+            MPBarWindow.Dispose();
             ConfigWindow.Dispose();
-            Services.PluginInterface.UiBuilder.Draw -= ConfigWindow.Draw;
+            Services.PluginInterface.UiBuilder.Draw -= DrawUI;
             Services.PluginInterface.UiBuilder.OpenConfigUi -= DrawConfigUI;
             Services.CommandManager.RemoveHandler(CommandName);
             Services.Framework.Update -= FrameworkOnUpdateEvent;

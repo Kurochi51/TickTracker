@@ -2,8 +2,6 @@ using Dalamud.Interface.Windowing;
 using System;
 using System.Numerics;
 using ImGuiNET;
-using Dalamud.Game.ClientState.Conditions;
-using Dalamud.Game.ClientState.Objects.Enums;
 
 namespace TickTracker.Windows;
 
@@ -12,9 +10,9 @@ public class HPBar : Window, IDisposable
     private static Configuration config => TickTrackerSystem.config;
     private readonly WindowType window = WindowType.HpWindow;
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
-    private double now;
+    public double now;
     public double LastHPTick = 1;
-    public bool HPFastTick;
+    public bool HPFastTick, UpdateAvailable=false;
     private readonly Vector2 barFillPosOffset = new(1, 1);
     private readonly Vector2 barFillSizeOffset = new(-1, 0);
     private readonly Vector2 barWindowPadding = new(8, 14);
@@ -58,48 +56,23 @@ public class HPBar : Window, IDisposable
             Flags |= LockedBarFlags;
         }
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, barWindowPadding);
-        now = ImGui.GetTime();
+        now = DateTime.Now.TimeOfDay.TotalSeconds;
     }
 
     public override void Draw()
     {
         UpdateWindow();
-        float progress;
-        if (HPFastTick)
+        //if(UpdateAvailable)
         {
-            progress = (float)((now - LastHPTick) / FastTickInterval);
-        }
-        else
-        {
-            progress = (float)((now - LastHPTick) / ActorTickInterval);
-        }
-        if (progress > 1)
-        {
-            progress = 1;
-        }
+            var progress = (float)((now - LastHPTick) / (HPFastTick ? FastTickInterval : ActorTickInterval));
+            if (progress > 1)
+            {
+                progress = 1;
+            }
 
-        // Setup bar rects
-        var topLeft = ImGui.GetWindowContentRegionMin();
-        var bottomRight = ImGui.GetWindowContentRegionMax();
-        var barWidth = bottomRight.X - topLeft.X;
-        var filledSegmentEnd = new Vector2((barWidth * progress) + barWindowPadding.X, bottomRight.Y - 1);
-
-        // Convert imgui window-space rects to screen-space
-        var windowPosition = ImGui.GetWindowPos();
-        topLeft += windowPosition;
-        bottomRight += windowPosition;
-        filledSegmentEnd += windowPosition;
-
-        // Draw main bar
-        const float cornerSize = 4f;
-        const float borderThickness = 1.35f;
-        var drawList = ImGui.GetWindowDrawList();
-        var barBackgroundColor = ImGui.GetColorU32(config.HPBarBackgroundColor);
-        var barFillColor = ImGui.GetColorU32(config.HPBarFillColor);
-        var barBorderColor = ImGui.GetColorU32(config.HPBarBorderColor);
-        drawList.AddRectFilled(topLeft + barFillPosOffset, bottomRight + barFillSizeOffset, barBackgroundColor, cornerSize, ImDrawFlags.RoundCornersAll);
-        drawList.AddRectFilled(topLeft + barFillPosOffset, filledSegmentEnd, barFillColor, cornerSize, ImDrawFlags.RoundCornersAll);
-        drawList.AddRect(topLeft, bottomRight, barBorderColor, cornerSize, ImDrawFlags.RoundCornersAll, borderThickness);
+            DrawProgress(progress);
+            UpdateAvailable = false;
+        }
     }
 
     public override void PostDraw()
@@ -130,6 +103,59 @@ public class HPBar : Window, IDisposable
                 ImGui.SetWindowSize(config.HPBarSize);
             }
         }
+    }
+
+    private void DrawProgress(float progress)
+    {
+        // Setup bar rects
+        var topLeft = ImGui.GetWindowContentRegionMin();
+        var bottomRight = ImGui.GetWindowContentRegionMax();
+        var barWidth = bottomRight.X - topLeft.X;
+        var filledSegmentEnd = new Vector2((barWidth * progress) + barWindowPadding.X, bottomRight.Y - 1);
+
+        // Convert imgui window-space rects to screen-space
+        var windowPosition = ImGui.GetWindowPos();
+        topLeft += windowPosition;
+        bottomRight += windowPosition;
+        filledSegmentEnd += windowPosition;
+
+        // Draw main bar
+        const float cornerSize = 4f;
+        const float borderThickness = 1.35f;
+        var drawList = ImGui.GetWindowDrawList();
+        var barBackgroundColor = ImGui.GetColorU32(config.HPBarBackgroundColor);
+        var barFillColor = ImGui.GetColorU32(config.HPBarFillColor);
+        var barBorderColor = ImGui.GetColorU32(config.HPBarBorderColor);
+        drawList.AddRectFilled(topLeft + barFillPosOffset, bottomRight + barFillSizeOffset, barBackgroundColor, cornerSize, ImDrawFlags.RoundCornersAll);
+        drawList.AddRectFilled(topLeft + barFillPosOffset, filledSegmentEnd, barFillColor, cornerSize, ImDrawFlags.RoundCornersAll);
+        drawList.AddRect(topLeft, bottomRight, barBorderColor, cornerSize, ImDrawFlags.RoundCornersAll, borderThickness);
+    }
+
+    public int ProcessHPTick(double currentTime, bool regen, double currentHP, double maxHP, int lastHPValue, double LastMPTick, bool MPFastTick)
+    {
+        // Use FastTick only if a regen effect is active
+        HPFastTick = (regen && currentHP != maxHP);
+        if (currentHP == maxHP && LastMPTick + (MPFastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
+        {
+            if (lastHPValue < currentHP)
+            {
+                LastHPTick = currentTime;
+            }
+            else
+            {
+                LastHPTick = LastMPTick + (MPFastTick ? FastTickInterval : ActorTickInterval);
+            }
+        }
+        else if (lastHPValue < currentHP)
+        {
+            LastHPTick = currentTime;
+        }
+        else if (LastHPTick + (HPFastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
+        {
+            LastHPTick += HPFastTick ? FastTickInterval : ActorTickInterval;
+        }
+        UpdateAvailable = true;
+        return (int)currentHP;
     }
 
     public void Dispose()

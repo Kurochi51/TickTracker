@@ -12,7 +12,7 @@ public class MPBar : Window, IDisposable
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
     private double now;
     public double LastMPTick = 1;
-    public bool MPFastTick;
+    public bool MPFastTick, UpdateAvailable;
     private readonly Vector2 barFillPosOffset = new(1, 1);
     private readonly Vector2 barFillSizeOffset = new(-1, 0);
     private readonly Vector2 barWindowPadding = new(8, 14);
@@ -56,48 +56,23 @@ public class MPBar : Window, IDisposable
             Flags |= LockedBarFlags;
         }
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, barWindowPadding);
-        now = ImGui.GetTime();
+        now = DateTime.Now.TimeOfDay.TotalSeconds;
     }
 
     public override void Draw()
     {
         UpdateWindow();
-        float progress;
-        if (MPFastTick)
+        //if(UpdateAvailable)
         {
-            progress = (float)((now - LastMPTick) / FastTickInterval);
-        }
-        else
-        {
-            progress = (float)((now - LastMPTick) / ActorTickInterval);
-        }
-        if (progress > 1)
-        {
-            progress = 1;
-        }
+            var progress = (float)((now - LastMPTick) / (MPFastTick ? FastTickInterval : ActorTickInterval));
+            if (progress > 1)
+            {
+                progress = 1;
+            }
 
-        // Setup bar rects
-        var topLeft = ImGui.GetWindowContentRegionMin();
-        var bottomRight = ImGui.GetWindowContentRegionMax();
-        var barWidth = bottomRight.X - topLeft.X;
-        var filledSegmentEnd = new Vector2((barWidth * progress) + barWindowPadding.X, bottomRight.Y - 1);
-
-        // Convert imgui window-space rects to screen-space
-        var windowPosition = ImGui.GetWindowPos();
-        topLeft += windowPosition;
-        bottomRight += windowPosition;
-        filledSegmentEnd += windowPosition;
-
-        // Draw main bar
-        const float cornerSize = 4f;
-        const float borderThickness = 1.35f;
-        var drawList = ImGui.GetWindowDrawList();
-        var barBackgroundColor = ImGui.GetColorU32(config.MPBarBackgroundColor);
-        var barFillColor = ImGui.GetColorU32(config.MPBarFillColor);
-        var barBorderColor = ImGui.GetColorU32(config.MPBarBorderColor);
-        drawList.AddRectFilled(topLeft + barFillPosOffset, bottomRight + barFillSizeOffset, barBackgroundColor, cornerSize, ImDrawFlags.RoundCornersAll);
-        drawList.AddRectFilled(topLeft + barFillPosOffset, filledSegmentEnd, barFillColor, cornerSize, ImDrawFlags.RoundCornersAll);
-        drawList.AddRect(topLeft, bottomRight, barBorderColor, cornerSize, ImDrawFlags.RoundCornersAll, borderThickness);
+            DrawProgress(progress);
+            UpdateAvailable = false;
+        }
     }
 
     public override void PostDraw()
@@ -128,6 +103,59 @@ public class MPBar : Window, IDisposable
                 ImGui.SetWindowSize(config.MPBarSize);
             }
         }
+    }
+
+    private void DrawProgress(float progress)
+    {
+        // Setup bar rects
+        var topLeft = ImGui.GetWindowContentRegionMin();
+        var bottomRight = ImGui.GetWindowContentRegionMax();
+        var barWidth = bottomRight.X - topLeft.X;
+        var filledSegmentEnd = new Vector2((barWidth * progress) + barWindowPadding.X, bottomRight.Y - 1);
+
+        // Convert imgui window-space rects to screen-space
+        var windowPosition = ImGui.GetWindowPos();
+        topLeft += windowPosition;
+        bottomRight += windowPosition;
+        filledSegmentEnd += windowPosition;
+
+        // Draw main bar
+        const float cornerSize = 4f;
+        const float borderThickness = 1.35f;
+        var drawList = ImGui.GetWindowDrawList();
+        var barBackgroundColor = ImGui.GetColorU32(config.MPBarBackgroundColor);
+        var barFillColor = ImGui.GetColorU32(config.MPBarFillColor);
+        var barBorderColor = ImGui.GetColorU32(config.MPBarBorderColor);
+        drawList.AddRectFilled(topLeft + barFillPosOffset, bottomRight + barFillSizeOffset, barBackgroundColor, cornerSize, ImDrawFlags.RoundCornersAll);
+        drawList.AddRectFilled(topLeft + barFillPosOffset, filledSegmentEnd, barFillColor, cornerSize, ImDrawFlags.RoundCornersAll);
+        drawList.AddRect(topLeft, bottomRight, barBorderColor, cornerSize, ImDrawFlags.RoundCornersAll, borderThickness);
+    }
+
+    public int ProcessMPTick(double currentTime, bool lucid, double currentMP, double maxMP, int lastMPValue, double LastHPTick, bool HPFastTick)
+    {
+        // Use FastTick only if lucid dream is active
+        MPFastTick = (lucid && currentMP != maxMP);
+        if (currentMP == maxMP && LastHPTick + (HPFastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
+        {
+            if (lastMPValue < currentMP)
+            {
+                LastMPTick = currentTime;
+            }
+            else
+            {
+                LastMPTick = LastHPTick + (HPFastTick ? FastTickInterval : ActorTickInterval);
+            }
+        }
+        else if (lastMPValue < currentMP)
+        {
+            LastMPTick = currentTime;
+        }
+        else if (LastMPTick + (MPFastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
+        {
+            LastMPTick += MPFastTick ? FastTickInterval : ActorTickInterval;
+        }
+        UpdateAvailable = true;
+        return (int)currentMP;
     }
 
     public void Dispose()
