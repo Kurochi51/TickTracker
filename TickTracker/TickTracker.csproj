@@ -23,7 +23,7 @@
   <ItemGroup>
     <Content Include="..\images\**">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <Visible>false</Visible>
+      <Visible>true</Visible>
     </Content>
   </ItemGroup>
 
