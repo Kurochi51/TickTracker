@@ -6,7 +6,7 @@ using Dalamud.Plugin.Services;
 
 namespace TickTracker;
 
-public class Services
+public class Service
 {
     [PluginService] public static DalamudPluginInterface PluginInterface { get; set; } = null!;
     [PluginService] public static IClientState ClientState { get; set; } = null!;

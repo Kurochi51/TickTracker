@@ -1,5 +1,6 @@
 using System;
 using System.Numerics;
+using Dalamud.Logging;
 
 namespace TickTracker;
 
@@ -13,13 +14,21 @@ public class Utilities
         {
             return false;
         }
-        var DisplayThisWindow = type switch
+        try
         {
-            WindowType.HpWindow => config.HPVisible,
-            WindowType.MpWindow => config.MPVisible,
-            _ => throw new Exception("Unknown Window")
-        };
-        return DisplayThisWindow;
+            var DisplayThisWindow = type switch
+            {
+                WindowType.HpWindow => config.HPVisible,
+                WindowType.MpWindow => config.MPVisible,
+                _ => throw new Exception("Unknown Window")
+            };
+            return DisplayThisWindow;
+        }
+        catch (Exception e)
+        {
+            PluginLog.Error("{error} triggered by {type}.", e.Message, type);
+            return false;
+        }
     }
 
     public static void UpdateWindowConfig(Vector2 currentPos, Vector2 currentSize, WindowType window)

@@ -1,7 +1,7 @@
+using ImGuiNET;
 using System;
 using System.Numerics;
 using Dalamud.Interface.Windowing;
-using ImGuiNET;
 
 namespace TickTracker.Windows
 {

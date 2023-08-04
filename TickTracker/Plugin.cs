@@ -1,16 +1,16 @@
-using Dalamud.Game;
-using Dalamud.Game.ClientState.Conditions;
-using Dalamud.Game.ClientState.Objects.Enums;
-using Dalamud.Game.Command;
-using Dalamud.Interface.Windowing;
-using Dalamud.Plugin;
-using FFXIVClientStructs.FFXIV.Component.GUI;
-using TickTracker.Windows;
-using System.Collections.Generic;
-using System.Linq;
 using System;
+using System.Linq;
+using System.Collections.Generic;
+using Dalamud.Plugin;
 using Dalamud.Logging;
 using Dalamud.Utility;
+using Dalamud.Interface.Windowing;
+using Dalamud.Game;
+using Dalamud.Game.Command;
+using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Game.ClientState.Objects.Enums;
+using FFXIVClientStructs.FFXIV.Component.GUI;
+using TickTracker.Windows;
 
 namespace TickTracker
 {
@@ -30,11 +30,11 @@ namespace TickTracker
         private int lastHPValue = -1, lastMPValue = -1;
         private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
         private uint currentHP = 1, currentMP = 1, maxHP = 2, maxMP = 2;
-        private static AtkUnitBase* NameplateAddon => (AtkUnitBase*)Services.GameGui.GetAddonByName("NamePlate");
+        private static AtkUnitBase* NameplateAddon => (AtkUnitBase*)Service.GameGui.GetAddonByName("NamePlate");
 
         public Plugin(DalamudPluginInterface pluginInterface)
         {
-            pluginInterface.Create<Services>();
+            pluginInterface.Create<Service>();
             pluginInterface.Create<TickTrackerSystem>();
             ConfigWindow = new ConfigWindow(this);
             HPBarWindow = new HPBar();
@@ -43,15 +43,15 @@ namespace TickTracker
             WindowSystem.AddWindow(HPBarWindow);
             WindowSystem.AddWindow(MPBarWindow);
 
-            Services.CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
+            Service.CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
             {
                 HelpMessage = "Open or close Tick Tracker's config window."
             });
-            Services.PluginInterface.UiBuilder.Draw += DrawUI;
-            Services.PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
-            Services.Framework.Update += FrameworkOnUpdateEvent;
-            Services.ClientState.TerritoryChanged += TerritoryChanged;
-            var y = Services.DataManager.GetExcelSheet<Lumina.Excel.GeneratedSheets.Status>();
+            Service.PluginInterface.UiBuilder.Draw += DrawUI;
+            Service.PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
+            Service.Framework.Update += FrameworkOnUpdateEvent;
+            Service.ClientState.TerritoryChanged += TerritoryChanged;
+            var y = Service.DataManager.GetExcelSheet<Lumina.Excel.GeneratedSheets.Status>();
             if (y != null)
             {
                 foreach (var stat in y)
@@ -114,21 +114,21 @@ namespace TickTracker
         private void FrameworkOnUpdateEvent(Framework framework)
         {
             var now = DateTime.Now.TimeOfDay.TotalSeconds;
-            if (Services.ClientState is { IsLoggedIn: false })
+            if (Service.ClientState is { IsLoggedIn: false })
             {
                 return;
             }
             bool LucidDream;
             bool Regen;
             bool Target;
-            if (Services.ClientState is { LocalPlayer: { } player })
+            if (Service.ClientState is { LocalPlayer: { } player })
             {
                 LucidDream = player.StatusList.Any(e => manaRegenList.Contains(e.StatusId));
                 Regen = player.StatusList.Any(e => healthRegenList.Contains(e.StatusId));
                 Target = player.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
-                inCombat = Services.Condition[ConditionFlag.InCombat];
-                specialState = Services.Condition[ConditionFlag.Occupied38];
-                inDuty = Services.Condition[ConditionFlag.BoundByDuty];
+                inCombat = Service.Condition[ConditionFlag.InCombat];
+                specialState = Service.Condition[ConditionFlag.Occupied38];
+                inDuty = Service.Condition[ConditionFlag.BoundByDuty];
                 currentHP = player.CurrentHp;
                 maxHP = player.MaxHp;
                 currentMP = player.CurrentMp;
@@ -147,11 +147,11 @@ namespace TickTracker
             var shouldShowHPBar = !config.HideOnFullResource || 
                                 (config.AlwaysShowInCombat && inCombat) ||
                                 (config.AlwaysShowWithHostileTarget && Target) ||
-                                (config.AlwaysShowInDuties && Services.Condition[ConditionFlag.BoundByDuty]);
+                                (config.AlwaysShowInDuties && Service.Condition[ConditionFlag.BoundByDuty]);
             var shouldShowMPBar = !config.HideOnFullResource || 
                                 (config.AlwaysShowInCombat && inCombat) ||
                                 (config.AlwaysShowWithHostileTarget && Target) ||
-                                (config.AlwaysShowInDuties && Services.Condition[ConditionFlag.BoundByDuty]);
+                                (config.AlwaysShowInDuties && Service.Condition[ConditionFlag.BoundByDuty]);
             HPBarWindow.IsOpen = shouldShowHPBar || (currentHP != maxHP);
             MPBarWindow.IsOpen = shouldShowMPBar || (currentMP != maxMP);
             if ((lastHPValue < currentHP && !HPBarWindow.FastTick) || (lastMPValue < currentMP && !MPBarWindow.FastTick))
@@ -216,11 +216,11 @@ namespace TickTracker
             HPBarWindow.Dispose();
             MPBarWindow.Dispose();
             ConfigWindow.Dispose();
-            Services.PluginInterface.UiBuilder.Draw -= DrawUI;
-            Services.PluginInterface.UiBuilder.OpenConfigUi -= DrawConfigUI;
-            Services.CommandManager.RemoveHandler(CommandName);
-            Services.Framework.Update -= FrameworkOnUpdateEvent;
-            Services.ClientState.TerritoryChanged -= TerritoryChanged;
+            Service.PluginInterface.UiBuilder.Draw -= DrawUI;
+            Service.PluginInterface.UiBuilder.OpenConfigUi -= DrawConfigUI;
+            Service.CommandManager.RemoveHandler(CommandName);
+            Service.Framework.Update -= FrameworkOnUpdateEvent;
+            Service.ClientState.TerritoryChanged -= TerritoryChanged;
         }
 
         private void OnCommand(string command, string args)

@@ -1,7 +1,7 @@
-using Dalamud.Interface.Windowing;
+using ImGuiNET;
 using System;
 using System.Numerics;
-using ImGuiNET;
+using Dalamud.Interface.Windowing;
 
 namespace TickTracker.Windows;
 
@@ -37,7 +37,7 @@ public class HPBar : Window, IDisposable
 
     public override bool DrawConditions()
     {
-        if (!Services.ClientState.IsLoggedIn)
+        if (!Service.ClientState.IsLoggedIn)
         {
             return false;
         }

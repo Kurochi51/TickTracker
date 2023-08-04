@@ -26,6 +26,6 @@ public class Configuration : IPluginConfiguration
     public Vector4 MPBarBackgroundColor = new(0f, 0f, 0f, 1f);
     public Vector4 MPBarFillColor = new(0.753f, 0.271f, 0.482f, 1f);
 
-    public void Save() => Services.PluginInterface.SavePluginConfig(this);
+    public void Save() => Service.PluginInterface.SavePluginConfig(this);
 
 }
