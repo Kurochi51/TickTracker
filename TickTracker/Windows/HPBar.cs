@@ -74,7 +74,6 @@ public class HPBar : Window, IDisposable
         }
 
         DrawProgress(progress);
-        UpdateAvailable = false;
     }
 
     public override void PostDraw()
