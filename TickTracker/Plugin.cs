@@ -203,7 +203,6 @@ namespace TickTracker
 
         private void OnCommand(string command, string args)
         {
-            // in response to the slash command, just display our main ui
             ConfigWindow.Toggle();
         }
 
