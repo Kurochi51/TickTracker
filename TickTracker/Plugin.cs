@@ -9,7 +9,6 @@ using TickTracker.Windows;
 using System.Collections.Generic;
 using System.Linq;
 using System;
-using Dalamud.Logging;
 
 namespace TickTracker
 {
@@ -41,7 +40,7 @@ namespace TickTracker
             2938,
         };
         private bool inCombat, specialState, inDuty;
-        private double logTime = -1;
+        private double syncValue = 1;
         private int lastHPValue = -1, lastMPValue = -1;
         private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
         private uint currentHP = 1, currentMP = 1, maxHP = 2, maxMP = 2;
@@ -133,122 +132,54 @@ namespace TickTracker
                                 (config.AlwaysShowInDuties && Services.Condition[ConditionFlag.BoundByDuty]);
             HPBarWindow.IsOpen = shouldShowHPBar || (currentHP != maxHP);
             MPBarWindow.IsOpen = shouldShowMPBar || (currentMP != maxMP);
-            //lastHPValue = HPBarWindow.ProcessHPTick(now, Regen, currentHP, maxHP, lastHPValue, MPBarWindow.LastMPTick, MPBarWindow.MPFastTick);
-            //lastMPValue = MPBarWindow.ProcessMPTick(now, LucidDream, currentMP, maxMP, lastMPValue, HPBarWindow.LastHPTick, HPBarWindow.HPFastTick);
-            //HPBarWindow.UpdateAvailable = true;
-            //MPBarWindow.UpdateAvailable = true;
-            //SyncBars(now, Regen, LucidDream);
-            ProcessTick(now, Regen, LucidDream);
+            if ((lastHPValue < currentHP && !HPBarWindow.FastTick) || (lastMPValue < currentMP && !MPBarWindow.FastTick))
+            {
+                syncValue = now;
+            }
+            UpdateHPTick(now, Regen);
+            UpdateMPTick(now, LucidDream);
+            if (syncValue + ActorTickInterval <= now)
+            {
+                syncValue += ActorTickInterval;
+            }
         }
 
-        private void SyncBars(double currentTime, bool regen, bool lucid)
+        private void UpdateHPTick(double currentTime, bool regen)
         {
-            HPBarWindow.HPFastTick = (regen && currentHP != maxHP);
-            MPBarWindow.MPFastTick = (lucid && currentMP != maxMP);
-            if ((int)HPBarWindow.LastHPTick != (int)MPBarWindow.LastMPTick && (currentHP == maxHP || currentMP == maxMP) && DateTime.Now.TimeOfDay.TotalSeconds - logTime > 1)
+            HPBarWindow.FastTick = (regen && currentHP != maxHP);
+            if (currentHP == maxHP)
             {
-                var yes = HPBarWindow.LastHPTick + (HPBarWindow.HPFastTick ? FastTickInterval : ActorTickInterval);
-                var hpTick = HPBarWindow.LastHPTick;
-                var hpFast = HPBarWindow.HPFastTick;
-                var no = MPBarWindow.LastMPTick + (MPBarWindow.MPFastTick ? FastTickInterval : ActorTickInterval);
-                var mpTick = MPBarWindow.LastMPTick;
-                var mpFast = MPBarWindow.MPFastTick;
-                PluginLog.Debug("Different ticks!");
-                PluginLog.Debug("HP: {HP}, lastHP: {lastHP}, HPTick: {hpTick}, Fast: {hpFast}", currentHP, lastHPValue, hpTick, hpFast);
-                PluginLog.Debug("Next HP Tick: {yes}", yes);
-                PluginLog.Debug("MP: {MP}, lastMP: {lastMP}, MPTick: {mpTick}, Fast: {mpFast}", currentMP, lastMPValue, mpTick, mpFast);
-                PluginLog.Debug("Next MP Tick: {no}", no);
-                logTime = DateTime.Now.TimeOfDay.TotalSeconds;
-            }
-            if (currentHP == maxHP && MPBarWindow.LastMPTick + (MPBarWindow.MPFastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
-            {
-                if (lastHPValue < currentHP)
-                {
-                    HPBarWindow.LastHPTick = currentTime;
-                }
-                else
-                {
-                    HPBarWindow.LastHPTick = MPBarWindow.LastMPTick + (MPBarWindow.MPFastTick ? FastTickInterval : ActorTickInterval);
-                }
-            }
-
-            if (currentMP == maxMP && HPBarWindow.LastHPTick + (HPBarWindow.HPFastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
-            {
-                if (lastMPValue < currentMP)
-                {
-                    MPBarWindow.LastMPTick = currentTime;
-                }
-                else
-                {
-                    MPBarWindow.LastMPTick = HPBarWindow.LastHPTick + (HPBarWindow.HPFastTick ? FastTickInterval : ActorTickInterval);
-                }
-            }
-            HPBarWindow.UpdateAvailable = true;
-            MPBarWindow.UpdateAvailable = true;
-        }
-
-        private void ProcessTick(double currentTime, bool regen, bool lucid)
-        {
-            // Use FastTick only if lucid dream or a regen effect is active
-            HPBarWindow.HPFastTick = (regen && currentHP != maxHP);
-            MPBarWindow.MPFastTick = (lucid && currentMP != maxMP);
-            /*if ((int)HPBarWindow.LastHPTick != (int)MPBarWindow.LastMPTick && (currentHP == maxHP || currentMP == maxMP) && DateTime.Now.TimeOfDay.TotalSeconds - logTime > 1)
-            {
-                var yes = HPBarWindow.LastHPTick + (HPBarWindow.HPFastTick ? FastTickInterval : ActorTickInterval);
-                var hpTick = HPBarWindow.LastHPTick;
-                var hpFast = HPBarWindow.HPFastTick;
-                var no = MPBarWindow.LastMPTick + (MPBarWindow.MPFastTick ? FastTickInterval : ActorTickInterval);
-                var mpTick = MPBarWindow.LastMPTick;
-                var mpFast = MPBarWindow.MPFastTick;
-                PluginLog.Debug("Different ticks!");
-                PluginLog.Debug("HP: {currentHP}, lastHP: {lastHPValue}, HPTick: {hpTick}, Fast: {hpFast}", currentHP, lastHPValue, hpTick, hpFast);
-                PluginLog.Debug("Next HP Tick: {yes}",yes);
-                PluginLog.Debug("MP: {currentMP}, lastMP: {lastMPValue}, MPTick: {mpTick}, Fast: {mpFast}", currentMP, lastMPValue, mpTick, mpFast);
-                PluginLog.Debug("Next MP Tick: {no}",no);
-                logTime = DateTime.Now.TimeOfDay.TotalSeconds;
-            }*/
-
-            if (currentHP == maxHP && MPBarWindow.LastMPTick + (MPBarWindow.MPFastTick ? FastTickInterval : ActorTickInterval) <= currentTime) 
-            {
-                if (lastHPValue < currentHP)
-                {
-                    HPBarWindow.LastHPTick = currentTime;
-                }
-                else
-                {
-                    HPBarWindow.LastHPTick = MPBarWindow.LastMPTick + (MPBarWindow.MPFastTick ? FastTickInterval : ActorTickInterval);
-                }
+                HPBarWindow.LastHPTick = syncValue;
             }
             else if (lastHPValue < currentHP)
             {
                 HPBarWindow.LastHPTick = currentTime;
             }
-            else if (HPBarWindow.LastHPTick + (HPBarWindow.HPFastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
+            else if (HPBarWindow.LastHPTick + (HPBarWindow.FastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
             {
-                HPBarWindow.LastHPTick += HPBarWindow.HPFastTick ? FastTickInterval : ActorTickInterval;
+                HPBarWindow.LastHPTick += HPBarWindow.FastTick ? FastTickInterval : ActorTickInterval;
             }
+            lastHPValue = (int)currentHP;
+            HPBarWindow.UpdateAvailable = true;
+        }
 
-            if (currentMP == maxMP && HPBarWindow.LastHPTick + (HPBarWindow.HPFastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
+        private void UpdateMPTick(double currentTime, bool lucid)
+        {
+            MPBarWindow.FastTick = (lucid && currentMP != maxMP);
+            if (currentMP == maxMP)
             {
-                if (lastMPValue < currentMP)
-                {
-                    MPBarWindow.LastMPTick = currentTime;
-                }
-                else
-                {
-                    MPBarWindow.LastMPTick = HPBarWindow.LastHPTick + (HPBarWindow.HPFastTick ? FastTickInterval : ActorTickInterval);
-                }
+                MPBarWindow.LastMPTick = syncValue;
             }
             else if (lastMPValue < currentMP)
             {
                 MPBarWindow.LastMPTick = currentTime;
             }
-            else if (MPBarWindow.LastMPTick + (MPBarWindow.MPFastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
+            else if (MPBarWindow.LastMPTick + (MPBarWindow.FastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
             {
-                MPBarWindow.LastMPTick += MPBarWindow.MPFastTick ? FastTickInterval : ActorTickInterval;
+                MPBarWindow.LastMPTick += MPBarWindow.FastTick ? FastTickInterval : ActorTickInterval;
             }
-            lastHPValue = (int)currentHP;
             lastMPValue = (int)currentMP;
+            MPBarWindow.UpdateAvailable = true;
         }
 
         private void TerritoryChanged(object? sender, ushort e)

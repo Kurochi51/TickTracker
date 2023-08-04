@@ -12,7 +12,7 @@ public class MPBar : Window, IDisposable
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
     private double now;
     public double LastMPTick = 1;
-    public bool MPFastTick, UpdateAvailable;
+    public bool FastTick, UpdateAvailable;
     private readonly Vector2 barFillPosOffset = new(1, 1);
     private readonly Vector2 barFillSizeOffset = new(-1, 0);
     private readonly Vector2 barWindowPadding = new(8, 14);
@@ -45,6 +45,11 @@ public class MPBar : Window, IDisposable
         {
             return false;
         }
+        if (UpdateAvailable)
+        {
+            UpdateAvailable = false;
+            return true;
+        }
         return true;
     }
 
@@ -62,17 +67,13 @@ public class MPBar : Window, IDisposable
     public override void Draw()
     {
         UpdateWindow();
-        //if(UpdateAvailable)
+        var progress = (float)((now - LastMPTick) / (FastTick ? FastTickInterval : ActorTickInterval));
+        if (progress > 1)
         {
-            var progress = (float)((now - LastMPTick) / (MPFastTick ? FastTickInterval : ActorTickInterval));
-            if (progress > 1)
-            {
-                progress = 1;
-            }
-
-            DrawProgress(progress);
-            UpdateAvailable = false;
+            progress = 1;
         }
+
+        DrawProgress(progress);
     }
 
     public override void PostDraw()
@@ -129,33 +130,6 @@ public class MPBar : Window, IDisposable
         drawList.AddRectFilled(topLeft + barFillPosOffset, bottomRight + barFillSizeOffset, barBackgroundColor, cornerSize, ImDrawFlags.RoundCornersAll);
         drawList.AddRectFilled(topLeft + barFillPosOffset, filledSegmentEnd, barFillColor, cornerSize, ImDrawFlags.RoundCornersAll);
         drawList.AddRect(topLeft, bottomRight, barBorderColor, cornerSize, ImDrawFlags.RoundCornersAll, borderThickness);
-    }
-
-    public int ProcessMPTick(double currentTime, bool lucid, double currentMP, double maxMP, int lastMPValue, double LastHPTick, bool HPFastTick)
-    {
-        // Use FastTick only if lucid dream is active
-        MPFastTick = (lucid && currentMP != maxMP);
-        if (currentMP == maxMP && LastHPTick + (HPFastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
-        {
-            if (lastMPValue < currentMP)
-            {
-                LastMPTick = currentTime;
-            }
-            else
-            {
-                LastMPTick = LastHPTick + (HPFastTick ? FastTickInterval : ActorTickInterval);
-            }
-        }
-        else if (lastMPValue < currentMP)
-        {
-            LastMPTick = currentTime;
-        }
-        else if (LastMPTick + (MPFastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
-        {
-            LastMPTick += MPFastTick ? FastTickInterval : ActorTickInterval;
-        }
-        UpdateAvailable = true;
-        return (int)currentMP;
     }
 
     public void Dispose()

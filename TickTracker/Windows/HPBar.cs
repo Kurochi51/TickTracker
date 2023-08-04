@@ -12,7 +12,7 @@ public class HPBar : Window, IDisposable
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
     public double now;
     public double LastHPTick = 1;
-    public bool HPFastTick, UpdateAvailable=false;
+    public bool FastTick, UpdateAvailable=false;
     private readonly Vector2 barFillPosOffset = new(1, 1);
     private readonly Vector2 barFillSizeOffset = new(-1, 0);
     private readonly Vector2 barWindowPadding = new(8, 14);
@@ -45,6 +45,11 @@ public class HPBar : Window, IDisposable
         {
             return false;
         }
+        if (UpdateAvailable)
+        {
+            UpdateAvailable = false;
+            return true;
+        }
         return true;
     }
 
@@ -62,17 +67,14 @@ public class HPBar : Window, IDisposable
     public override void Draw()
     {
         UpdateWindow();
-        //if(UpdateAvailable)
+        var progress = (float)((now - LastHPTick) / (FastTick ? FastTickInterval : ActorTickInterval));
+        if (progress > 1)
         {
-            var progress = (float)((now - LastHPTick) / (HPFastTick ? FastTickInterval : ActorTickInterval));
-            if (progress > 1)
-            {
-                progress = 1;
-            }
-
-            DrawProgress(progress);
-            UpdateAvailable = false;
+            progress = 1;
         }
+
+        DrawProgress(progress);
+        UpdateAvailable = false;
     }
 
     public override void PostDraw()
@@ -129,33 +131,6 @@ public class HPBar : Window, IDisposable
         drawList.AddRectFilled(topLeft + barFillPosOffset, bottomRight + barFillSizeOffset, barBackgroundColor, cornerSize, ImDrawFlags.RoundCornersAll);
         drawList.AddRectFilled(topLeft + barFillPosOffset, filledSegmentEnd, barFillColor, cornerSize, ImDrawFlags.RoundCornersAll);
         drawList.AddRect(topLeft, bottomRight, barBorderColor, cornerSize, ImDrawFlags.RoundCornersAll, borderThickness);
-    }
-
-    public int ProcessHPTick(double currentTime, bool regen, double currentHP, double maxHP, int lastHPValue, double LastMPTick, bool MPFastTick)
-    {
-        // Use FastTick only if a regen effect is active
-        HPFastTick = (regen && currentHP != maxHP);
-        if (currentHP == maxHP && LastMPTick + (MPFastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
-        {
-            if (lastHPValue < currentHP)
-            {
-                LastHPTick = currentTime;
-            }
-            else
-            {
-                LastHPTick = LastMPTick + (MPFastTick ? FastTickInterval : ActorTickInterval);
-            }
-        }
-        else if (lastHPValue < currentHP)
-        {
-            LastHPTick = currentTime;
-        }
-        else if (LastHPTick + (HPFastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
-        {
-            LastHPTick += HPFastTick ? FastTickInterval : ActorTickInterval;
-        }
-        UpdateAvailable = true;
-        return (int)currentHP;
     }
 
     public void Dispose()

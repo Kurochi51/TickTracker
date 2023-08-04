@@ -15,4 +15,5 @@ public class Services
     [PluginService] public static IGameGui GameGui { get; set; } = null!;
     [PluginService] public static ICommandManager CommandManager { get; set; } = null!;
     [PluginService] public static Condition Condition { get; set; } = null!;
+    [PluginService] public static IDataManager DataManager { get; set; } = null!;
 }
