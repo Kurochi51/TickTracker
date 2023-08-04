@@ -20,11 +20,11 @@
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Content Include="..\images\**">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <Visible>true</Visible>
-    </Content>
+<ItemGroup>
+      <ContentWithTargetPath Include="..\Images\icon.png">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+          <TargetPath>..\Images\icon.png</TargetPath>
+      </ContentWithTargetPath>
   </ItemGroup>
 
   <PropertyGroup>
