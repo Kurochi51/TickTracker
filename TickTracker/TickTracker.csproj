@@ -22,8 +22,8 @@
 
 <ItemGroup>
       <ContentWithTargetPath Include="..\Images\icon.png">
-          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-          <TargetPath>..\Images\icon.png</TargetPath>
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+          <TargetPath>Images\icon.png</TargetPath>
       </ContentWithTargetPath>
   </ItemGroup>
 
