@@ -11,7 +11,7 @@ public class MPBar : Window, IDisposable
     private readonly WindowType window = WindowType.MpWindow;
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
     private double now;
-    public double LastMPTick = 1;
+    public double LastTick = 1;
     public bool FastTick, UpdateAvailable;
     private readonly Vector2 barFillPosOffset = new(1, 1);
     private readonly Vector2 barFillSizeOffset = new(-1, 0);
@@ -67,7 +67,7 @@ public class MPBar : Window, IDisposable
     public override void Draw()
     {
         UpdateWindow();
-        var progress = (float)((now - LastMPTick) / (FastTick ? FastTickInterval : ActorTickInterval));
+        var progress = (float)((now - LastTick) / (FastTick ? FastTickInterval : ActorTickInterval));
         if (progress > 1)
         {
             progress = 1;

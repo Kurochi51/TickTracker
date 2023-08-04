@@ -11,7 +11,7 @@ public class HPBar : Window, IDisposable
     private readonly WindowType window = WindowType.HpWindow;
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
     public double now;
-    public double LastHPTick = 1;
+    public double LastTick = 1;
     public bool FastTick, UpdateAvailable=false;
     private readonly Vector2 barFillPosOffset = new(1, 1);
     private readonly Vector2 barFillSizeOffset = new(-1, 0);
@@ -67,7 +67,7 @@ public class HPBar : Window, IDisposable
     public override void Draw()
     {
         UpdateWindow();
-        var progress = (float)((now - LastHPTick) / (FastTick ? FastTickInterval : ActorTickInterval));
+        var progress = (float)((now - LastTick) / (FastTick ? FastTickInterval : ActorTickInterval));
         if (progress > 1)
         {
             progress = 1;

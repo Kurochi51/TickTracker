@@ -11,8 +11,6 @@ using System.Linq;
 using System;
 using Dalamud.Logging;
 using Dalamud.Utility;
-using System.Text.RegularExpressions;
-using System.Diagnostics;
 
 namespace TickTracker
 {
@@ -173,15 +171,15 @@ namespace TickTracker
             HPBarWindow.FastTick = (regen && currentHP != maxHP);
             if (currentHP == maxHP)
             {
-                HPBarWindow.LastHPTick = syncValue;
+                HPBarWindow.LastTick = syncValue;
             }
             else if (lastHPValue < currentHP)
             {
-                HPBarWindow.LastHPTick = currentTime;
+                HPBarWindow.LastTick = currentTime;
             }
-            else if (HPBarWindow.LastHPTick + (HPBarWindow.FastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
+            else if (HPBarWindow.LastTick + (HPBarWindow.FastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
             {
-                HPBarWindow.LastHPTick += HPBarWindow.FastTick ? FastTickInterval : ActorTickInterval;
+                HPBarWindow.LastTick += HPBarWindow.FastTick ? FastTickInterval : ActorTickInterval;
             }
             lastHPValue = (int)currentHP;
             HPBarWindow.UpdateAvailable = true;
@@ -192,15 +190,15 @@ namespace TickTracker
             MPBarWindow.FastTick = (lucid && currentMP != maxMP);
             if (currentMP == maxMP)
             {
-                MPBarWindow.LastMPTick = syncValue;
+                MPBarWindow.LastTick = syncValue;
             }
             else if (lastMPValue < currentMP)
             {
-                MPBarWindow.LastMPTick = currentTime;
+                MPBarWindow.LastTick = currentTime;
             }
-            else if (MPBarWindow.LastMPTick + (MPBarWindow.FastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
+            else if (MPBarWindow.LastTick + (MPBarWindow.FastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
             {
-                MPBarWindow.LastMPTick += MPBarWindow.FastTick ? FastTickInterval : ActorTickInterval;
+                MPBarWindow.LastTick += MPBarWindow.FastTick ? FastTickInterval : ActorTickInterval;
             }
             lastMPValue = (int)currentMP;
             MPBarWindow.UpdateAvailable = true;
