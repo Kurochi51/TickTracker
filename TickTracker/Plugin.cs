@@ -9,6 +9,10 @@ using TickTracker.Windows;
 using System.Collections.Generic;
 using System.Linq;
 using System;
+using Dalamud.Logging;
+using Dalamud.Utility;
+using System.Text.RegularExpressions;
+using System.Diagnostics;
 
 namespace TickTracker
 {
@@ -21,24 +25,8 @@ namespace TickTracker
         private HPBar HPBarWindow { get; init; }
         private MPBar MPBarWindow { get; init; }
         private static Configuration config => TickTrackerSystem.config;
-        private readonly HashSet<uint> regenStatusID = new()
-        {
-            158,
-            237,
-            739,
-            835,
-            836,
-            897,
-            1330,
-            1879,
-            1911,
-            1944,
-            2070,
-            2617,
-            2620,
-            2637,
-            2938,
-        };
+        private readonly HashSet<uint> healthRegenList = new();
+        private readonly HashSet<uint> manaRegenList = new();
         private bool inCombat, specialState, inDuty;
         private double syncValue = 1;
         private int lastHPValue = -1, lastMPValue = -1;
@@ -65,7 +53,43 @@ namespace TickTracker
             Services.PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
             Services.Framework.Update += FrameworkOnUpdateEvent;
             Services.ClientState.TerritoryChanged += TerritoryChanged;
+            var y = Services.DataManager.GetExcelSheet<Lumina.Excel.GeneratedSheets.Status>();
+            if (y != null)
+            {
+                foreach (var stat in y)
+                {
+                    var text = stat.Description.ToDalamudString().TextValue.ToLower();
+                    if ((text.Contains("regenerating") || 
+                         text.Contains("restoring") || 
+                         text.Contains("restore") ||
+                         text.Contains("recovering")) && 
+                             (text.Contains("gradually") || 
+                              text.Contains("over time")) && 
+                                  (text.Contains("hp") || 
+                                   text.Contains("health")) && 
+                                       !(stat.RowId.Equals(307) || 
+                                         stat.RowId.Equals(1419)))
+                    {
+                        healthRegenList.Add(stat.RowId);
+                    }
+                    if ((text.Contains("regenerating") || 
+                         text.Contains("restoring") || 
+                         text.Contains("restore") || 
+                         text.Contains("recovering")) && 
+                             (text.Contains("gradually") || 
+                              text.Contains("over time")) && 
+                                  (text.Contains("mp") || 
+                                   text.Contains("mana")) && 
+                                       !stat.RowId.Equals(135))
+                    {
+                        manaRegenList.Add(stat.RowId);
+                    }
+                }
+                PluginLog.Debug("HP regen list generated with {HPcount} status effects.", healthRegenList.Count);
+                PluginLog.Debug("MP regen list generated with {MPcount} status effects.", manaRegenList.Count);
+            }
         }
+
         public static bool IsAddonReady(AtkUnitBase* addon)
         {
             if (addon is null) return false;
@@ -101,8 +125,8 @@ namespace TickTracker
             bool Target;
             if (Services.ClientState is { LocalPlayer: { } player })
             {
-                LucidDream = player.StatusList.Any(e => e.StatusId == 1204);
-                Regen = player.StatusList.Any(e => regenStatusID.Contains(e.StatusId));
+                LucidDream = player.StatusList.Any(e => manaRegenList.Contains(e.StatusId));
+                Regen = player.StatusList.Any(e => healthRegenList.Contains(e.StatusId));
                 Target = player.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
                 inCombat = Services.Condition[ConditionFlag.InCombat];
                 specialState = Services.Condition[ConditionFlag.Occupied38];
