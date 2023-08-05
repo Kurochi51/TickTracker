@@ -17,6 +17,14 @@ namespace TickTracker
 {
     public sealed unsafe class Plugin : IDalamudPlugin
     {
+        /// <summary>
+        /// A <see cref="HashSet{T}" /> list of Status IDs that trigger HP regen
+        /// </summary>
+        private static readonly HashSet<uint> HealthRegenList = new();
+        /// <summary>
+        /// A <see cref="HashSet{T}" /> list of Status IDs that trigger MP regen
+        /// </summary>
+        private static readonly HashSet<uint> ManaRegenList = new();
         public string Name => "Tick Tracker";
         private const string CommandName = "/tick";
         public WindowSystem WindowSystem = new("TickTracker");
@@ -24,15 +32,7 @@ namespace TickTracker
         private HPBar HPBarWindow { get; init; }
         private MPBar MPBarWindow { get; init; }
         private static Configuration config => TickTrackerSystem.config;
-        private static HashSet<string> regen => Utilities.RegenKeywords;
-        private static HashSet<string> time => Utilities.TimeKeywords;
-        private static HashSet<string> health => Utilities.HealthKeywords;
-        private static HashSet<string> mana => Utilities.ManaKeywords;
-        private readonly HashSet<uint> healthRegenList = new();
-        private readonly HashSet<uint> manaRegenList = new();
-        private readonly List<double> times = new();
-        private bool inCombat;
-        private readonly bool nullSheet;
+        private bool inCombat, nullSheet;
         private double syncValue = 1;
         private int lastHPValue = -1, lastMPValue = -1;
         private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
@@ -58,35 +58,36 @@ namespace TickTracker
             Service.PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
             Service.Framework.Update += FrameworkOnUpdateEvent;
             Service.ClientState.TerritoryChanged += TerritoryChanged;
-            var statusSheet = Service.DataManager.GetExcelSheet<Lumina.Excel.GeneratedSheets.Status>(Dalamud.ClientLanguage.English);
-            if (statusSheet != null)
+            Task.Run(() =>
             {
-                nullSheet = false;
-                Task.Run(() => {
+                var statusSheet = Service.DataManager.GetExcelSheet<Lumina.Excel.GeneratedSheets.Status>(Dalamud.ClientLanguage.English);
+                if (statusSheet != null)
+                {
+                    nullSheet = false;
                     foreach (var stat in statusSheet.Where(s => s.RowId is not 307 and not 1419 and not 135))
                     {
                         var text = stat.Description.ToDalamudString().TextValue;
-                        if (Utilities.KeywordMatch(text, regen) && Utilities.KeywordMatch(text, time))
+                        if (Utilities.KeywordMatch(text, Utilities.RegenKeywords) && Utilities.KeywordMatch(text, Utilities.TimeKeywords))
                         {
-                            if (Utilities.KeywordMatch(text, health))
+                            if (Utilities.KeywordMatch(text, Utilities.HealthKeywords))
                             {
-                                healthRegenList.Add(stat.RowId);
+                                HealthRegenList.Add(stat.RowId);
                             }
-                            if (Utilities.KeywordMatch(text, mana))
+                            if (Utilities.KeywordMatch(text, Utilities.ManaKeywords))
                             {
-                                manaRegenList.Add(stat.RowId);
+                                ManaRegenList.Add(stat.RowId);
                             }
                         }
                     }
-                    PluginLog.Debug("HP regen list generated with {HPcount} status effects.", healthRegenList.Count);
-                    PluginLog.Debug("MP regen list generated with {MPcount} status effects.", manaRegenList.Count);
-                });
-            }
-            else
-            {
-                nullSheet = true;
-                PluginLog.Error("Status sheet couldn't get queued.");
-            }
+                    PluginLog.Debug("HP regen list generated with {HPcount} status effects.", HealthRegenList.Count);
+                    PluginLog.Debug("MP regen list generated with {MPcount} status effects.", ManaRegenList.Count);
+                }
+                else
+                {
+                    nullSheet = true;
+                    PluginLog.Error("Status sheet couldn't get queued.");
+                }
+            });
         }
 
         public static bool IsAddonReady(AtkUnitBase* addon)
@@ -115,7 +116,7 @@ namespace TickTracker
         private void FrameworkOnUpdateEvent(Framework framework)
         {
             var now = DateTime.Now.TimeOfDay.TotalSeconds;
-            if (Service.ClientState is { IsLoggedIn: false } || nullSheet || healthRegenList.Count is 0 || manaRegenList.Count is 0)
+            if (Service.ClientState is { IsLoggedIn: false } || nullSheet || HealthRegenList.Count is 0 || ManaRegenList.Count is 0)
             {
                 return;
             }
@@ -124,8 +125,8 @@ namespace TickTracker
             bool Target;
             if (Service.ClientState is { LocalPlayer: { } player })
             {
-                LucidDream = player.StatusList.Any(e => manaRegenList.Contains(e.StatusId));
-                Regen = player.StatusList.Any(e => healthRegenList.Contains(e.StatusId));
+                LucidDream = player.StatusList.Any(e => ManaRegenList.Contains(e.StatusId));
+                Regen = player.StatusList.Any(e => HealthRegenList.Contains(e.StatusId));
                 Target = player.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
                 inCombat = Service.Condition[ConditionFlag.InCombat];
                 currentHP = player.CurrentHp;

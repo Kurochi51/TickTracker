@@ -13,16 +13,6 @@ public class Utilities
     private static Configuration config => TickTrackerSystem.config;
 
     /// <summary>
-    ///     A <see cref="HashSet{T}" /> list that contains the <see cref="Status"/> IDs affiliated with health regen.
-    /// </summary>
-    public static readonly HashSet<uint> healthRegenList = new();
-
-    /// <summary>
-    ///     A <see cref="HashSet{T}" /> list that contains the <see cref="Status"/> IDs affiliated with mana regen.
-    /// </summary>
-    public static readonly HashSet<uint> manaRegenList = new();
-
-    /// <summary>
     ///     A set of words that indicate regeneration
     /// </summary>
     public static readonly HashSet<string> RegenKeywords = new()
