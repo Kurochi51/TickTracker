@@ -1,6 +1,7 @@
 using ImGuiNET;
 using System;
 using System.Numerics;
+using Dalamud.Interface;
 using Dalamud.Interface.Windowing;
 
 namespace TickTracker.Windows;
@@ -12,7 +13,7 @@ public class MPBar : Window, IDisposable
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
     private double now;
     public double LastTick = 1;
-    public bool FastTick, UpdateAvailable;
+    public bool FastTick, UpdateAvailable = false;
     private readonly Vector2 barFillPosOffset = new(1, 1);
     private readonly Vector2 barFillSizeOffset = new(-1, 0);
     private readonly Vector2 barWindowPadding = new(8, 14);
@@ -28,7 +29,7 @@ public class MPBar : Window, IDisposable
                                                     ImGuiWindowFlags.NoInputs;
     public MPBar() : base("MPBarWindow")
     {
-        Size = config.MPBarSize;
+        Size = config.MPBarSize * ImGuiHelpers.GlobalScale;
         SizeCondition = ImGuiCond.Once;
 
         Position = config.MPBarPosition;

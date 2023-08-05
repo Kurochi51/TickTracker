@@ -1,8 +1,8 @@
 using ImGuiNET;
 using System;
 using System.Numerics;
+using Dalamud.Interface;
 using Dalamud.Interface.Windowing;
-using Dalamud.Logging;
 
 namespace TickTracker.Windows;
 
@@ -11,13 +11,12 @@ public class HPBar : Window, IDisposable
     private static Configuration config => TickTrackerSystem.config;
     private readonly WindowType window = WindowType.HpWindow;
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
-    public double now;
+    private double now;
     public double LastTick = 1;
-    public bool FastTick, UpdateAvailable=false;
+    public bool FastTick, UpdateAvailable = false;
     private readonly Vector2 barFillPosOffset = new(1, 1);
     private readonly Vector2 barFillSizeOffset = new(-1, 0);
     private readonly Vector2 barWindowPadding = new(8, 14);
-    private readonly Vector2 intendedSize = new(180, 50);
 
     private const ImGuiWindowFlags DefaultFlags = ImGuiWindowFlags.NoScrollbar |
                                                   ImGuiWindowFlags.NoTitleBar |
@@ -28,14 +27,13 @@ public class HPBar : Window, IDisposable
                                                     ImGuiWindowFlags.NoResize |
                                                     ImGuiWindowFlags.NoNav |
                                                     ImGuiWindowFlags.NoInputs;
-    public HPBar() : base ("HPBarWindow")
+    public HPBar() : base("HPBarWindow")
     {
-        Size = config.HPBarSize;
-        SizeCondition = ImGuiCond.Always;
-        //PluginLog.Debug("Starting with this size: {size} in Constructor", Size);
+        Size = config.HPBarSize * ImGuiHelpers.GlobalScale;
+        SizeCondition = ImGuiCond.Once;
 
         Position = config.HPBarPosition;
-        PositionCondition = ImGuiCond.Always;
+        PositionCondition = ImGuiCond.Once;
     }
 
     public override bool DrawConditions()
@@ -88,28 +86,23 @@ public class HPBar : Window, IDisposable
     {
         if (config.LockBar)
         {
-            //PluginLog.Debug("Size is {size} and Position is {pos} in UpdateWindow", ImGui.GetWindowSize(), ImGui.GetWindowPos());
             return;
         }
-        var windowPos = this.Position;//ImGui.GetWindowPos();
-        var windowSize = this.Size;//ImGui.GetWindowSize();
+        var windowPos = ImGui.GetWindowPos();
+        var windowSize = ImGui.GetWindowSize();
         if (IsFocused)
         {
-            Utilities.UpdateWindowConfig((Vector2)windowPos!, (Vector2)windowSize!, window);
-            //PluginLog.Debug("Size is {size} in focused UpdateWindow", windowSize);
+            Utilities.UpdateWindowConfig(windowPos, windowSize, window);
         }
         else
         {
             if (windowPos != config.HPBarPosition)
             {
-                //ImGui.SetWindowPos(config.HPBarPosition);
-                this.Size = config.HPBarPosition;
+                ImGui.SetWindowPos(config.HPBarPosition);
             }
             if (windowSize != config.HPBarSize)
             {
-                //PluginLog.Debug("Size is {size} in unfocused UpdateWindow", windowSize);
-                //ImGui.SetWindowSize(config.HPBarSize);
-                this.Size = config.HPBarSize;
+                ImGui.SetWindowSize(config.HPBarSize);
             }
         }
     }
