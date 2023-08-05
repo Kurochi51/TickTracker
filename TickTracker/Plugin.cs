@@ -1,16 +1,17 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Logging;
 using Dalamud.Utility;
-using Dalamud.Interface.Windowing;
 using Dalamud.Game;
 using Dalamud.Game.Command;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.Enums;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using TickTracker.Windows;
+using System.Threading.Tasks;
 
 namespace TickTracker
 {
@@ -23,9 +24,15 @@ namespace TickTracker
         private HPBar HPBarWindow { get; init; }
         private MPBar MPBarWindow { get; init; }
         private static Configuration config => TickTrackerSystem.config;
+        private static HashSet<string> regen => Utilities.RegenKeywords;
+        private static HashSet<string> time => Utilities.TimeKeywords;
+        private static HashSet<string> health => Utilities.HealthKeywords;
+        private static HashSet<string> mana => Utilities.ManaKeywords;
         private readonly HashSet<uint> healthRegenList = new();
         private readonly HashSet<uint> manaRegenList = new();
-        private bool inCombat, specialState, inDuty;
+        private readonly List<double> times = new();
+        private bool inCombat;
+        private readonly bool nullSheet;
         private double syncValue = 1;
         private int lastHPValue = -1, lastMPValue = -1;
         private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
@@ -51,40 +58,34 @@ namespace TickTracker
             Service.PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
             Service.Framework.Update += FrameworkOnUpdateEvent;
             Service.ClientState.TerritoryChanged += TerritoryChanged;
-            var y = Service.DataManager.GetExcelSheet<Lumina.Excel.GeneratedSheets.Status>();
-            if (y != null)
+            var statusSheet = Service.DataManager.GetExcelSheet<Lumina.Excel.GeneratedSheets.Status>(Dalamud.ClientLanguage.English);
+            if (statusSheet != null)
             {
-                foreach (var stat in y)
-                {
-                    var text = stat.Description.ToDalamudString().TextValue.ToLower();
-                    if ((text.Contains("regenerating") || 
-                         text.Contains("restoring") || 
-                         text.Contains("restore") ||
-                         text.Contains("recovering")) && 
-                             (text.Contains("gradually") || 
-                              text.Contains("over time")) && 
-                                  (text.Contains("hp") || 
-                                   text.Contains("health")) && 
-                                       !(stat.RowId.Equals(307) || 
-                                         stat.RowId.Equals(1419)))
+                nullSheet = false;
+                /*Task.Run(() => {
+                    foreach (var stat in statusSheet.Where(s => s.RowId is not 307 and not 1419 and not 135))
                     {
-                        healthRegenList.Add(stat.RowId);
+                        var text = stat.Description.ToDalamudString().TextValue;
+                        if (Utilities.KeywordMatch(text, regen) && Utilities.KeywordMatch(text, time))
+                        {
+                            if (Utilities.KeywordMatch(text, health))
+                            {
+                                healthRegenList.Add(stat.RowId);
+                            }
+                            if (Utilities.KeywordMatch(text, mana))
+                            {
+                                manaRegenList.Add(stat.RowId);
+                            }
+                        }
                     }
-                    if ((text.Contains("regenerating") || 
-                         text.Contains("restoring") || 
-                         text.Contains("restore") || 
-                         text.Contains("recovering")) && 
-                             (text.Contains("gradually") || 
-                              text.Contains("over time")) && 
-                                  (text.Contains("mp") || 
-                                   text.Contains("mana")) && 
-                                       !stat.RowId.Equals(135))
-                    {
-                        manaRegenList.Add(stat.RowId);
-                    }
-                }
-                PluginLog.Debug("HP regen list generated with {HPcount} status effects.", healthRegenList.Count);
-                PluginLog.Debug("MP regen list generated with {MPcount} status effects.", manaRegenList.Count);
+                    PluginLog.Debug("HP regen list generated with {HPcount} status effects.", healthRegenList.Count);
+                    PluginLog.Debug("MP regen list generated with {MPcount} status effects.", manaRegenList.Count);
+                });*/
+            }
+            else
+            {
+                nullSheet = true;
+                PluginLog.Error("Status sheet couldn't get queued.");
             }
         }
 
@@ -101,7 +102,7 @@ namespace TickTracker
         {
             if (config.HideOutOfCombat && !inCombat)
             {
-                var showingBecauseInDuty = config.AlwaysShowInDuties && inDuty;
+                var showingBecauseInDuty = config.AlwaysShowInDuties && Utilities.InDuty() && !Utilities.InIgnoredInstances();
                 var showingBecauseHasTarget = config.AlwaysShowWithHostileTarget && enemy;
                 if (!(showingBecauseInDuty || showingBecauseHasTarget))
                 {
@@ -114,7 +115,7 @@ namespace TickTracker
         private void FrameworkOnUpdateEvent(Framework framework)
         {
             var now = DateTime.Now.TimeOfDay.TotalSeconds;
-            if (Service.ClientState is { IsLoggedIn: false })
+            if (Service.ClientState is { IsLoggedIn: false } || nullSheet || healthRegenList.Count is 0 || manaRegenList.Count is 0)
             {
                 return;
             }
@@ -127,8 +128,6 @@ namespace TickTracker
                 Regen = player.StatusList.Any(e => healthRegenList.Contains(e.StatusId));
                 Target = player.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
                 inCombat = Service.Condition[ConditionFlag.InCombat];
-                specialState = Service.Condition[ConditionFlag.Occupied38];
-                inDuty = Service.Condition[ConditionFlag.BoundByDuty];
                 currentHP = player.CurrentHp;
                 maxHP = player.MaxHp;
                 currentMP = player.CurrentMp;
@@ -138,7 +137,7 @@ namespace TickTracker
             {
                 return;
             }
-            if (!PluginEnabled(Target) || !IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || specialState)
+            if (!PluginEnabled(Target) || !IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || Utilities.inCustcene())
             {
                 HPBarWindow.IsOpen = false;
                 MPBarWindow.IsOpen = false; 
