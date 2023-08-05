@@ -62,7 +62,7 @@ namespace TickTracker
             if (statusSheet != null)
             {
                 nullSheet = false;
-                /*Task.Run(() => {
+                Task.Run(() => {
                     foreach (var stat in statusSheet.Where(s => s.RowId is not 307 and not 1419 and not 135))
                     {
                         var text = stat.Description.ToDalamudString().TextValue;
@@ -80,7 +80,7 @@ namespace TickTracker
                     }
                     PluginLog.Debug("HP regen list generated with {HPcount} status effects.", healthRegenList.Count);
                     PluginLog.Debug("MP regen list generated with {MPcount} status effects.", manaRegenList.Count);
-                });*/
+                });
             }
             else
             {
@@ -102,7 +102,7 @@ namespace TickTracker
         {
             if (config.HideOutOfCombat && !inCombat)
             {
-                var showingBecauseInDuty = config.AlwaysShowInDuties && Utilities.InDuty() && !Utilities.InIgnoredInstances();
+                var showingBecauseInDuty =config.AlwaysShowInDuties && Utilities.InDuty();
                 var showingBecauseHasTarget = config.AlwaysShowWithHostileTarget && enemy;
                 if (!(showingBecauseInDuty || showingBecauseHasTarget))
                 {
@@ -146,11 +146,11 @@ namespace TickTracker
             var shouldShowHPBar = !config.HideOnFullResource || 
                                 (config.AlwaysShowInCombat && inCombat) ||
                                 (config.AlwaysShowWithHostileTarget && Target) ||
-                                (config.AlwaysShowInDuties && Service.Condition[ConditionFlag.BoundByDuty]);
+                                (config.AlwaysShowInDuties && Utilities.InDuty());
             var shouldShowMPBar = !config.HideOnFullResource || 
                                 (config.AlwaysShowInCombat && inCombat) ||
                                 (config.AlwaysShowWithHostileTarget && Target) ||
-                                (config.AlwaysShowInDuties && Service.Condition[ConditionFlag.BoundByDuty]);
+                                (config.AlwaysShowInDuties && Utilities.InDuty());
             HPBarWindow.IsOpen = shouldShowHPBar || (currentHP != maxHP);
             MPBarWindow.IsOpen = shouldShowMPBar || (currentMP != maxMP);
             if ((lastHPValue < currentHP && !HPBarWindow.FastTick) || (lastMPValue < currentMP && !MPBarWindow.FastTick))

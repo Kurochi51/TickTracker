@@ -1,10 +1,9 @@
 using System;
 using System.Linq;
 using System.Numerics;
-using System.Threading.Tasks;
 using System.Collections.Generic;
+using Lumina.Excel.GeneratedSheets;
 using Dalamud.Logging;
-using Dalamud.Utility;
 using Dalamud.Game.ClientState.Conditions;
 
 namespace TickTracker;
@@ -12,14 +11,20 @@ namespace TickTracker;
 public class Utilities
 {
     private static Configuration config => TickTrackerSystem.config;
-    public static readonly HashSet<uint> healthRegenList = new();
-    public static readonly HashSet<uint> manaRegenList = new();
-    public enum TerritoryIntendedUseType : byte
-    {
-        Diadem = 47,
-        IslandSanctuary = 49
-    }
 
+    /// <summary>
+    ///     A <see cref="HashSet{T}" /> list that contains the <see cref="Status"/> IDs affiliated with health regen.
+    /// </summary>
+    public static readonly HashSet<uint> healthRegenList = new();
+
+    /// <summary>
+    ///     A <see cref="HashSet{T}" /> list that contains the <see cref="Status"/> IDs affiliated with mana regen.
+    /// </summary>
+    public static readonly HashSet<uint> manaRegenList = new();
+
+    /// <summary>
+    ///     A set of words that indicate regeneration
+    /// </summary>
     public static readonly HashSet<string> RegenKeywords = new()
     {
         "regenerating",
@@ -28,25 +33,37 @@ public class Utilities
         "recovering"
     };
 
+    /// <summary>
+    ///     A set of words that indicate an effect over time
+    /// </summary>
     public static readonly HashSet<string> TimeKeywords = new()
     {
         "gradually",
         "over time"
     };
 
+    /// <summary>
+    ///     A set of words that indicate health
+    /// </summary>
     public static readonly HashSet<string> HealthKeywords = new()
     {
         "hp",
         "health"
     };
 
+    /// <summary>
+    ///     A set of words that indicate mana
+    /// </summary>
     public static readonly HashSet<string> ManaKeywords = new()
     {
         "mp",
         "mana"
     };
 
-    public static bool WindowCondition(WindowType type)
+    /// <summary>
+    ///     Indicates if the <paramref name="window"/> is ready to be drawn
+    /// </summary>
+    public static bool WindowCondition(WindowType window)
     {
         if (!config.PluginEnabled)
         {
@@ -54,7 +71,7 @@ public class Utilities
         }
         try
         {
-            var DisplayThisWindow = type switch
+            var DisplayThisWindow = window switch
             {
                 WindowType.HpWindow => config.HPVisible,
                 WindowType.MpWindow => config.MPVisible,
@@ -64,11 +81,14 @@ public class Utilities
         }
         catch (Exception e)
         {
-            PluginLog.Error("{error} triggered by {type}.", e.Message, type);
+            PluginLog.Error("{error} triggered by {type}.", e.Message, window);
             return false;
         }
     }
 
+    /// <summary>
+    ///     Saves the window size and position for the indicated window.
+    /// </summary>
     public static void UpdateWindowConfig(Vector2 currentPos, Vector2 currentSize, WindowType window)
     {
         if (window == WindowType.HpWindow)
@@ -99,13 +119,21 @@ public class Utilities
         }
     }
 
+    /// <summary>
+    ///     Returns whether the <paramref name="text"/> contains elements from <paramref name="keywords"/> or not.
+    /// </summary>
+    /// <returns>True if the <paramref name="text"/> has atleast one word, false otherwise.</returns>
     public static bool KeywordMatch(string text, HashSet<string> keywords)
         => keywords.Any(k => text.Contains(k, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    ///     Returns if the player is bound by duty.
+    /// </summary>
+    /// <returns>True if bound by duty, false otherwise.</returns>
     public static bool InDuty()
     {
         var dutyBound = Service.Condition[ConditionFlag.BoundByDuty] || Service.Condition[ConditionFlag.BoundByDuty56] || Service.Condition[ConditionFlag.BoundByDuty95] || Service.Condition[ConditionFlag.BoundToDuty97];
-        if (dutyBound == true)
+        if (dutyBound == true && !InIgnoredInstances())
         {
             return true;
         }
@@ -115,12 +143,16 @@ public class Utilities
         }
     }
 
+    /// <summary>
+    ///     Returns if the player is in an ignored instance.
+    /// </summary>
+    /// <returns>True if <see cref="TerritoryIntendedUseType.IslandSanctuary"/> or <see cref="TerritoryIntendedUseType.Diadem"/>, false otherwise.</returns>
     public static bool InIgnoredInstances()
     {
-        var area = Service.DataManager.GetExcelSheet<Lumina.Excel.GeneratedSheets.TerritoryType>()?.GetRow(Service.ClientState.TerritoryType);
+        var area = Service.DataManager.GetExcelSheet<TerritoryType>()!.GetRow(Service.ClientState.TerritoryType);
         if (area is not null)
         {
-            if (Enum.IsDefined(typeof(TerritoryIntendedUseType), area.TerritoryIntendedUse))
+            if (area.TerritoryIntendedUse is (byte)TerritoryIntendedUseType.IslandSanctuary or (byte)TerritoryIntendedUseType.Diadem)
             {
                 return true;
             }
@@ -135,30 +167,11 @@ public class Utilities
         }    
     }
 
+    /// <summary>
+    ///     Returns if the player is in a cutscene.
+    /// </summary>
+    /// <returns>True if in a cutscene, false otherwise.</returns>
     public static bool inCustcene()
         => Service.Condition[ConditionFlag.OccupiedInCutSceneEvent] || Service.Condition[ConditionFlag.WatchingCutscene] || Service.Condition[ConditionFlag.WatchingCutscene78] || Service.Condition[ConditionFlag.Occupied38];
 
-    public static async void InitializeLists(Lumina.Excel.ExcelSheet<Lumina.Excel.GeneratedSheets.Status> statusSheet)
-    {
-        await Task.Run(() =>
-        {
-            foreach (var stat in statusSheet.Where(s => s.RowId is not 307 and not 1419 and not 135))
-            {
-                var text = stat.Description.ToDalamudString().TextValue;
-                if (KeywordMatch(text, RegenKeywords) && KeywordMatch(text, TimeKeywords))
-                {
-                    if (KeywordMatch(text, HealthKeywords))
-                    {
-                        healthRegenList.Add(stat.RowId);
-                    }
-                    if (KeywordMatch(text, ManaKeywords))
-                    {
-                        manaRegenList.Add(stat.RowId);
-                    }
-                }
-            }
-            PluginLog.Debug("HP regen list generated with {HPcount} status effects.", healthRegenList.Count);
-            PluginLog.Debug("MP regen list generated with {MPcount} status effects.", manaRegenList.Count);
-        });
-    }
 }

@@ -29,11 +29,11 @@ public class HPBar : Window, IDisposable
                                                     ImGuiWindowFlags.NoInputs;
     public HPBar() : base("HPBarWindow")
     {
+        SizeCondition = ImGuiCond.FirstUseEver;
         Size = config.HPBarSize * ImGuiHelpers.GlobalScale;
-        SizeCondition = ImGuiCond.Once;
 
+        PositionCondition = ImGuiCond.FirstUseEver;
         Position = config.HPBarPosition;
-        PositionCondition = ImGuiCond.Once;
     }
 
     public override bool DrawConditions()

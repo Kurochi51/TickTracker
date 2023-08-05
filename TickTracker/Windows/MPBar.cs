@@ -29,11 +29,11 @@ public class MPBar : Window, IDisposable
                                                     ImGuiWindowFlags.NoInputs;
     public MPBar() : base("MPBarWindow")
     {
+        SizeCondition = ImGuiCond.FirstUseEver;
         Size = config.MPBarSize * ImGuiHelpers.GlobalScale;
-        SizeCondition = ImGuiCond.Once;
 
+        PositionCondition = ImGuiCond.FirstUseEver;
         Position = config.MPBarPosition;
-        PositionCondition = ImGuiCond.Once;
     }
 
     public override bool DrawConditions()
