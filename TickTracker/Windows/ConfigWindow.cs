@@ -2,6 +2,7 @@ using ImGuiNET;
 using System;
 using System.Numerics;
 using Dalamud.Interface.Windowing;
+using Dalamud.Interface;
 
 namespace TickTracker.Windows
 {
@@ -11,7 +12,7 @@ namespace TickTracker.Windows
 
         public ConfigWindow(Plugin plugin) : base("Timer Settings")
         {
-            Size = new(300, 400);
+            Size = new(320, 400);
             SizeCondition = ImGuiCond.Appearing;
             Flags = ImGuiWindowFlags.NoResize;
         }
