@@ -90,15 +90,6 @@ namespace TickTracker
             });
         }
 
-        public static bool IsAddonReady(AtkUnitBase* addon)
-        {
-            if (addon is null) return false;
-            if (addon->RootNode is null) return false;
-            if (addon->RootNode->ChildNode is null) return false;
-
-            return true;
-        }
-
         private bool PluginEnabled(bool enemy)
         {
             if (config.HideOutOfCombat && !inCombat)
@@ -138,7 +129,7 @@ namespace TickTracker
             {
                 return;
             }
-            if (!PluginEnabled(Target) || !IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || Utilities.inCustcene())
+            if (!PluginEnabled(Target) || !Utilities.IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || Utilities.inCustcene())
             {
                 HPBarWindow.IsOpen = false;
                 MPBarWindow.IsOpen = false; 

@@ -5,10 +5,14 @@ using System.Collections.Generic;
 using Lumina.Excel.GeneratedSheets;
 using Dalamud.Logging;
 using Dalamud.Game.ClientState.Conditions;
+using FFXIVClientStructs.FFXIV.Component.GUI;
 
 namespace TickTracker;
 
-public class Utilities
+/// <summary>
+///     A class that contains different helper functions necessary for this plugin's operation
+/// </summary>
+public unsafe class Utilities
 {
     private static Configuration config => TickTrackerSystem.config;
 
@@ -119,7 +123,7 @@ public class Utilities
     /// <summary>
     ///     Returns if the player is bound by duty.
     /// </summary>
-    /// <returns>True if bound by duty, false otherwise.</returns>
+    /// <returns>True if in duty, false otherwise.</returns>
     public static bool InDuty()
     {
         var dutyBound = Service.Condition[ConditionFlag.BoundByDuty] || Service.Condition[ConditionFlag.BoundByDuty56] || Service.Condition[ConditionFlag.BoundByDuty95] || Service.Condition[ConditionFlag.BoundToDuty97];
@@ -163,5 +167,18 @@ public class Utilities
     /// <returns>True if in a cutscene, false otherwise.</returns>
     public static bool inCustcene()
         => Service.Condition[ConditionFlag.OccupiedInCutSceneEvent] || Service.Condition[ConditionFlag.WatchingCutscene] || Service.Condition[ConditionFlag.WatchingCutscene78] || Service.Condition[ConditionFlag.Occupied38];
+
+    /// <summary>
+    ///     Check if the <paramref name="addon"/> can be accessed
+    /// </summary>
+    /// <returns>True if addon is initialized and ready for use, false otherwise.</returns>
+    public static bool IsAddonReady(AtkUnitBase* addon)
+    {
+        if (addon is null) return false;
+        if (addon->RootNode is null) return false;
+        if (addon->RootNode->ChildNode is null) return false;
+
+        return true;
+    }
 
 }
