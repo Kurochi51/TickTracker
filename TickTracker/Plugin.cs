@@ -32,7 +32,7 @@ namespace TickTracker
         private HPBar HPBarWindow { get; init; }
         private MPBar MPBarWindow { get; init; }
         private static Configuration config => TickTrackerSystem.config;
-        private bool inCombat, nullSheet;
+        private bool inCombat, nullSheet = true;
         private double syncValue = 1;
         private int lastHPValue = -1, lastMPValue = -1;
         private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
@@ -56,14 +56,13 @@ namespace TickTracker
             });
             Service.PluginInterface.UiBuilder.Draw += DrawUI;
             Service.PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
-            Service.Framework.Update += FrameworkOnUpdateEvent;
+            Service.Framework.Update += OnFrameworkUpdate;
             Service.ClientState.TerritoryChanged += TerritoryChanged;
             Task.Run(() =>
             {
                 var statusSheet = Service.DataManager.GetExcelSheet<Lumina.Excel.GeneratedSheets.Status>(Dalamud.ClientLanguage.English);
                 if (statusSheet != null)
                 {
-                    nullSheet = false;
                     foreach (var stat in statusSheet.Where(s => s.RowId is not 307 and not 1419 and not 135))
                     {
                         var text = stat.Description.ToDalamudString().TextValue;
@@ -79,6 +78,7 @@ namespace TickTracker
                             }
                         }
                     }
+                    nullSheet = false;
                     PluginLog.Debug("HP regen list generated with {HPcount} status effects.", HealthRegenList.Count);
                     PluginLog.Debug("MP regen list generated with {MPcount} status effects.", ManaRegenList.Count);
                 }
@@ -104,10 +104,10 @@ namespace TickTracker
             return config.PluginEnabled;
         }
 
-        private void FrameworkOnUpdateEvent(Framework framework)
+        private void OnFrameworkUpdate(Framework framework)
         {
             var now = DateTime.Now.TimeOfDay.TotalSeconds;
-            if (Service.ClientState is { IsLoggedIn: false } || nullSheet || HealthRegenList.Count is 0 || ManaRegenList.Count is 0)
+            if (Service.ClientState is { IsLoggedIn: false } || nullSheet)
             {
                 return;
             }
@@ -210,7 +210,7 @@ namespace TickTracker
             Service.PluginInterface.UiBuilder.Draw -= DrawUI;
             Service.PluginInterface.UiBuilder.OpenConfigUi -= DrawConfigUI;
             Service.CommandManager.RemoveHandler(CommandName);
-            Service.Framework.Update -= FrameworkOnUpdateEvent;
+            Service.Framework.Update -= OnFrameworkUpdate;
             Service.ClientState.TerritoryChanged -= TerritoryChanged;
         }
 

@@ -17,11 +17,6 @@ namespace TickTracker.Windows
             Flags = ImGuiWindowFlags.NoResize;
         }
 
-        public void Dispose()
-        {
-            GC.SuppressFinalize(this);
-        }
-
         public override void Draw()
         {
             var pluginEnabled = config.PluginEnabled;
@@ -271,6 +266,11 @@ namespace TickTracker.Windows
             ImGui.SameLine();
             ImGui.Text(description);
             return change;
+        }
+
+        public void Dispose()
+        {
+            GC.SuppressFinalize(this);
         }
     }
 }
