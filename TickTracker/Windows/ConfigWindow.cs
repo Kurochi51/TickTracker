@@ -79,24 +79,24 @@ namespace TickTracker.Windows
             if (ImGui.BeginTabItem("Behavior"))
             {
                 ImGui.Spacing();
-                var modified = false;
+                var changed = false;
 
-                modified |= ImGui.Checkbox("Show HP Bar", ref config.HPVisible);
-                modified |= ImGui.Checkbox("Show MP Bar", ref config.MPVisible);
-                modified |= ImGui.Checkbox("Hide bar on full resource", ref config.HideOnFullResource);
-
-                ImGui.Indent();
-                modified |= ImGui.Checkbox("Always show in combat", ref config.AlwaysShowInCombat);
-                ImGui.Unindent();
-
-                modified |= ImGui.Checkbox("Hide while not in combat", ref config.HideOutOfCombat);
+                changed |= ImGui.Checkbox("Show HP Bar", ref config.HPVisible);
+                changed |= ImGui.Checkbox("Show MP Bar", ref config.MPVisible);
+                changed |= ImGui.Checkbox("Hide bar on full resource", ref config.HideOnFullResource);
 
                 ImGui.Indent();
-                modified |= ImGui.Checkbox("Always show while in duties", ref config.AlwaysShowInDuties);
-                modified |= ImGui.Checkbox("Always show with enemy target", ref config.AlwaysShowWithHostileTarget);
+                changed |= ImGui.Checkbox("Always show in combat", ref config.AlwaysShowInCombat);
                 ImGui.Unindent();
 
-                if (modified)
+                changed |= ImGui.Checkbox("Hide while not in combat", ref config.HideOutOfCombat);
+
+                ImGui.Indent();
+                changed |= ImGui.Checkbox("Always show while in duties", ref config.AlwaysShowInDuties);
+                changed |= ImGui.Checkbox("Always show with enemy target", ref config.AlwaysShowWithHostileTarget);
+                ImGui.Unindent();
+
+                if (changed)
                 {
                     config.Save();
                 }
@@ -106,10 +106,8 @@ namespace TickTracker.Windows
 
         private static void DrawColorOptions()
         {
-            if (ImGui.ColorEdit4("HP Bar Background Color", ref config.HPBarBackgroundColor, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar))
-            {
-                config.Save();
-            }
+            var colorModified = false;
+            colorModified |= ImGui.ColorEdit4("HP Bar Background Color", ref config.HPBarBackgroundColor, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar);
             ImGui.SameLine();
             var resetButtonX = ImGui.GetCursorPosX();
             if (ImGui.Button("Reset##ResetHPBarBackgroundColor"))
@@ -118,10 +116,7 @@ namespace TickTracker.Windows
                 config.Save();
             }
 
-            if (ImGui.ColorEdit4("HP Bar Fill Color", ref config.HPBarFillColor, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar))
-            {
-                config.Save();
-            }
+            colorModified |= ImGui.ColorEdit4("HP Bar Fill Color", ref config.HPBarFillColor, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar);
             ImGui.SameLine();
             ImGui.SetCursorPosX(resetButtonX);
             if (ImGui.Button("Reset##HPResetBarFillColor"))
@@ -130,10 +125,7 @@ namespace TickTracker.Windows
                 config.Save();
             }
 
-            if (ImGui.ColorEdit4("HP Bar Border Color", ref config.HPBarBorderColor, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar))
-            {
-                config.Save();
-            }
+            colorModified |= ImGui.ColorEdit4("HP Bar Border Color", ref config.HPBarBorderColor, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar);
             ImGui.SameLine();
             ImGui.SetCursorPosX(resetButtonX);
             if (ImGui.Button("Reset##HPResetBarBorderColor"))
@@ -145,10 +137,7 @@ namespace TickTracker.Windows
             ImGui.Separator();
             ImGui.Spacing();
 
-            if (ImGui.ColorEdit4("MP Bar Background Color", ref config.MPBarBackgroundColor, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar))
-            {
-                config.Save();
-            }
+            colorModified |= ImGui.ColorEdit4("MP Bar Background Color", ref config.MPBarBackgroundColor, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar);
             ImGui.SameLine();
             resetButtonX = ImGui.GetCursorPosX();
             if (ImGui.Button("Reset##ResetMPBarBackgroundColor"))
@@ -157,10 +146,7 @@ namespace TickTracker.Windows
                 config.Save();
             }
 
-            if (ImGui.ColorEdit4("MP Bar Fill Color", ref config.MPBarFillColor, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar))
-            {
-                config.Save();
-            }
+            colorModified |= ImGui.ColorEdit4("MP Bar Fill Color", ref config.MPBarFillColor, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar);
             ImGui.SameLine();
             ImGui.SetCursorPosX(resetButtonX);
             if (ImGui.Button("Reset##MPResetBarFillColor"))
@@ -169,15 +155,16 @@ namespace TickTracker.Windows
                 config.Save();
             }
 
-            if (ImGui.ColorEdit4("MP Bar Border Color", ref config.MPBarBorderColor, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar))
-            {
-                config.Save();
-            }
+            colorModified |= ImGui.ColorEdit4("MP Bar Border Color", ref config.MPBarBorderColor, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar);
             ImGui.SameLine();
             ImGui.SetCursorPosX(resetButtonX);
             if (ImGui.Button("Reset##MPResetBarBorderColor"))
             {
                 config.MPBarBorderColor = new(0.246f, 0.262f, 0.270f, 1f); // Default Color: Dark Grey - #3F4345
+                config.Save();
+            }
+            if (colorModified)
+            {
                 config.Save();
             }
         }
@@ -237,16 +224,16 @@ namespace TickTracker.Windows
             return change;
         }
         /// <summary>
-        ///     This exists because the bar windows don't actually go under 32x32 because of the drawn bar inside it.
-        ///     The max value is arbitrarly set to 1920x1080.
+        ///     This exists because the window don't actually go under 32x32 because of the drawn bar inside it.
         /// </summary>
         private static bool DragInput2Size(ref Vector2 vector, string label1, string label2, string description)
         {
+            var resolution = ImGui.GetMainViewport().Size;
             var change = false;
             var x = (int)vector.X;
             var y = (int)vector.Y;
             ImGui.PushItemWidth(ImGui.GetContentRegionMax().X / 3.5f);
-            if (ImGui.DragInt($"##{label1}", ref x, 1, 32, 1920, "%d", ImGuiSliderFlags.AlwaysClamp))
+            if (ImGui.DragInt($"##{label1}", ref x, 1, 32, (int)resolution.X, "%d", ImGuiSliderFlags.AlwaysClamp))
             {
                 vector.X = x;
                 change = true;
@@ -254,7 +241,7 @@ namespace TickTracker.Windows
             ImGui.PopItemWidth();
             ImGui.SameLine();
             ImGui.PushItemWidth(ImGui.GetContentRegionMax().X / 3.5f);
-            if (ImGui.DragInt($"##{label2}", ref y, 1, 32, 1080, "%d", ImGuiSliderFlags.AlwaysClamp))
+            if (ImGui.DragInt($"##{label2}", ref y, 1, 32, (int)resolution.Y, "%d", ImGuiSliderFlags.AlwaysClamp))
             {
                 vector.Y = y;
                 change = true;
