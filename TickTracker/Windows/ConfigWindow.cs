@@ -2,7 +2,6 @@ using ImGuiNET;
 using System;
 using System.Numerics;
 using Dalamud.Interface.Windowing;
-using Dalamud.Interface;
 
 namespace TickTracker.Windows
 {
@@ -15,6 +14,11 @@ namespace TickTracker.Windows
             Size = new(320, 400);
             SizeCondition = ImGuiCond.Appearing;
             Flags = ImGuiWindowFlags.NoResize;
+        }
+
+        public override void OnClose()
+        {
+            config.Save();
         }
 
         public override void Draw()
@@ -32,15 +36,10 @@ namespace TickTracker.Windows
                 DrawBehaviorTab();
                 ImGui.EndTabBar();
             }
-            Close();
+            DrawCloseButton();
         }
 
-        public override void OnClose()
-        {
-            config.Save();
-        }
-
-        private void Close()
+        private void DrawCloseButton()
         {
             var originPos = ImGui.GetCursorPos();
             // Place close button in bottom right + some padding / extra space
@@ -80,54 +79,27 @@ namespace TickTracker.Windows
             if (ImGui.BeginTabItem("Behavior"))
             {
                 ImGui.Spacing();
-                var hpVisible = config.HPVisible;
-                if (ImGui.Checkbox("Show HP Bar", ref hpVisible))
-                {
-                    config.HPVisible = hpVisible;
-                    config.Save();
-                }
-                var mpVisible = config.MPVisible;
-                if (ImGui.Checkbox("Show MP Bar", ref mpVisible))
-                {
-                    config.MPVisible = mpVisible;
-                    config.Save();
-                }
-                var fullResource = config.HideOnFullResource;
-                if (ImGui.Checkbox("Hide bar on full resource", ref fullResource))
-                {
-                    config.HideOnFullResource = fullResource;
-                    config.Save();
-                }
-                ImGui.Indent();
-                var showInCombat = config.AlwaysShowInCombat;
-                if (ImGui.Checkbox("Always show in combat", ref showInCombat))
-                {
-                    config.AlwaysShowInCombat = showInCombat;
-                    config.Save();
-                }
-                ImGui.Unindent();
-                var hideOutOfCombat = config.HideOutOfCombat;
-                if (ImGui.Checkbox("Hide while not in combat", ref hideOutOfCombat))
-                {
-                    config.HideOutOfCombat = hideOutOfCombat;
-                    config.Save();
-                }
+                var modified = false;
+
+                modified |= ImGui.Checkbox("Show HP Bar", ref config.HPVisible);
+                modified |= ImGui.Checkbox("Show MP Bar", ref config.MPVisible);
+                modified |= ImGui.Checkbox("Hide bar on full resource", ref config.HideOnFullResource);
 
                 ImGui.Indent();
-                var showInDuties = config.AlwaysShowInDuties;
-                if (ImGui.Checkbox("Always show while in duties", ref showInDuties))
-                {
-                    config.AlwaysShowInDuties = showInDuties;
-                    config.Save();
-                }
-
-                var showWithHostileTarget = config.AlwaysShowWithHostileTarget;
-                if (ImGui.Checkbox("Always show with enemy target", ref showWithHostileTarget))
-                {
-                    config.AlwaysShowWithHostileTarget = showWithHostileTarget;
-                    config.Save();
-                }
+                modified |= ImGui.Checkbox("Always show in combat", ref config.AlwaysShowInCombat);
                 ImGui.Unindent();
+
+                modified |= ImGui.Checkbox("Hide while not in combat", ref config.HideOutOfCombat);
+
+                ImGui.Indent();
+                modified |= ImGui.Checkbox("Always show while in duties", ref config.AlwaysShowInDuties);
+                modified |= ImGui.Checkbox("Always show with enemy target", ref config.AlwaysShowWithHostileTarget);
+                ImGui.Unindent();
+
+                if (modified)
+                {
+                    config.Save();
+                }
                 ImGui.EndTabItem();
             }
         }
@@ -142,7 +114,7 @@ namespace TickTracker.Windows
             var resetButtonX = ImGui.GetCursorPosX();
             if (ImGui.Button("Reset##ResetHPBarBackgroundColor"))
             {
-                config.HPBarBackgroundColor = new(0f, 0f, 0f, 1f);
+                config.HPBarBackgroundColor = new(0f, 0f, 0f, 1f); // Default Color: Black - #000000
                 config.Save();
             }
 
@@ -154,7 +126,7 @@ namespace TickTracker.Windows
             ImGui.SetCursorPosX(resetButtonX);
             if (ImGui.Button("Reset##HPResetBarFillColor"))
             {
-                config.HPBarFillColor = new(0.276f, 0.8f, 0.24f, 1f);
+                config.HPBarFillColor = new(0.276f, 0.8f, 0.24f, 1f); // Default Color: Green - #46CC3D
                 config.Save();
             }
 
@@ -166,7 +138,7 @@ namespace TickTracker.Windows
             ImGui.SetCursorPosX(resetButtonX);
             if (ImGui.Button("Reset##HPResetBarBorderColor"))
             {
-                config.HPBarBorderColor = new(0.246f, 0.262f, 0.270f, 1f);
+                config.HPBarBorderColor = new(0.246f, 0.262f, 0.270f, 1f); // Default Color: Dark Grey - #3F4345
                 config.Save();
             }
             ImGui.Spacing();
@@ -181,7 +153,7 @@ namespace TickTracker.Windows
             resetButtonX = ImGui.GetCursorPosX();
             if (ImGui.Button("Reset##ResetMPBarBackgroundColor"))
             {
-                config.MPBarBackgroundColor = new(0f, 0f, 0f, 1f);
+                config.MPBarBackgroundColor = new(0f, 0f, 0f, 1f); // Default Color: Black - #000000
                 config.Save();
             }
 
@@ -193,7 +165,7 @@ namespace TickTracker.Windows
             ImGui.SetCursorPosX(resetButtonX);
             if (ImGui.Button("Reset##MPResetBarFillColor"))
             {
-                config.MPBarFillColor = new(0.753f, 0.271f, 0.482f, 1f);
+                config.MPBarFillColor = new(0.753f, 0.271f, 0.482f, 1f); // Default Color: Pink - #C0457B
                 config.Save();
             }
 
@@ -205,7 +177,7 @@ namespace TickTracker.Windows
             ImGui.SetCursorPosX(resetButtonX);
             if (ImGui.Button("Reset##MPResetBarBorderColor"))
             {
-                config.MPBarBorderColor = new(0.246f, 0.262f, 0.270f, 1f);
+                config.MPBarBorderColor = new(0.246f, 0.262f, 0.270f, 1f); // Default Color: Dark Grey - #3F4345
                 config.Save();
             }
         }
@@ -214,35 +186,32 @@ namespace TickTracker.Windows
         {
             ImGui.Indent();
             ImGui.Spacing();
-            var HPBarPos = config.HPBarPosition;
-            var HPBarSize = config.HPBarSize;
-            if (DragInput2(ref HPBarPos, "HPPositionX", "HPPositionY", "HP Bar Position"))
+            if (DragInput2(ref config.HPBarPosition, "HPPositionX", "HPPositionY", "HP Bar Position"))
             {
-                Utilities.UpdateWindowConfig(HPBarPos, HPBarSize, WindowType.HpWindow);
+                config.Save();
             }
-
-            if (DragInput2(ref HPBarSize, "HPSizeX", "HPSizeY", "HP Bar Size"))
+            if (DragInput2Size(ref config.HPBarSize, "HPSizeX", "HPSizeY", "HP Bar Size"))
             {
-                Utilities.UpdateWindowConfig(HPBarPos, HPBarSize, WindowType.HpWindow);
+                config.Save();
             }
 
             ImGui.Spacing();
 
-            var MPBarPos = config.MPBarPosition;
-            var MPBarSize = config.MPBarSize;
-            if (DragInput2(ref MPBarPos, "MPPositionX", "MPPositionY", "MP Bar Position"))
+            if (DragInput2(ref config.MPBarPosition, "MPPositionX", "MPPositionY", "MP Bar Position"))
             {
-                Utilities.UpdateWindowConfig(MPBarPos, MPBarSize, WindowType.MpWindow);
+                config.Save();
             }
 
-            if (DragInput2(ref MPBarSize, "MPSizeX", "MPSizeY", "MP Bar Size"))
+            if (DragInput2Size(ref config.MPBarSize, "MPSizeX", "MPSizeY", "MP Bar Size"))
             {
-                Utilities.UpdateWindowConfig(MPBarPos, MPBarSize, WindowType.MpWindow);
+                config.Save();
             }
             ImGui.Spacing();
             ImGui.Unindent();
         }
-
+        /// <summary>
+        ///     The <see cref="ImGui.DragInt2" /> we have at home.
+        /// </summary>
         private static bool DragInput2(ref Vector2 vector, string label1, string label2, string description)
         {
             var change = false;
@@ -258,6 +227,34 @@ namespace TickTracker.Windows
             ImGui.SameLine();
             ImGui.PushItemWidth(ImGui.GetContentRegionMax().X / 3.5f);
             if (ImGui.DragInt($"##{label2}", ref y))
+            {
+                vector.Y = y;
+                change = true;
+            }
+            ImGui.PopItemWidth();
+            ImGui.SameLine();
+            ImGui.Text(description);
+            return change;
+        }
+        /// <summary>
+        ///     This exists because the bar windows don't actually go under 32x32 because of the drawn bar inside it.
+        ///     The max value is arbitrarly set to 1920x1080.
+        /// </summary>
+        private static bool DragInput2Size(ref Vector2 vector, string label1, string label2, string description)
+        {
+            var change = false;
+            var x = (int)vector.X;
+            var y = (int)vector.Y;
+            ImGui.PushItemWidth(ImGui.GetContentRegionMax().X / 3.5f);
+            if (ImGui.DragInt($"##{label1}", ref x, 1, 32, 1920, "%d", ImGuiSliderFlags.AlwaysClamp))
+            {
+                vector.X = x;
+                change = true;
+            }
+            ImGui.PopItemWidth();
+            ImGui.SameLine();
+            ImGui.PushItemWidth(ImGui.GetContentRegionMax().X / 3.5f);
+            if (ImGui.DragInt($"##{label2}", ref y, 1, 32, 1080, "%d", ImGuiSliderFlags.AlwaysClamp))
             {
                 vector.Y = y;
                 change = true;
