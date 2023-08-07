@@ -55,7 +55,7 @@ public unsafe class Utilities
     };
 
     /// <summary>
-    ///     Indicates if the <paramref name="window"/> is ready to be drawn
+    ///     Indicates if the <paramref name="window"/> is allowed to be drawn
     /// </summary>
     public static bool WindowCondition(WindowType window)
     {
@@ -81,7 +81,7 @@ public unsafe class Utilities
     }
 
     /// <summary>
-    ///     Saves the window size and position for the indicated window.
+    ///     Saves the size and position for the indicated <paramref name="window"/>.
     /// </summary>
     public static void UpdateWindowConfig(Vector2 currentPos, Vector2 currentSize, WindowType window)
     {
@@ -114,16 +114,16 @@ public unsafe class Utilities
     }
 
     /// <summary>
-    ///     Returns whether the <paramref name="text"/> contains elements from <paramref name="keywords"/> or not.
+    ///     Check the <paramref name="text"/> for elements from <paramref name="keywords"/>.
     /// </summary>
-    /// <returns>True if the <paramref name="text"/> has atleast one word, false otherwise.</returns>
+    /// <returns><see langword="true"/> if <paramref name="text"/> matches any element, otherwise <see langword="false"/>.</returns>
     public static bool KeywordMatch(string text, HashSet<string> keywords)
         => keywords.Any(k => text.Contains(k, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
-    ///     Returns if the player is bound by duty.
+    ///     Checks the player's <see cref="ConditionFlag" /> for BoundByDuty
     /// </summary>
-    /// <returns>True if in duty, false otherwise.</returns>
+    /// <returns><see langword="true"/> if any matching flag is set, otherwise <see langword="false"/>.</returns>
     public static bool InDuty()
     {
         var dutyBound = Service.Condition[ConditionFlag.BoundByDuty] || Service.Condition[ConditionFlag.BoundByDuty56] || Service.Condition[ConditionFlag.BoundByDuty95] || Service.Condition[ConditionFlag.BoundToDuty97];
@@ -138,9 +138,10 @@ public unsafe class Utilities
     }
 
     /// <summary>
-    ///     Returns if the player is in an ignored instance.
+    ///     Checks the current <see cref="TerritoryType.TerritoryIntendedUse"/> for a match against specific areas.
     /// </summary>
-    /// <returns>True if <see cref="TerritoryIntendedUseType.IslandSanctuary"/> or <see cref="TerritoryIntendedUseType.Diadem"/>, false otherwise.</returns>
+    /// <returns><see langword="true"/> if <see cref="TerritoryIntendedUseType.IslandSanctuary"/> 
+    /// or <see cref="TerritoryIntendedUseType.Diadem"/>, otherwise <see langword="false"/>.</returns>
     public static bool InIgnoredInstances()
     {
         var area = Service.DataManager.GetExcelSheet<TerritoryType>()!.GetRow(Service.ClientState.TerritoryType);
@@ -162,16 +163,16 @@ public unsafe class Utilities
     }
 
     /// <summary>
-    ///     Returns if the player is in a cutscene.
+    ///     Checks the player's <see cref="ConditionFlag" /> for different cutscene flags.
     /// </summary>
-    /// <returns>True if in a cutscene, false otherwise.</returns>
+    /// <returns><see langword="true"/> if any matching flag is set, otherwise <see langword="false"/>.</returns>
     public static bool inCustcene()
         => Service.Condition[ConditionFlag.OccupiedInCutSceneEvent] || Service.Condition[ConditionFlag.WatchingCutscene] || Service.Condition[ConditionFlag.WatchingCutscene78] || Service.Condition[ConditionFlag.Occupied38];
 
     /// <summary>
-    ///     Check if the <paramref name="addon"/> can be accessed
+    ///     Check if the <paramref name="addon"/> can be accessed.
     /// </summary>
-    /// <returns>True if addon is initialized and ready for use, false otherwise.</returns>
+    /// <returns><see langword="true"/> if addon is initialized and ready for use, otherwise <see langword="false"/>.</returns>
     public static bool IsAddonReady(AtkUnitBase* addon)
     {
         if (addon is null) return false;
