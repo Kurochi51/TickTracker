@@ -21,7 +21,6 @@ public class DebugWindow : Window, IDisposable
     /// </summary>
     public static readonly Dictionary<uint, string> ManaRegenDictionary = new();
 
-    private int maxItemCount;
     private float hpWidth = 0, mpWidth = 0;
     private bool firstTime = true, invalidList = false;
 
@@ -57,7 +56,7 @@ public class DebugWindow : Window, IDisposable
         ImGui.Text($"HP regen list generated with {HealthRegenDictionary.Count} status effects.");
         ImGui.Text($"MP regen list generated with {ManaRegenDictionary.Count} status effects.");
         ImGui.Spacing();
-        maxItemCount = Math.Max(HealthRegenDictionary.Count, ManaRegenDictionary.Count);
+        var maxItemCount = Math.Max(HealthRegenDictionary.Count, ManaRegenDictionary.Count);
         if (firstTime)
         {
             hpWidth = ImGui.CalcTextSize("Health Regen Status IDs").X;
