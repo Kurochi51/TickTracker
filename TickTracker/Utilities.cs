@@ -12,7 +12,7 @@ namespace TickTracker;
 /// <summary>
 ///     A class that contains different helper functions necessary for this plugin's operation
 /// </summary>
-public unsafe class Utilities
+public class Utilities
 {
     private static Configuration config => TickTrackerSystem.config;
 
@@ -173,7 +173,7 @@ public unsafe class Utilities
     ///     Check if the <paramref name="addon"/> can be accessed.
     /// </summary>
     /// <returns><see langword="true"/> if addon is initialized and ready for use, otherwise <see langword="false"/>.</returns>
-    public static bool IsAddonReady(AtkUnitBase* addon)
+    public static unsafe bool IsAddonReady(AtkUnitBase* addon)
     {
         if (addon is null) return false;
         if (addon->RootNode is null) return false;
