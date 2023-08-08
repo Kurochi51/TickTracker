@@ -90,12 +90,16 @@ namespace TickTracker
             });
         }
 
-        private bool PluginEnabled(bool enemy)
+        private bool PluginEnabled(bool target)
         {
+            if (Service.Condition[ConditionFlag.InDuelingArea])
+            {
+                return false;
+            }
             if (config.HideOutOfCombat && !inCombat)
             {
                 var showingBecauseInDuty =config.AlwaysShowInDuties && Utilities.InDuty();
-                var showingBecauseHasTarget = config.AlwaysShowWithHostileTarget && enemy;
+                var showingBecauseHasTarget = config.AlwaysShowWithHostileTarget && target;
                 if (!(showingBecauseInDuty || showingBecauseHasTarget))
                 {
                     return false;
@@ -107,18 +111,18 @@ namespace TickTracker
         private void OnFrameworkUpdate(Framework framework)
         {
             var now = DateTime.Now.TimeOfDay.TotalSeconds;
-            if (Service.ClientState is { IsLoggedIn: false } || nullSheet)
+            if (Service.ClientState is { IsLoggedIn: false } or { IsPvPExcludingDen: true } || nullSheet)
             {
                 return;
             }
             bool LucidDream;
             bool Regen;
-            bool Target;
+            bool Enemy;
             if (Service.ClientState is { LocalPlayer: { } player })
             {
                 LucidDream = player.StatusList.Any(e => ManaRegenList.Contains(e.StatusId));
                 Regen = player.StatusList.Any(e => HealthRegenList.Contains(e.StatusId));
-                Target = player.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
+                Enemy = player.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
                 inCombat = Service.Condition[ConditionFlag.InCombat];
                 currentHP = player.CurrentHp;
                 maxHP = player.MaxHp;
@@ -129,7 +133,7 @@ namespace TickTracker
             {
                 return;
             }
-            if (!PluginEnabled(Target) || !Utilities.IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || Utilities.inCustcene())
+            if (!PluginEnabled(Enemy) || !Utilities.IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || Utilities.inCustcene())
             {
                 HPBarWindow.IsOpen = false;
                 MPBarWindow.IsOpen = false; 
@@ -137,11 +141,11 @@ namespace TickTracker
             }
             var shouldShowHPBar = !config.HideOnFullResource || 
                                 (config.AlwaysShowInCombat && inCombat) ||
-                                (config.AlwaysShowWithHostileTarget && Target) ||
+                                (config.AlwaysShowWithHostileTarget && Enemy) ||
                                 (config.AlwaysShowInDuties && Utilities.InDuty());
             var shouldShowMPBar = !config.HideOnFullResource || 
                                 (config.AlwaysShowInCombat && inCombat) ||
-                                (config.AlwaysShowWithHostileTarget && Target) ||
+                                (config.AlwaysShowWithHostileTarget && Enemy) ||
                                 (config.AlwaysShowInDuties && Utilities.InDuty());
             HPBarWindow.IsOpen = shouldShowHPBar || (currentHP != maxHP);
             MPBarWindow.IsOpen = shouldShowMPBar || (currentMP != maxMP);
