@@ -159,7 +159,7 @@ public unsafe class Utilities
         else
         {
             return false;
-        }    
+        }
     }
 
     /// <summary>

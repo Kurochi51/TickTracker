@@ -98,7 +98,7 @@ namespace TickTracker
             }
             if (config.HideOutOfCombat && !inCombat)
             {
-                var showingBecauseInDuty =config.AlwaysShowInDuties && Utilities.InDuty();
+                var showingBecauseInDuty = config.AlwaysShowInDuties && Utilities.InDuty();
                 var showingBecauseHasTarget = config.AlwaysShowWithHostileTarget && target;
                 if (!(showingBecauseInDuty || showingBecauseHasTarget))
                 {
@@ -136,14 +136,14 @@ namespace TickTracker
             if (!PluginEnabled(Enemy) || !Utilities.IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || Utilities.inCustcene())
             {
                 HPBarWindow.IsOpen = false;
-                MPBarWindow.IsOpen = false; 
+                MPBarWindow.IsOpen = false;
                 return;
             }
-            var shouldShowHPBar = !config.HideOnFullResource || 
+            var shouldShowHPBar = !config.HideOnFullResource ||
                                 (config.AlwaysShowInCombat && inCombat) ||
                                 (config.AlwaysShowWithHostileTarget && Enemy) ||
                                 (config.AlwaysShowInDuties && Utilities.InDuty());
-            var shouldShowMPBar = !config.HideOnFullResource || 
+            var shouldShowMPBar = !config.HideOnFullResource ||
                                 (config.AlwaysShowInCombat && inCombat) ||
                                 (config.AlwaysShowWithHostileTarget && Enemy) ||
                                 (config.AlwaysShowInDuties && Utilities.InDuty());
