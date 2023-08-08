@@ -80,10 +80,10 @@ public class DebugWindow : Window, IDisposable
             }
             firstTime = false;
         }
-        ImGui.BeginChild("ScrollArea",new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y - 40f),false);
+        ImGui.BeginChild("ScrollArea", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y - 40f), false);
         ImGui.BeginTable("StatusIDTable", 2, ImGuiTableFlags.None);
 
-        ImGui.TableSetupColumn("Health Regen Status IDs", ImGuiTableColumnFlags.WidthFixed,hpWidth+40f);
+        ImGui.TableSetupColumn("Health Regen Status IDs", ImGuiTableColumnFlags.WidthFixed, hpWidth + 40f);
         ImGui.TableSetupColumn("Mana Regen Status IDs", ImGuiTableColumnFlags.WidthFixed, mpWidth);
         ImGui.TableHeadersRow();
 
