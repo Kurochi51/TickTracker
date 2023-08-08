@@ -5,7 +5,8 @@ public class TickTrackerSystem
     /// <summary>
     ///     A <see cref="Configuration"/> instance to be referenced across the plugin.
     /// </summary>
-    public static Configuration config = null!;
+    public static Configuration config { get; set; } = null!;
+
     public TickTrackerSystem()
     {
         config = Service.PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();

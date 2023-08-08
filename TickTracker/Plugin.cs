@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Collections.Generic;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
@@ -11,7 +12,6 @@ using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.Enums;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using TickTracker.Windows;
-using System.Threading.Tasks;
 
 namespace TickTracker
 {
@@ -25,12 +25,14 @@ namespace TickTracker
         /// A <see cref="HashSet{T}" /> list of Status IDs that trigger MP regen
         /// </summary>
         private static readonly HashSet<uint> ManaRegenList = new();
+
         public string Name => "Tick Tracker";
         private const string CommandName = "/tick";
         public WindowSystem WindowSystem = new("TickTracker");
         private ConfigWindow ConfigWindow { get; init; }
         private HPBar HPBarWindow { get; init; }
         private MPBar MPBarWindow { get; init; }
+        private DebugWindow DebugWindow { get; init; }
         private static Configuration config => TickTrackerSystem.config;
         private bool inCombat, nullSheet = true;
         private double syncValue = 1;
@@ -46,9 +48,12 @@ namespace TickTracker
             ConfigWindow = new ConfigWindow(this);
             HPBarWindow = new HPBar();
             MPBarWindow = new MPBar();
+            DebugWindow = new DebugWindow();
+            WindowSystem.AddWindow(DebugWindow);
             WindowSystem.AddWindow(ConfigWindow);
             WindowSystem.AddWindow(HPBarWindow);
             WindowSystem.AddWindow(MPBarWindow);
+
 
             Service.CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
             {
@@ -71,10 +76,12 @@ namespace TickTracker
                             if (Utilities.KeywordMatch(text, Utilities.HealthKeywords))
                             {
                                 HealthRegenList.Add(stat.RowId);
+                                DebugWindow.HealthRegenDictionary.Add(stat.RowId, stat.Name);
                             }
                             if (Utilities.KeywordMatch(text, Utilities.ManaKeywords))
                             {
                                 ManaRegenList.Add(stat.RowId);
+                                DebugWindow.ManaRegenDictionary.Add(stat.RowId, stat.Name);
                             }
                         }
                     }
@@ -110,6 +117,10 @@ namespace TickTracker
 
         private void OnFrameworkUpdate(Framework framework)
         {
+            if (DebugWindow.DrawConditions())
+            {
+                DebugWindow.IsOpen = true;
+            }
             var now = DateTime.Now.TimeOfDay.TotalSeconds;
             if (Service.ClientState is { IsLoggedIn: false } or { IsPvPExcludingDen: true } || nullSheet)
             {
@@ -211,6 +222,7 @@ namespace TickTracker
             HPBarWindow.Dispose();
             MPBarWindow.Dispose();
             ConfigWindow.Dispose();
+            DebugWindow.Dispose();
             Service.PluginInterface.UiBuilder.Draw -= DrawUI;
             Service.PluginInterface.UiBuilder.OpenConfigUi -= DrawConfigUI;
             Service.CommandManager.RemoveHandler(CommandName);

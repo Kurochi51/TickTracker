@@ -8,6 +8,7 @@ namespace TickTracker.Windows
     public class ConfigWindow : Window, IDisposable
     {
         private static Configuration config => TickTrackerSystem.config;
+        public static bool debugWindow { get; set; }
 
         public ConfigWindow(Plugin plugin) : base("Timer Settings")
         {
@@ -42,7 +43,15 @@ namespace TickTracker.Windows
         private void DrawCloseButton()
         {
             var originPos = ImGui.GetCursorPos();
-            // Place close button in bottom right + some padding / extra space
+            // Place a button in the bottom left
+            ImGui.SetCursorPosX(ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMax().X + 10f);
+            ImGui.SetCursorPosY(ImGui.GetWindowContentRegionMax().Y - ImGui.GetFrameHeight() - 5f);
+            if (ImGui.Button("Debug"))
+            {
+                debugWindow = !debugWindow;
+            }
+            ImGui.SetCursorPos(originPos);
+            // Place a button in the bottom right + some padding / extra space
             ImGui.SetCursorPosX(ImGui.GetWindowContentRegionMax().X - ImGui.CalcTextSize("Close").X - 10f);
             ImGui.SetCursorPosY(ImGui.GetWindowContentRegionMax().Y - ImGui.GetFrameHeight() - 5f);
             if (ImGui.Button("Close"))
