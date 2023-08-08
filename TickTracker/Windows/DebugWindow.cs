@@ -5,8 +5,6 @@ using System.Linq;
 using System.Numerics;
 using System.Collections.Generic;
 using Dalamud.Interface.Windowing;
-using Dalamud.Logging;
-using System.Text.RegularExpressions;
 
 namespace TickTracker.Windows;
 
