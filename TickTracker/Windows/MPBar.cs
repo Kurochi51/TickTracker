@@ -8,7 +8,7 @@ namespace TickTracker.Windows;
 
 public class MPBar : Window, IDisposable
 {
-    private static Configuration config => TickTrackerSystem.config;
+    private static Configuration config => Plugin.config;
     private readonly WindowType window = WindowType.MpWindow;
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
     public double LastTick = 1;

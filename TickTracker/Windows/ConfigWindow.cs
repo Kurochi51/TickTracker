@@ -7,8 +7,7 @@ namespace TickTracker.Windows
 {
     public class ConfigWindow : Window, IDisposable
     {
-        private static Configuration config => TickTrackerSystem.config;
-        public static bool debugWindow { get; set; }
+        private static Configuration config => Plugin.config;
 
         public ConfigWindow(Plugin plugin) : base("Timer Settings")
         {
@@ -48,7 +47,7 @@ namespace TickTracker.Windows
             ImGui.SetCursorPosY(ImGui.GetWindowContentRegionMax().Y - ImGui.GetFrameHeight() - 5f);
             if (ImGui.Button("Debug"))
             {
-                debugWindow = !debugWindow;
+                Plugin.DebugWindow.Toggle();
             }
             ImGui.SetCursorPos(originPos);
             // Place a button in the bottom right + some padding / extra space

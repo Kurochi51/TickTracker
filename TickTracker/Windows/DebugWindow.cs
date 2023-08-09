@@ -29,17 +29,9 @@ public class DebugWindow : Window, IDisposable
         Flags = ImGuiWindowFlags.NoResize;
     }
 
-    public override bool DrawConditions()
-    {
-        return ConfigWindow.debugWindow;
-    }
-
     public override void OnClose()
     {
         invalidList = false;
-        firstTime = true;
-        hpWidth = 0;
-        mpWidth = 0;
     }
 
     public override void Draw()
@@ -78,6 +70,7 @@ public class DebugWindow : Window, IDisposable
             }
             firstTime = false;
         }
+
         ImGui.BeginChild("ScrollArea", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y - 40f), false);
         ImGui.BeginTable("StatusIDTable", 2, ImGuiTableFlags.None);
 
@@ -96,10 +89,6 @@ public class DebugWindow : Window, IDisposable
                 var kvp = HealthRegenDictionary.ElementAt(i);
                 ImGui.Text($"{kvp.Key}: {kvp.Value}");
             }
-            else
-            {
-                ImGui.Text("");
-            }
 
             // Mana Regen column
             ImGui.TableSetColumnIndex(1);
@@ -108,14 +97,11 @@ public class DebugWindow : Window, IDisposable
                 var kvp = ManaRegenDictionary.ElementAt(i);
                 ImGui.Text($"{kvp.Key}: {kvp.Value}");
             }
-            else
-            {
-                ImGui.Text("");
-            }
         }
 
         ImGui.EndTable();
         ImGui.EndChild();
+
         CopyAndClose();
     }
 
@@ -138,7 +124,6 @@ public class DebugWindow : Window, IDisposable
         ImGui.SetCursorPosY(ImGui.GetWindowContentRegionMax().Y - ImGui.GetFrameHeight() - 5f);
         if (ImGui.Button("Close"))
         {
-            ConfigWindow.debugWindow = false;
             this.IsOpen = false;
         }
         ImGui.SetCursorPos(originPos);

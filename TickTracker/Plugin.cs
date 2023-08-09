@@ -25,6 +25,10 @@ namespace TickTracker
         /// A <see cref="HashSet{T}" /> list of Status IDs that trigger MP regen
         /// </summary>
         private static readonly HashSet<uint> ManaRegenList = new();
+        /// <summary>
+        ///     A <see cref="Configuration"/> instance to be referenced across the plugin.
+        /// </summary>
+        public static Configuration config { get; set; } = null!;
 
         public string Name => "Tick Tracker";
         private const string CommandName = "/tick";
@@ -32,8 +36,7 @@ namespace TickTracker
         private ConfigWindow ConfigWindow { get; init; }
         private HPBar HPBarWindow { get; init; }
         private MPBar MPBarWindow { get; init; }
-        private DebugWindow DebugWindow { get; init; }
-        private static Configuration config => TickTrackerSystem.config;
+        public static DebugWindow DebugWindow { get; set; } = null!;
         private bool inCombat, nullSheet = true;
         private double syncValue = 1;
         private int lastHPValue = -1, lastMPValue = -1;
@@ -44,7 +47,7 @@ namespace TickTracker
         public Plugin(DalamudPluginInterface pluginInterface)
         {
             pluginInterface.Create<Service>();
-            pluginInterface.Create<TickTrackerSystem>();
+            config = Service.PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
             ConfigWindow = new ConfigWindow(this);
             HPBarWindow = new HPBar();
             MPBarWindow = new MPBar();
@@ -117,10 +120,6 @@ namespace TickTracker
 
         private void OnFrameworkUpdate(Framework framework)
         {
-            if (DebugWindow.DrawConditions())
-            {
-                DebugWindow.IsOpen = true;
-            }
             var now = DateTime.Now.TimeOfDay.TotalSeconds;
             if (Service.ClientState is { IsLoggedIn: false } or { IsPvPExcludingDen: true } || nullSheet)
             {

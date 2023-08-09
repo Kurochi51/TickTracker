@@ -14,7 +14,7 @@ namespace TickTracker;
 /// </summary>
 public class Utilities
 {
-    private static Configuration config => TickTrackerSystem.config;
+    private static Configuration config => Plugin.config;
 
     /// <summary>
     ///     A set of words that indicate regeneration
