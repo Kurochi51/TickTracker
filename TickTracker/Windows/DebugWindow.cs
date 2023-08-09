@@ -50,9 +50,9 @@ public class DebugWindow : Window, IDisposable
         if (firstTime)
         {
             hpWidth = ImGui.CalcTextSize("Health Regen Status IDs").X;
-            foreach (var text in HealthRegenDictionary.Values)
+            foreach (var item in HealthRegenDictionary)
             {
-                var textWidth = ImGui.CalcTextSize(text);
+                var textWidth = ImGui.CalcTextSize(item.Value.ToString()) + ImGui.CalcTextSize(": ") + ImGui.CalcTextSize(item.Key.ToString());
                 if (textWidth.X > hpWidth)
                 {
                     hpWidth = textWidth.X;
@@ -60,9 +60,9 @@ public class DebugWindow : Window, IDisposable
             }
 
             mpWidth = ImGui.CalcTextSize("Mana Regen Status IDs").X;
-            foreach (var text in ManaRegenDictionary.Values)
+            foreach (var item in ManaRegenDictionary)
             {
-                var textWidth = ImGui.CalcTextSize(text);
+                var textWidth = ImGui.CalcTextSize(item.Value.ToString()) + ImGui.CalcTextSize(": ") + ImGui.CalcTextSize(item.Key.ToString());
                 if (textWidth.X > mpWidth)
                 {
                     mpWidth = textWidth.X;
@@ -70,18 +70,16 @@ public class DebugWindow : Window, IDisposable
             }
             firstTime = false;
         }
-
-        ImGui.BeginChild("ScrollArea", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y - 40f), false);
+        ImGui.BeginChild("ScrollArea", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y - 40f), true);
         ImGui.BeginTable("StatusIDTable", 2, ImGuiTableFlags.None);
 
-        ImGui.TableSetupColumn("Health Regen Status IDs", ImGuiTableColumnFlags.WidthFixed, hpWidth + 40f);
+        ImGui.TableSetupColumn("Health Regen Status IDs", ImGuiTableColumnFlags.WidthFixed, hpWidth);
         ImGui.TableSetupColumn("Mana Regen Status IDs", ImGuiTableColumnFlags.WidthFixed, mpWidth);
         ImGui.TableHeadersRow();
+        ImGui.TableNextRow();
 
         for (var i = 0; i < maxItemCount; i++)
         {
-            ImGui.TableNextRow();
-
             // Health Regen column
             ImGui.TableSetColumnIndex(0);
             if (i < HealthRegenDictionary.Count)
@@ -96,6 +94,11 @@ public class DebugWindow : Window, IDisposable
             {
                 var kvp = ManaRegenDictionary.ElementAt(i);
                 ImGui.Text($"{kvp.Key}: {kvp.Value}");
+            }
+
+            if (i + 1 < maxItemCount)
+            {
+                ImGui.TableNextRow();
             }
         }
 

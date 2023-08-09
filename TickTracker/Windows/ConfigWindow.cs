@@ -11,7 +11,7 @@ namespace TickTracker.Windows
 
         public ConfigWindow(Plugin plugin) : base("Timer Settings")
         {
-            Size = new(320, 400);
+            Size = new(320, 420);
             SizeCondition = ImGuiCond.Appearing;
             Flags = ImGuiWindowFlags.NoResize;
         }
