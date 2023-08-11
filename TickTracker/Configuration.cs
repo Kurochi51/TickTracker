@@ -15,16 +15,16 @@ public class Configuration : IPluginConfiguration
     public bool HPVisible = true;
     public bool MPVisible = true;
     public bool HideOnFullResource = false;
-    public Vector2 HPBarSize = new(180, 50);
     public Vector2 HPBarPosition = new(600, 500);
-    public Vector4 HPBarBorderColor = new(0.246f, 0.262f, 0.270f, 1f);
+    public Vector2 HPBarSize = new(180, 50);
     public Vector4 HPBarBackgroundColor = new(0f, 0f, 0f, 1f);
     public Vector4 HPBarFillColor = new(0.276f, 0.8f, 0.24f, 1f);
-    public Vector2 MPBarSize = new(180, 50);
+    public Vector4 HPBarBorderColor = new(0.246f, 0.262f, 0.270f, 1f);
     public Vector2 MPBarPosition = new(900, 500);
-    public Vector4 MPBarBorderColor = new(0.246f, 0.262f, 0.270f, 1f);
+    public Vector2 MPBarSize = new(180, 50);
     public Vector4 MPBarBackgroundColor = new(0f, 0f, 0f, 1f);
     public Vector4 MPBarFillColor = new(0.753f, 0.271f, 0.482f, 1f);
+    public Vector4 MPBarBorderColor = new(0.246f, 0.262f, 0.270f, 1f);
 
     public void Save() => Service.PluginInterface.SavePluginConfig(this);
 
