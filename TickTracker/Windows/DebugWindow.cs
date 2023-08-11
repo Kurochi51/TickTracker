@@ -73,7 +73,7 @@ public class DebugWindow : Window, IDisposable
         ImGui.BeginChild("ScrollArea", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y - 40f), true);
         ImGui.BeginTable("StatusIDTable", 2, ImGuiTableFlags.None);
 
-        ImGui.TableSetupColumn("Health Regen Status IDs", ImGuiTableColumnFlags.WidthFixed, hpWidth);
+        ImGui.TableSetupColumn(" Health Regen Status IDs", ImGuiTableColumnFlags.WidthFixed, hpWidth);
         ImGui.TableSetupColumn("Mana Regen Status IDs", ImGuiTableColumnFlags.WidthFixed, mpWidth);
         ImGui.TableHeadersRow();
         ImGui.TableNextRow();
@@ -85,7 +85,7 @@ public class DebugWindow : Window, IDisposable
             if (i < HealthRegenDictionary.Count)
             {
                 var kvp = HealthRegenDictionary.ElementAt(i);
-                ImGui.Text($"{kvp.Key}: {kvp.Value}");
+                ImGui.Text($" {kvp.Key}: {kvp.Value}");
             }
 
             // Mana Regen column
