@@ -7,9 +7,9 @@ namespace TickTracker.Windows
 {
     public class ConfigWindow : Window, IDisposable
     {
-        private static Configuration config => Plugin.config;
+        private static Configuration config => Plugin.Config;
 
-        public ConfigWindow(Plugin plugin) : base("Timer Settings")
+        public ConfigWindow() : base("Timer Settings")
         {
             Size = new(320, 420);
             SizeCondition = ImGuiCond.Appearing;
@@ -56,7 +56,7 @@ namespace TickTracker.Windows
             if (ImGui.Button("Close"))
             {
                 config.Save();
-                this.IsOpen = false;
+                IsOpen = false;
             }
             ImGui.SetCursorPos(originPos);
         }

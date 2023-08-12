@@ -3,69 +3,28 @@ using System;
 using System.Numerics;
 using Dalamud.Interface;
 using Dalamud.Interface.Windowing;
+using Dalamud.Plugin.Services;
 
 namespace TickTracker.Windows;
 
-public class MPBar : Window, IDisposable
+public class MPBar : BarWindowBase
 {
-    private static Configuration config => Plugin.config;
-    private readonly WindowType window = WindowType.MpWindow;
-    private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
+    private const float _actorTickInterval = 3, _fastTickInterval = 1.5f;
     public double LastTick = 1;
-    public bool FastTick, UpdateAvailable = false;
 
-    private const ImGuiWindowFlags DefaultFlags = ImGuiWindowFlags.NoScrollbar |
-                                                  ImGuiWindowFlags.NoTitleBar |
-                                                  ImGuiWindowFlags.NoCollapse;
-
-    private const ImGuiWindowFlags LockedBarFlags = ImGuiWindowFlags.NoBackground |
-                                                    ImGuiWindowFlags.NoMove |
-                                                    ImGuiWindowFlags.NoResize |
-                                                    ImGuiWindowFlags.NoNav |
-                                                    ImGuiWindowFlags.NoInputs;
-    public MPBar() : base("MPBarWindow")
+    public MPBar(IClientState clientState) : base(clientState, WindowType.MpWindow, "MPBarWindow")
     {
-        SizeCondition = ImGuiCond.FirstUseEver;
-        Size = config.MPBarSize * ImGuiHelpers.GlobalScale;
+        Size = Config.MPBarSize * ImGuiHelpers.GlobalScale;
 
         PositionCondition = ImGuiCond.FirstUseEver;
-        Position = config.MPBarPosition;
-    }
-
-    public override bool DrawConditions()
-    {
-        if (!Service.ClientState.IsLoggedIn)
-        {
-            return false;
-        }
-        if (!Utilities.WindowCondition(WindowType.MpWindow))
-        {
-            return false;
-        }
-        if (UpdateAvailable)
-        {
-            UpdateAvailable = false;
-            return true;
-        }
-        return true;
-    }
-
-    public override void PreDraw()
-    {
-        var barWindowPadding = new Vector2(8, 14);
-        Flags = DefaultFlags;
-        if (config.LockBar)
-        {
-            Flags |= LockedBarFlags;
-        }
-        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, barWindowPadding);
+        Position = Config.MPBarPosition;
     }
 
     public override void Draw()
     {
         var now = DateTime.Now.TimeOfDay.TotalSeconds;
         UpdateWindow();
-        var progress = (float)((now - LastTick) / (FastTick ? FastTickInterval : ActorTickInterval));
+        var progress = (float)((now - LastTick) / (FastTick ? _fastTickInterval : _actorTickInterval));
         if (progress > 1)
         {
             progress = 1;
@@ -74,14 +33,9 @@ public class MPBar : Window, IDisposable
         DrawProgress(progress);
     }
 
-    public override void PostDraw()
-    {
-        ImGui.PopStyleVar();
-    }
-
     private void UpdateWindow()
     {
-        if (config.LockBar)
+        if (Config.LockBar)
         {
             return;
         }
@@ -89,17 +43,17 @@ public class MPBar : Window, IDisposable
         var windowSize = ImGui.GetWindowSize();
         if (IsFocused)
         {
-            Utilities.UpdateWindowConfig(windowPos, windowSize, window);
+            Utilities.UpdateWindowConfig(windowPos, windowSize, WindowType);
         }
         else
         {
-            if (windowPos != config.MPBarPosition)
+            if (windowPos != Config.MPBarPosition)
             {
-                ImGui.SetWindowPos(config.MPBarPosition);
+                ImGui.SetWindowPos(Config.MPBarPosition);
             }
-            if (windowSize != config.MPBarSize)
+            if (windowSize != Config.MPBarSize)
             {
-                ImGui.SetWindowSize(config.MPBarSize);
+                ImGui.SetWindowSize(Config.MPBarSize);
             }
         }
     }
@@ -119,13 +73,8 @@ public class MPBar : Window, IDisposable
 
         // Draw main bar
         var drawList = ImGui.GetWindowDrawList();
-        drawList.AddRectFilled(topLeft + barFillPosOffset, bottomRight + barFillSizeOffset, ImGui.GetColorU32(config.MPBarBackgroundColor), cornerRounding, ImDrawFlags.RoundCornersAll);
-        drawList.AddRectFilled(topLeft + barFillPosOffset, filledWidth, ImGui.GetColorU32(config.MPBarFillColor), cornerRounding, ImDrawFlags.RoundCornersAll);
-        drawList.AddRect(topLeft, bottomRight, ImGui.GetColorU32(config.MPBarBorderColor), cornerRounding, ImDrawFlags.RoundCornersAll, borderThickness);
-    }
-
-    public void Dispose()
-    {
-        GC.SuppressFinalize(this);
+        drawList.AddRectFilled(topLeft + barFillPosOffset, bottomRight + barFillSizeOffset, ImGui.GetColorU32(Config.MPBarBackgroundColor), cornerRounding, ImDrawFlags.RoundCornersAll);
+        drawList.AddRectFilled(topLeft + barFillPosOffset, filledWidth, ImGui.GetColorU32(Config.MPBarFillColor), cornerRounding, ImDrawFlags.RoundCornersAll);
+        drawList.AddRect(topLeft, bottomRight, ImGui.GetColorU32(Config.MPBarBorderColor), cornerRounding, ImDrawFlags.RoundCornersAll, borderThickness);
     }
 }

@@ -1,4 +1,6 @@
 using Dalamud.Configuration;
+using Dalamud.Plugin;
+using Newtonsoft.Json;
 using System.Numerics;
 
 namespace TickTracker;
@@ -25,7 +27,9 @@ public class Configuration : IPluginConfiguration
     public Vector4 MPBarBackgroundColor = new(0f, 0f, 0f, 1f);
     public Vector4 MPBarFillColor = new(0.753f, 0.271f, 0.482f, 1f);
     public Vector4 MPBarBorderColor = new(0.246f, 0.262f, 0.270f, 1f);
+    [JsonIgnore]
+    public DalamudPluginInterface? PluginInterface { private get; set; }
 
-    public void Save() => Service.PluginInterface.SavePluginConfig(this);
+    public void Save() => PluginInterface?.SavePluginConfig(this);
 
 }

@@ -127,7 +127,7 @@ public class DebugWindow : Window, IDisposable
         ImGui.SetCursorPosY(ImGui.GetWindowContentRegionMax().Y - ImGui.GetFrameHeight() - 5f);
         if (ImGui.Button("Close"))
         {
-            this.IsOpen = false;
+            IsOpen = false;
         }
         ImGui.SetCursorPos(originPos);
     }

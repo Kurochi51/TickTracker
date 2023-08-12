@@ -6,6 +6,7 @@ using Lumina.Excel.GeneratedSheets;
 using Dalamud.Logging;
 using Dalamud.Game.ClientState.Conditions;
 using FFXIVClientStructs.FFXIV.Component.GUI;
+using Dalamud.Plugin.Services;
 
 namespace TickTracker;
 
@@ -14,7 +15,14 @@ namespace TickTracker;
 /// </summary>
 public class Utilities
 {
-    private static Configuration config => Plugin.config;
+    public Utilities(Dalamud.Game.ClientState.Conditions.Condition condition, IDataManager dataManager, IClientState clientState)
+    {
+        _condition = condition;
+        _dataManager = dataManager;
+        _clientState = clientState;
+    }
+
+    private static Configuration Config => Plugin.Config;
 
     /// <summary>
     ///     A set of words that indicate regeneration
@@ -54,24 +62,28 @@ public class Utilities
         "mana"
     };
 
+    private readonly Dalamud.Game.ClientState.Conditions.Condition _condition;
+    private readonly IDataManager _dataManager;
+    private readonly IClientState _clientState;
+
     /// <summary>
     ///     Indicates if the <paramref name="window"/> is allowed to be drawn
     /// </summary>
     public static bool WindowCondition(WindowType window)
     {
-        if (!config.PluginEnabled)
+        if (!Config.PluginEnabled)
         {
             return false;
         }
         try
         {
-            var DisplayThisWindow = window switch
+            var displayThisWindow = window switch
             {
-                WindowType.HpWindow => config.HPVisible,
-                WindowType.MpWindow => config.MPVisible,
+                WindowType.HpWindow => Config.HPVisible,
+                WindowType.MpWindow => Config.MPVisible,
                 _ => throw new Exception("Unknown Window")
             };
-            return DisplayThisWindow;
+            return displayThisWindow;
         }
         catch (Exception e)
         {
@@ -87,28 +99,28 @@ public class Utilities
     {
         if (window == WindowType.HpWindow)
         {
-            if (!currentPos.Equals(config.HPBarPosition))
+            if (!currentPos.Equals(Config.HPBarPosition))
             {
-                config.HPBarPosition = currentPos;
-                config.Save();
+                Config.HPBarPosition = currentPos;
+                Config.Save();
             }
-            if (!currentSize.Equals(config.HPBarSize))
+            if (!currentSize.Equals(Config.HPBarSize))
             {
-                config.HPBarSize = currentSize;
-                config.Save();
+                Config.HPBarSize = currentSize;
+                Config.Save();
             }
         }
         if (window == WindowType.MpWindow)
         {
-            if (!currentPos.Equals(config.MPBarPosition))
+            if (!currentPos.Equals(Config.MPBarPosition))
             {
-                config.MPBarPosition = currentPos;
-                config.Save();
+                Config.MPBarPosition = currentPos;
+                Config.Save();
             }
-            if (!currentSize.Equals(config.MPBarSize))
+            if (!currentSize.Equals(Config.MPBarSize))
             {
-                config.MPBarSize = currentSize;
-                config.Save();
+                Config.MPBarSize = currentSize;
+                Config.Save();
             }
         }
     }
@@ -124,9 +136,9 @@ public class Utilities
     ///     Checks the player's <see cref="ConditionFlag" /> for BoundByDuty
     /// </summary>
     /// <returns><see langword="true"/> if any matching flag is set, otherwise <see langword="false"/>.</returns>
-    public static bool InDuty()
+    public bool InDuty()
     {
-        var dutyBound = Service.Condition[ConditionFlag.BoundByDuty] || Service.Condition[ConditionFlag.BoundByDuty56] || Service.Condition[ConditionFlag.BoundByDuty95] || Service.Condition[ConditionFlag.BoundToDuty97];
+        var dutyBound = _condition[ConditionFlag.BoundByDuty] || _condition[ConditionFlag.BoundByDuty56] || _condition[ConditionFlag.BoundByDuty95] || _condition[ConditionFlag.BoundToDuty97];
         if (dutyBound == true && !InIgnoredInstances())
         {
             return true;
@@ -142,9 +154,9 @@ public class Utilities
     /// </summary>
     /// <returns><see langword="true"/> if <see cref="TerritoryIntendedUseType.IslandSanctuary"/> 
     /// or <see cref="TerritoryIntendedUseType.Diadem"/>, otherwise <see langword="false"/>.</returns>
-    public static bool InIgnoredInstances()
+    public bool InIgnoredInstances()
     {
-        var area = Service.DataManager.GetExcelSheet<TerritoryType>()!.GetRow(Service.ClientState.TerritoryType);
+        var area = _dataManager.GetExcelSheet<TerritoryType>()!.GetRow(_clientState.TerritoryType);
         if (area is not null)
         {
             if (area.TerritoryIntendedUse is (byte)TerritoryIntendedUseType.IslandSanctuary or (byte)TerritoryIntendedUseType.Diadem)
@@ -166,8 +178,8 @@ public class Utilities
     ///     Checks the player's <see cref="ConditionFlag" /> for different cutscene flags.
     /// </summary>
     /// <returns><see langword="true"/> if any matching flag is set, otherwise <see langword="false"/>.</returns>
-    public static bool inCustcene()
-        => Service.Condition[ConditionFlag.OccupiedInCutSceneEvent] || Service.Condition[ConditionFlag.WatchingCutscene] || Service.Condition[ConditionFlag.WatchingCutscene78] || Service.Condition[ConditionFlag.Occupied38];
+    public bool InCustcene()
+        => _condition[ConditionFlag.OccupiedInCutSceneEvent] || _condition[ConditionFlag.WatchingCutscene] || _condition[ConditionFlag.WatchingCutscene78] || _condition[ConditionFlag.Occupied38];
 
     /// <summary>
     ///     Check if the <paramref name="addon"/> can be accessed.

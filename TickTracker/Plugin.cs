@@ -12,6 +12,7 @@ using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.Enums;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using TickTracker.Windows;
+using Dalamud.Plugin.Services;
 
 namespace TickTracker
 {
@@ -20,55 +21,77 @@ namespace TickTracker
         /// <summary>
         /// A <see cref="HashSet{T}" /> list of Status IDs that trigger HP regen
         /// </summary>
-        private static readonly HashSet<uint> HealthRegenList = new();
+        private static readonly HashSet<uint> _healthRegenList = new();
         /// <summary>
         /// A <see cref="HashSet{T}" /> list of Status IDs that trigger MP regen
         /// </summary>
-        private static readonly HashSet<uint> ManaRegenList = new();
+        private static readonly HashSet<uint> _manaRegenList = new();
+        private readonly DalamudPluginInterface _pluginInterface;
+        private readonly IClientState _clientState;
+        private readonly Framework _framework;
+        private readonly IGameGui _gameGui;
+        private readonly ICommandManager _commandManager;
+        private readonly Condition _condition;
+        private readonly Utilities _utilities;
+
         /// <summary>
         ///     A <see cref="Configuration"/> instance to be referenced across the plugin.
         /// </summary>
-        public static Configuration config { get; set; } = null!;
+        public static Configuration Config { get; set; } = null!;
 
         public string Name => "Tick Tracker";
-        private const string CommandName = "/tick";
+        private const string _commandName = "/tick";
         public WindowSystem WindowSystem = new("TickTracker");
         private ConfigWindow ConfigWindow { get; init; }
         private HPBar HPBarWindow { get; init; }
         private MPBar MPBarWindow { get; init; }
         public static DebugWindow DebugWindow { get; set; } = null!;
-        private bool inCombat, nullSheet = true;
-        private double syncValue = 1;
-        private int lastHPValue = -1, lastMPValue = -1;
-        private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
-        private uint currentHP = 1, currentMP = 1, maxHP = 2, maxMP = 2;
-        private static AtkUnitBase* NameplateAddon => (AtkUnitBase*)Service.GameGui.GetAddonByName("NamePlate");
+        private bool _inCombat, _nullSheet = true;
+        private double _syncValue = 1;
+        private int _lastHPValue = -1, _lastMPValue = -1;
+        private const float _actorTickInterval = 3, _fastTickInterval = 1.5f;
+        private uint _currentHP = 1, _currentMP = 1, _maxHP = 2, _maxMP = 2;
+        private AtkUnitBase* NameplateAddon => (AtkUnitBase*)_gameGui.GetAddonByName("NamePlate");
 
-        public Plugin(DalamudPluginInterface pluginInterface)
+        public Plugin(DalamudPluginInterface pluginInterface, IClientState clientState,
+            Framework framework, IGameGui gameGui, ICommandManager commandManager, Condition condition,
+            IDataManager dataManager
+            )
         {
-            pluginInterface.Create<Service>();
-            config = Service.PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-            ConfigWindow = new ConfigWindow(this);
-            HPBarWindow = new HPBar();
-            MPBarWindow = new MPBar();
+            _pluginInterface = pluginInterface;
+            _clientState = clientState;
+            _framework = framework;
+            _gameGui = gameGui;
+            _commandManager = commandManager;
+            _condition = condition;
+            _utilities = new Utilities(condition, dataManager, clientState);
+
+            Config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+            // this is a workaround as Configuration wouldn't be able to deserialize otherwise
+            // it's pretty ugly to use a setter to set the PluginInterface here but there's no other option
+            // it's also why I personally don't use Configuration but have my own methods to save and load configs
+            Config.PluginInterface = pluginInterface; 
+
+            ConfigWindow = new ConfigWindow();
+            HPBarWindow = new HPBar(clientState);
+            MPBarWindow = new MPBar(clientState);
             DebugWindow = new DebugWindow();
             WindowSystem.AddWindow(DebugWindow);
             WindowSystem.AddWindow(ConfigWindow);
             WindowSystem.AddWindow(HPBarWindow);
             WindowSystem.AddWindow(MPBarWindow);
 
-
-            Service.CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
+            commandManager.AddHandler(_commandName, new CommandInfo(OnCommand)
             {
                 HelpMessage = "Open or close Tick Tracker's config window."
             });
-            Service.PluginInterface.UiBuilder.Draw += DrawUI;
-            Service.PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
-            Service.Framework.Update += OnFrameworkUpdate;
-            Service.ClientState.TerritoryChanged += TerritoryChanged;
+            pluginInterface.UiBuilder.Draw += DrawUI;
+            pluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
+            framework.Update += OnFrameworkUpdate;
+            clientState.TerritoryChanged += TerritoryChanged;
             Task.Run(() =>
             {
-                var statusSheet = Service.DataManager.GetExcelSheet<Lumina.Excel.GeneratedSheets.Status>(Dalamud.ClientLanguage.English);
+                var statusSheet = dataManager.GetExcelSheet<Lumina.Excel.GeneratedSheets.Status>(Dalamud.ClientLanguage.English);
                 if (statusSheet != null)
                 {
                     foreach (var stat in statusSheet.Where(s => s.RowId is not 307 and not 1419 and not 135))
@@ -78,23 +101,23 @@ namespace TickTracker
                         {
                             if (Utilities.KeywordMatch(text, Utilities.HealthKeywords))
                             {
-                                HealthRegenList.Add(stat.RowId);
+                                _healthRegenList.Add(stat.RowId);
                                 DebugWindow.HealthRegenDictionary.Add(stat.RowId, stat.Name);
                             }
                             if (Utilities.KeywordMatch(text, Utilities.ManaKeywords))
                             {
-                                ManaRegenList.Add(stat.RowId);
+                                _manaRegenList.Add(stat.RowId);
                                 DebugWindow.ManaRegenDictionary.Add(stat.RowId, stat.Name);
                             }
                         }
                     }
-                    nullSheet = false;
-                    PluginLog.Debug("HP regen list generated with {HPcount} status effects.", HealthRegenList.Count);
-                    PluginLog.Debug("MP regen list generated with {MPcount} status effects.", ManaRegenList.Count);
+                    _nullSheet = false;
+                    PluginLog.Debug("HP regen list generated with {HPcount} status effects.", _healthRegenList.Count);
+                    PluginLog.Debug("MP regen list generated with {MPcount} status effects.", _manaRegenList.Count);
                 }
                 else
                 {
-                    nullSheet = true;
+                    _nullSheet = true;
                     PluginLog.Error("Status sheet couldn't get queued.");
                 }
             });
@@ -102,131 +125,129 @@ namespace TickTracker
 
         private bool PluginEnabled(bool target)
         {
-            if (Service.Condition[ConditionFlag.InDuelingArea])
+            if (_condition[ConditionFlag.InDuelingArea])
             {
                 return false;
             }
-            if (config.HideOutOfCombat && !inCombat)
+            if (Config.HideOutOfCombat && !_inCombat)
             {
-                var showingBecauseInDuty = config.AlwaysShowInDuties && Utilities.InDuty();
-                var showingBecauseHasTarget = config.AlwaysShowWithHostileTarget && target;
+                var showingBecauseInDuty = Config.AlwaysShowInDuties && _utilities.InDuty();
+                var showingBecauseHasTarget = Config.AlwaysShowWithHostileTarget && target;
                 if (!(showingBecauseInDuty || showingBecauseHasTarget))
                 {
                     return false;
                 }
             }
-            return config.PluginEnabled;
+            return Config.PluginEnabled;
         }
 
         private void OnFrameworkUpdate(Framework framework)
         {
             var now = DateTime.Now.TimeOfDay.TotalSeconds;
-            if (Service.ClientState is { IsLoggedIn: false } or { IsPvPExcludingDen: true } || nullSheet)
+            if (_clientState is { IsLoggedIn: false } or { IsPvPExcludingDen: true } || _nullSheet)
             {
                 return;
             }
             bool LucidDream;
             bool Regen;
             bool Enemy;
-            if (Service.ClientState is { LocalPlayer: { } player })
+            if (_clientState is { LocalPlayer: { } player })
             {
-                LucidDream = player.StatusList.Any(e => ManaRegenList.Contains(e.StatusId));
-                Regen = player.StatusList.Any(e => HealthRegenList.Contains(e.StatusId));
+                LucidDream = player.StatusList.Any(e => _manaRegenList.Contains(e.StatusId));
+                Regen = player.StatusList.Any(e => _healthRegenList.Contains(e.StatusId));
                 Enemy = player.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
-                inCombat = Service.Condition[ConditionFlag.InCombat];
-                currentHP = player.CurrentHp;
-                maxHP = player.MaxHp;
-                currentMP = player.CurrentMp;
-                maxMP = player.MaxMp;
+                _inCombat = _condition[ConditionFlag.InCombat];
+                _currentHP = player.CurrentHp;
+                _maxHP = player.MaxHp;
+                _currentMP = player.CurrentMp;
+                _maxMP = player.MaxMp;
             }
             else
             {
                 return;
             }
-            if (!PluginEnabled(Enemy) || !Utilities.IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || Utilities.inCustcene())
+            if (!PluginEnabled(Enemy) || !Utilities.IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || _utilities.InCustcene())
             {
                 HPBarWindow.IsOpen = false;
                 MPBarWindow.IsOpen = false;
                 return;
             }
-            var shouldShowHPBar = !config.HideOnFullResource ||
-                                (config.AlwaysShowInCombat && inCombat) ||
-                                (config.AlwaysShowWithHostileTarget && Enemy) ||
-                                (config.AlwaysShowInDuties && Utilities.InDuty());
-            var shouldShowMPBar = !config.HideOnFullResource ||
-                                (config.AlwaysShowInCombat && inCombat) ||
-                                (config.AlwaysShowWithHostileTarget && Enemy) ||
-                                (config.AlwaysShowInDuties && Utilities.InDuty());
-            HPBarWindow.IsOpen = shouldShowHPBar || (currentHP != maxHP);
-            MPBarWindow.IsOpen = shouldShowMPBar || (currentMP != maxMP);
-            if ((lastHPValue < currentHP && !HPBarWindow.FastTick) || (lastMPValue < currentMP && !MPBarWindow.FastTick))
+            var shouldShowHPBar = !Config.HideOnFullResource ||
+                                (Config.AlwaysShowInCombat && _inCombat) ||
+                                (Config.AlwaysShowWithHostileTarget && Enemy) ||
+                                (Config.AlwaysShowInDuties && _utilities.InDuty());
+            var shouldShowMPBar = !Config.HideOnFullResource ||
+                                (Config.AlwaysShowInCombat && _inCombat) ||
+                                (Config.AlwaysShowWithHostileTarget && Enemy) ||
+                                (Config.AlwaysShowInDuties && _utilities.InDuty());
+            HPBarWindow.IsOpen = shouldShowHPBar || (_currentHP != _maxHP);
+            MPBarWindow.IsOpen = shouldShowMPBar || (_currentMP != _maxMP);
+            if ((_lastHPValue < _currentHP && !HPBarWindow.FastTick) || (_lastMPValue < _currentMP && !MPBarWindow.FastTick))
             {
-                syncValue = now;
+                _syncValue = now;
             }
             UpdateHPTick(now, Regen);
             UpdateMPTick(now, LucidDream);
-            if (syncValue + ActorTickInterval <= now)
+            if (_syncValue + _actorTickInterval <= now)
             {
-                syncValue += ActorTickInterval;
+                _syncValue += _actorTickInterval;
             }
         }
 
         private void UpdateHPTick(double currentTime, bool regen)
         {
-            HPBarWindow.FastTick = (regen && currentHP != maxHP);
-            if (currentHP == maxHP)
+            HPBarWindow.FastTick = (regen && _currentHP != _maxHP);
+            if (_currentHP == _maxHP)
             {
-                HPBarWindow.LastTick = syncValue;
+                HPBarWindow.LastTick = _syncValue;
             }
-            else if (lastHPValue < currentHP)
+            else if (_lastHPValue < _currentHP)
             {
                 HPBarWindow.LastTick = currentTime;
             }
-            else if (HPBarWindow.LastTick + (HPBarWindow.FastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
+            else if (HPBarWindow.LastTick + (HPBarWindow.FastTick ? _fastTickInterval : _actorTickInterval) <= currentTime)
             {
-                HPBarWindow.LastTick += HPBarWindow.FastTick ? FastTickInterval : ActorTickInterval;
+                HPBarWindow.LastTick += HPBarWindow.FastTick ? _fastTickInterval : _actorTickInterval;
             }
-            lastHPValue = (int)currentHP;
+            _lastHPValue = (int)_currentHP;
             HPBarWindow.UpdateAvailable = true;
         }
 
         private void UpdateMPTick(double currentTime, bool lucid)
         {
-            MPBarWindow.FastTick = (lucid && currentMP != maxMP);
-            if (currentMP == maxMP)
+            MPBarWindow.FastTick = (lucid && _currentMP != _maxMP);
+            if (_currentMP == _maxMP)
             {
-                MPBarWindow.LastTick = syncValue;
+                MPBarWindow.LastTick = _syncValue;
             }
-            else if (lastMPValue < currentMP)
+            else if (_lastMPValue < _currentMP)
             {
                 MPBarWindow.LastTick = currentTime;
             }
-            else if (MPBarWindow.LastTick + (MPBarWindow.FastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
+            else if (MPBarWindow.LastTick + (MPBarWindow.FastTick ? _fastTickInterval : _actorTickInterval) <= currentTime)
             {
-                MPBarWindow.LastTick += MPBarWindow.FastTick ? FastTickInterval : ActorTickInterval;
+                MPBarWindow.LastTick += MPBarWindow.FastTick ? _fastTickInterval : _actorTickInterval;
             }
-            lastMPValue = (int)currentMP;
+            _lastMPValue = (int)_currentMP;
             MPBarWindow.UpdateAvailable = true;
         }
 
         private void TerritoryChanged(object? sender, ushort e)
         {
-            lastHPValue = -1;
-            lastMPValue = -1;
+            _lastHPValue = -1;
+            _lastMPValue = -1;
         }
 
         public void Dispose()
         {
             WindowSystem.RemoveAllWindows();
-            HPBarWindow.Dispose();
-            MPBarWindow.Dispose();
             ConfigWindow.Dispose();
             DebugWindow.Dispose();
-            Service.PluginInterface.UiBuilder.Draw -= DrawUI;
-            Service.PluginInterface.UiBuilder.OpenConfigUi -= DrawConfigUI;
-            Service.CommandManager.RemoveHandler(CommandName);
-            Service.Framework.Update -= OnFrameworkUpdate;
-            Service.ClientState.TerritoryChanged -= TerritoryChanged;
+            _pluginInterface.UiBuilder.Draw -= DrawUI;
+            _pluginInterface.UiBuilder.OpenConfigUi -= DrawConfigUI;
+            _commandManager.RemoveHandler(_commandName);
+            _framework.Update -= OnFrameworkUpdate;
+            _clientState.TerritoryChanged -= TerritoryChanged;
         }
 
         private void OnCommand(string command, string args)
