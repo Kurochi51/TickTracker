@@ -218,8 +218,6 @@ namespace TickTracker
         public void Dispose()
         {
             WindowSystem.RemoveAllWindows();
-            HPBarWindow.Dispose();
-            MPBarWindow.Dispose();
             ConfigWindow.Dispose();
             DebugWindow.Dispose();
             Service.PluginInterface.UiBuilder.Draw -= DrawUI;

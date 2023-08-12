@@ -2,63 +2,18 @@ using ImGuiNET;
 using System;
 using System.Numerics;
 using Dalamud.Interface;
-using Dalamud.Interface.Windowing;
 
 namespace TickTracker.Windows;
 
-public class HPBar : Window, IDisposable
+public class HPBar : BarWindowBase
 {
-    private static Configuration config => Plugin.config;
-    private readonly WindowType window = WindowType.HpWindow;
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
     public double LastTick = 1;
-    public bool FastTick, UpdateAvailable = false;
 
-    private const ImGuiWindowFlags DefaultFlags = ImGuiWindowFlags.NoScrollbar |
-                                                  ImGuiWindowFlags.NoTitleBar |
-                                                  ImGuiWindowFlags.NoCollapse;
-
-    private const ImGuiWindowFlags LockedBarFlags = ImGuiWindowFlags.NoBackground |
-                                                    ImGuiWindowFlags.NoMove |
-                                                    ImGuiWindowFlags.NoResize |
-                                                    ImGuiWindowFlags.NoNav |
-                                                    ImGuiWindowFlags.NoInputs;
-    public HPBar() : base("HPBarWindow")
+    public HPBar() : base(WindowType.HpWindow, "HPBarWindow")
     {
-        SizeCondition = ImGuiCond.FirstUseEver;
         Size = config.HPBarSize * ImGuiHelpers.GlobalScale;
-
-        PositionCondition = ImGuiCond.FirstUseEver;
         Position = config.HPBarPosition;
-    }
-
-    public override bool DrawConditions()
-    {
-        if (!Service.ClientState.IsLoggedIn)
-        {
-            return false;
-        }
-        if (!Utilities.WindowCondition(WindowType.HpWindow))
-        {
-            return false;
-        }
-        if (UpdateAvailable)
-        {
-            UpdateAvailable = false;
-            return true;
-        }
-        return true;
-    }
-
-    public override void PreDraw()
-    {
-        var barWindowPadding = new Vector2(8, 14);
-        Flags = DefaultFlags;
-        if (config.LockBar)
-        {
-            Flags |= LockedBarFlags;
-        }
-        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, barWindowPadding);
     }
 
     public override void Draw()
@@ -74,11 +29,6 @@ public class HPBar : Window, IDisposable
         DrawProgress(progress);
     }
 
-    public override void PostDraw()
-    {
-        ImGui.PopStyleVar();
-    }
-
     private void UpdateWindow()
     {
         if (config.LockBar)
@@ -89,7 +39,7 @@ public class HPBar : Window, IDisposable
         var windowSize = ImGui.GetWindowSize();
         if (IsFocused)
         {
-            Utilities.UpdateWindowConfig(windowPos, windowSize, window);
+            Utilities.UpdateWindowConfig(windowPos, windowSize, WindowType);
         }
         else
         {
@@ -122,10 +72,5 @@ public class HPBar : Window, IDisposable
         drawList.AddRectFilled(topLeft + barFillPosOffset, bottomRight + barFillSizeOffset, ImGui.GetColorU32(config.HPBarBackgroundColor), cornerRounding, ImDrawFlags.RoundCornersAll);
         drawList.AddRectFilled(topLeft + barFillPosOffset, filledWidth, ImGui.GetColorU32(config.HPBarFillColor), cornerRounding, ImDrawFlags.RoundCornersAll);
         drawList.AddRect(topLeft, bottomRight, ImGui.GetColorU32(config.HPBarBorderColor), cornerRounding, ImDrawFlags.RoundCornersAll, borderThickness);
-    }
-
-    public void Dispose()
-    {
-        GC.SuppressFinalize(this);
     }
 }
