@@ -2,15 +2,18 @@ using ImGuiNET;
 using System;
 using System.Numerics;
 using Dalamud.Interface;
+using Dalamud.Plugin.Services;
 
 namespace TickTracker.Windows;
 
 public class HPBar : BarWindowBase
 {
-    public HPBar() : base(Enum.WindowType.HpWindow, "HPBarWindow")
+    private readonly Utilities utilities;
+    public HPBar(IClientState _clientState, Utilities _utilities) : base(_clientState, Enum.WindowType.HpWindow, "HPBarWindow")
     {
         Size = config.HPBarSize * ImGuiHelpers.GlobalScale;
         Position = config.HPBarPosition;
+        utilities = _utilities;
     }
 
     public override void Draw()
@@ -40,7 +43,7 @@ public class HPBar : BarWindowBase
         var windowSize = ImGui.GetWindowSize();
         if (IsFocused)
         {
-            Utilities.UpdateWindowConfig(windowPos, windowSize, WindowType);
+            utilities.UpdateWindowConfig(windowPos, windowSize, WindowType);
         }
         else
         {

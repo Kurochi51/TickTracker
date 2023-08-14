@@ -3,7 +3,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Lumina.Excel;
-using Lumina.Excel.GeneratedSheets;
 using Dalamud.Plugin;
 using Dalamud.Logging;
 using Dalamud.Utility;
@@ -15,6 +14,8 @@ using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.JobGauge.Types;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using TickTracker.Windows;
+using Dalamud.Plugin.Services;
+using Dalamud.Game.ClientState.JobGauge;
 
 namespace TickTracker;
 
@@ -41,6 +42,16 @@ public sealed class Plugin : IDalamudPlugin
     /// </summary>
     public static Configuration config { get; set; } = null!;
 
+    private readonly DalamudPluginInterface pluginInterface;
+    private readonly IClientState clientState;
+    private readonly Framework framework;
+    private readonly IGameGui gameGui;
+    private readonly ICommandManager commandManager;
+    private readonly Condition condition;
+    private readonly IDataManager dataManager;
+    private readonly Utilities utilities;
+    private readonly JobGauges jobGauges;
+
     public string Name => "Tick Tracker";
     private const string CommandName = "/tick";
     public WindowSystem WindowSystem = new("TickTracker");
@@ -53,15 +64,30 @@ public sealed class Plugin : IDalamudPlugin
     private int lastHPValue = -1, lastMPValue = -1;
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
     private uint currentHP = 1, currentMP = 1, maxHP = 2, maxMP = 2;
-    private static unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)Service.GameGui.GetAddonByName("NamePlate");
+    private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
 
-    public Plugin(DalamudPluginInterface pluginInterface)
+    public Plugin(DalamudPluginInterface _pluginInterface, 
+        IClientState _clientState, 
+        Framework _framework, 
+        IGameGui _gameGui, 
+        ICommandManager _commandManager, 
+        Condition _condition, 
+        IDataManager _dataManager,
+        JobGauges _jobGauges)
     {
-        pluginInterface.Create<Service>();
-        config = Service.PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-        ConfigWindow = new ConfigWindow(this);
-        HPBarWindow = new HPBar();
-        MPBarWindow = new MPBar();
+        pluginInterface = _pluginInterface;
+        clientState = _clientState;
+        framework = _framework;
+        gameGui = _gameGui;
+        commandManager = _commandManager;
+        condition = _condition;
+        dataManager = _dataManager;
+        jobGauges = _jobGauges;
+        utilities = new Utilities(pluginInterface, condition, dataManager, clientState);
+        config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        ConfigWindow = new ConfigWindow(pluginInterface);
+        HPBarWindow = new HPBar(clientState, utilities);
+        MPBarWindow = new MPBar(clientState, utilities);
         DebugWindow = new DebugWindow();
         WindowSystem.AddWindow(DebugWindow);
         WindowSystem.AddWindow(ConfigWindow);
@@ -69,26 +95,26 @@ public sealed class Plugin : IDalamudPlugin
         WindowSystem.AddWindow(MPBarWindow);
 
 
-        Service.CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
+        commandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
             HelpMessage = "Open or close Tick Tracker's config window.",
         });
-        Service.PluginInterface.UiBuilder.Draw += DrawUI;
-        Service.PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
-        Service.Framework.Update += OnFrameworkUpdate;
-        Service.ClientState.TerritoryChanged += TerritoryChanged;
+        pluginInterface.UiBuilder.Draw += DrawUI;
+        pluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
+        framework.Update += OnFrameworkUpdate;
+        clientState.TerritoryChanged += TerritoryChanged;
         _ = Task.Run(InitializeLuminaSheet);
     }
 
     private bool PluginEnabled(bool target)
     {
-        if (Service.Condition[ConditionFlag.InDuelingArea])
+        if (condition[ConditionFlag.InDuelingArea])
         {
             return false;
         }
         if (config.HideOutOfCombat && !inCombat)
         {
-            var showingBecauseInDuty = config.AlwaysShowInDuties && Utilities.InDuty();
+            var showingBecauseInDuty = config.AlwaysShowInDuties && utilities.InDuty();
             var showingBecauseHasTarget = config.AlwaysShowWithHostileTarget && target;
             if (!(showingBecauseInDuty || showingBecauseHasTarget))
             {
@@ -101,12 +127,12 @@ public sealed class Plugin : IDalamudPlugin
     private void OnFrameworkUpdate(Framework framework)
     {
         var now = DateTime.Now.TimeOfDay.TotalSeconds;
-        if (Service.ClientState is { IsLoggedIn: false } or { IsPvPExcludingDen: true } || nullSheet)
+        if (clientState is { IsLoggedIn: false } or { IsPvPExcludingDen: true } || nullSheet)
         {
             return;
         }
         bool HealthRegen, DisabledHPregen, ManaRegen, DisabledMPregen, Enemy;
-        if (Service.ClientState is { LocalPlayer: { } player })
+        if (clientState is { LocalPlayer: { } player })
         {
             HealthRegen = player.StatusList.Any(e => HealthRegenList.Contains(e.StatusId));
             DisabledHPregen = player.StatusList.Any(e => DisabledHealthRegenList.Contains(e.StatusId));
@@ -114,11 +140,11 @@ public sealed class Plugin : IDalamudPlugin
             DisabledMPregen = false;
             if (player.ClassJob.Id == 25)
             {
-                var gauge = Service.JobGauges.Get<BLMGauge>();
+                var gauge = jobGauges.Get<BLMGauge>();
                 DisabledMPregen = gauge.InAstralFire;
             }
             Enemy = player.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
-            inCombat = Service.Condition[ConditionFlag.InCombat];
+            inCombat = condition[ConditionFlag.InCombat];
             currentHP = player.CurrentHp;
             maxHP = player.MaxHp;
             currentMP = player.CurrentMp;
@@ -130,7 +156,7 @@ public sealed class Plugin : IDalamudPlugin
         }
         unsafe
         {
-            if (!PluginEnabled(Enemy) || !Utilities.IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || Utilities.inCustcene())
+            if (!PluginEnabled(Enemy) || !Utilities.IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || utilities.inCustcene())
             {
                 HPBarWindow.IsOpen = false;
                 MPBarWindow.IsOpen = false;
@@ -140,11 +166,11 @@ public sealed class Plugin : IDalamudPlugin
         var shouldShowHPBar = !config.HideOnFullResource ||
                             (config.AlwaysShowInCombat && inCombat) ||
                             (config.AlwaysShowWithHostileTarget && Enemy) ||
-                            (config.AlwaysShowInDuties && Utilities.InDuty());
+                            (config.AlwaysShowInDuties && utilities.InDuty());
         var shouldShowMPBar = !config.HideOnFullResource ||
                             (config.AlwaysShowInCombat && inCombat) ||
                             (config.AlwaysShowWithHostileTarget && Enemy) ||
-                            (config.AlwaysShowInDuties && Utilities.InDuty());
+                            (config.AlwaysShowInDuties && utilities.InDuty());
         HPBarWindow.IsOpen = shouldShowHPBar || (currentHP != maxHP);
         MPBarWindow.IsOpen = shouldShowMPBar || (currentMP != maxMP);
         if ((lastHPValue < currentHP && !HPBarWindow.FastTick) || (lastMPValue < currentMP && !MPBarWindow.FastTick))
@@ -201,10 +227,10 @@ public sealed class Plugin : IDalamudPlugin
 
     private void InitializeLuminaSheet()
     {
-        ExcelSheet<Status>? sheet;
+        ExcelSheet<Lumina.Excel.GeneratedSheets.Status>? sheet;
         try
         {
-            var statusSheet = Service.DataManager.GetExcelSheet<Status>(Dalamud.ClientLanguage.English);
+            var statusSheet = dataManager.GetExcelSheet<Lumina.Excel.GeneratedSheets.Status>(Dalamud.ClientLanguage.English);
             if (statusSheet == null)
             {
                 nullSheet = true;
@@ -268,11 +294,11 @@ public sealed class Plugin : IDalamudPlugin
         WindowSystem.RemoveAllWindows();
         ConfigWindow.Dispose();
         DebugWindow.Dispose();
-        Service.PluginInterface.UiBuilder.Draw -= DrawUI;
-        Service.PluginInterface.UiBuilder.OpenConfigUi -= DrawConfigUI;
-        Service.CommandManager.RemoveHandler(CommandName);
-        Service.Framework.Update -= OnFrameworkUpdate;
-        Service.ClientState.TerritoryChanged -= TerritoryChanged;
+        pluginInterface.UiBuilder.Draw -= DrawUI;
+        pluginInterface.UiBuilder.OpenConfigUi -= DrawConfigUI;
+        commandManager.RemoveHandler(CommandName);
+        framework.Update -= OnFrameworkUpdate;
+        clientState.TerritoryChanged -= TerritoryChanged;
     }
 
     private void OnCommand(string command, string args)

@@ -4,6 +4,8 @@ using System.Numerics;
 using System.Collections.Generic;
 using Lumina.Excel.GeneratedSheets;
 using Dalamud.Logging;
+using Dalamud.Plugin;
+using Dalamud.Plugin.Services;
 using Dalamud.Game.ClientState.Conditions;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 
@@ -12,7 +14,7 @@ namespace TickTracker;
 /// <summary>
 ///     A class that contains different helper functions necessary for this plugin's operation
 /// </summary>
-public static partial class Utilities
+public partial class Utilities
 {
     private static Configuration config => Plugin.config;
 
@@ -65,6 +67,19 @@ public static partial class Utilities
         "stopped",
     };
 
+    private readonly DalamudPluginInterface pluginInterface;
+    private readonly Dalamud.Game.ClientState.Conditions.Condition condition;
+    private readonly IDataManager dataManager;
+    private readonly IClientState clientState;
+
+    public Utilities(DalamudPluginInterface _pluginInterface, Dalamud.Game.ClientState.Conditions.Condition _condition, IDataManager _dataManager, IClientState _clientState)
+    {
+        pluginInterface = _pluginInterface;
+        condition = _condition;
+        dataManager = _dataManager;
+        clientState = _clientState;
+    }
+
     /// <summary>
     ///     Indicates if the <paramref name="window"/> is allowed to be drawn
     /// </summary>
@@ -94,19 +109,19 @@ public static partial class Utilities
     /// <summary>
     ///     Saves the size and position for the indicated <paramref name="window"/>.
     /// </summary>
-    public static void UpdateWindowConfig(Vector2 currentPos, Vector2 currentSize, Enum.WindowType window)
+    public void UpdateWindowConfig(Vector2 currentPos, Vector2 currentSize, Enum.WindowType window)
     {
         if (window == Enum.WindowType.HpWindow)
         {
             if (!currentPos.Equals(config.HPBarPosition))
             {
                 config.HPBarPosition = currentPos;
-                config.Save();
+                config.Save(pluginInterface);
             }
             if (!currentSize.Equals(config.HPBarSize))
             {
                 config.HPBarSize = currentSize;
-                config.Save();
+                config.Save(pluginInterface);
             }
         }
         if (window == Enum.WindowType.MpWindow)
@@ -114,12 +129,12 @@ public static partial class Utilities
             if (!currentPos.Equals(config.MPBarPosition))
             {
                 config.MPBarPosition = currentPos;
-                config.Save();
+                config.Save(pluginInterface);
             }
             if (!currentSize.Equals(config.MPBarSize))
             {
                 config.MPBarSize = currentSize;
-                config.Save();
+                config.Save(pluginInterface);
             }
         }
     }
@@ -148,9 +163,9 @@ public static partial class Utilities
     ///     Checks the player's <see cref="ConditionFlag" /> for BoundByDuty
     /// </summary>
     /// <returns><see langword="true"/> if any matching flag is set, otherwise <see langword="false"/>.</returns>
-    public static bool InDuty()
+    public bool InDuty()
     {
-        var dutyBound = Service.Condition[ConditionFlag.BoundByDuty] || Service.Condition[ConditionFlag.BoundByDuty56] || Service.Condition[ConditionFlag.BoundByDuty95] || Service.Condition[ConditionFlag.BoundToDuty97];
+        var dutyBound = condition[ConditionFlag.BoundByDuty] || condition[ConditionFlag.BoundByDuty56] || condition[ConditionFlag.BoundByDuty95] || condition[ConditionFlag.BoundToDuty97];
         return dutyBound && !InIgnoredInstances();
     }
 
@@ -159,9 +174,9 @@ public static partial class Utilities
     /// </summary>
     /// <returns><see langword="true"/> if <see cref="TerritoryIntendedUseType.IslandSanctuary"/> 
     /// or <see cref="TerritoryIntendedUseType.Diadem"/>, otherwise <see langword="false"/>.</returns>
-    public static bool InIgnoredInstances()
+    public bool InIgnoredInstances()
     {
-        var area = Service.DataManager.GetExcelSheet<TerritoryType>()!.GetRow(Service.ClientState.TerritoryType);
+        var area = dataManager.GetExcelSheet<TerritoryType>()!.GetRow(clientState.TerritoryType);
         if (area is null)
         {
             return false;
@@ -173,8 +188,8 @@ public static partial class Utilities
     ///     Checks the player's <see cref="ConditionFlag" /> for different cutscene flags.
     /// </summary>
     /// <returns><see langword="true"/> if any matching flag is set, otherwise <see langword="false"/>.</returns>
-    public static bool inCustcene()
-        => Service.Condition[ConditionFlag.OccupiedInCutSceneEvent] || Service.Condition[ConditionFlag.WatchingCutscene] || Service.Condition[ConditionFlag.WatchingCutscene78] || Service.Condition[ConditionFlag.Occupied38];
+    public bool inCustcene()
+        => condition[ConditionFlag.OccupiedInCutSceneEvent] || condition[ConditionFlag.WatchingCutscene] || condition[ConditionFlag.WatchingCutscene78] || condition[ConditionFlag.Occupied38];
 
     /// <summary>
     ///     Check if the <paramref name="addon"/> can be accessed.

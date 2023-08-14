@@ -2,15 +2,18 @@ using ImGuiNET;
 using System;
 using System.Numerics;
 using Dalamud.Interface;
+using Dalamud.Plugin.Services;
 
 namespace TickTracker.Windows;
 
 public class MPBar : BarWindowBase
 {
-    public MPBar() : base(Enum.WindowType.MpWindow, "MPBarWindow")
+    private readonly Utilities utilities;
+    public MPBar(IClientState _clientState, Utilities _utilities) : base(_clientState, Enum.WindowType.MpWindow, "MPBarWindow")
     {
         Size = config.MPBarSize * ImGuiHelpers.GlobalScale;
         Position = config.MPBarPosition;
+        utilities = _utilities;
     }
 
     public override void Draw()
@@ -40,7 +43,7 @@ public class MPBar : BarWindowBase
         var windowSize = ImGui.GetWindowSize();
         if (IsFocused)
         {
-            Utilities.UpdateWindowConfig(windowPos, windowSize, WindowType);
+            utilities.UpdateWindowConfig(windowPos, windowSize, WindowType);
         }
         else
         {

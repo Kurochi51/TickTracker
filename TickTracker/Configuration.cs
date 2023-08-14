@@ -1,4 +1,5 @@
 using Dalamud.Configuration;
+using Dalamud.Plugin;
 using System.Numerics;
 
 namespace TickTracker;
@@ -26,6 +27,6 @@ public class Configuration : IPluginConfiguration
     public Vector4 MPBarFillColor = new(0.753f, 0.271f, 0.482f, 1f);
     public Vector4 MPBarBorderColor = new(0.246f, 0.262f, 0.270f, 1f);
 
-    public void Save() => Service.PluginInterface.SavePluginConfig(this);
+    public void Save(DalamudPluginInterface pi) => pi.SavePluginConfig(this);
 
 }

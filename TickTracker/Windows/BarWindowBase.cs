@@ -1,5 +1,6 @@
 using ImGuiNET;
 using System.Numerics;
+using Dalamud.Plugin.Services;
 using Dalamud.Interface.Windowing;
 
 namespace TickTracker.Windows;
@@ -23,20 +24,21 @@ public abstract class BarWindowBase : Window
     public bool FastTick { get; set; } = false;
     public double LastTick { get; set; } = 1;
     public float PreviousProgress { get; set; } = -1;
-    public const float ActorTickInterval = 3;
-    public const float FastTickInterval = 1.5f;
+    public const float ActorTickInterval = 3, FastTickInterval = 1.5f;
+    private readonly IClientState clientState;
 
-    protected BarWindowBase(Enum.WindowType type, string name) : base(name)
+    protected BarWindowBase(IClientState _clientState, Enum.WindowType type, string name) : base(name)
     {
         SizeCondition = ImGuiCond.FirstUseEver;
         PositionCondition = ImGuiCond.FirstUseEver;
 
+        clientState = _clientState;
         WindowType = type;
     }
 
     public override bool DrawConditions()
     {
-        if (!Service.ClientState.IsLoggedIn)
+        if (!clientState.IsLoggedIn)
         {
             return false;
         }

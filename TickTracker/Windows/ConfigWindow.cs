@@ -2,23 +2,26 @@ using ImGuiNET;
 using System;
 using System.Numerics;
 using Dalamud.Interface.Windowing;
+using Dalamud.Plugin;
 
 namespace TickTracker.Windows;
 
 public class ConfigWindow : Window, IDisposable
 {
     private static Configuration config => Plugin.config;
+    private readonly DalamudPluginInterface pluginInterface;
 
-    public ConfigWindow(Plugin plugin) : base("Timer Settings")
+    public ConfigWindow(DalamudPluginInterface _pluginInterface) : base("Timer Settings")
     {
         Size = new(320, 420);
         SizeCondition = ImGuiCond.Appearing;
         Flags = ImGuiWindowFlags.NoResize;
+        pluginInterface = _pluginInterface;
     }
 
     public override void OnClose()
     {
-        config.Save();
+        config.Save(pluginInterface);
     }
 
     public override void Draw()
@@ -27,7 +30,7 @@ public class ConfigWindow : Window, IDisposable
         if (ImGui.Checkbox("Enable plugin", ref pluginEnabled))
         {
             config.PluginEnabled = pluginEnabled;
-            config.Save();
+            config.Save(pluginInterface);
         }
 
         if (ImGui.BeginTabBar("ConfigTabBar", ImGuiTabBarFlags.None))
@@ -55,13 +58,13 @@ public class ConfigWindow : Window, IDisposable
         ImGui.SetCursorPosY(ImGui.GetWindowContentRegionMax().Y - ImGui.GetFrameHeight() - 5f);
         if (ImGui.Button("Close"))
         {
-            config.Save();
+            config.Save(pluginInterface);
             this.IsOpen = false;
         }
         ImGui.SetCursorPos(originPos);
     }
 
-    private static void DrawAppearanceTab()
+    private void DrawAppearanceTab()
     {
         if (ImGui.BeginTabItem("Appearance"))
         {
@@ -70,7 +73,7 @@ public class ConfigWindow : Window, IDisposable
             if (ImGui.Checkbox("Lock bar size and position", ref lockBar))
             {
                 config.LockBar = lockBar;
-                config.Save();
+                config.Save(pluginInterface);
             }
 
             if (!config.LockBar)
@@ -82,7 +85,7 @@ public class ConfigWindow : Window, IDisposable
         }
     }
 
-    private static void DrawBehaviorTab()
+    private void DrawBehaviorTab()
     {
         if (ImGui.BeginTabItem("Behavior"))
         {
@@ -106,13 +109,13 @@ public class ConfigWindow : Window, IDisposable
 
             if (changed)
             {
-                config.Save();
+                config.Save(pluginInterface);
             }
             ImGui.EndTabItem();
         }
     }
 
-    private static void DrawColorOptions()
+    private void DrawColorOptions()
     {
         var colorModified = false;
         var flags = ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar;
@@ -150,33 +153,33 @@ public class ConfigWindow : Window, IDisposable
         ResetButton("ResetMPBarBorderColor", ref config.MPBarBorderColor, new Vector4(0.246f, 0.262f, 0.270f, 1f)); // Default Color: Dark Grey - #3F4345
         if (colorModified)
         {
-            config.Save();
+            config.Save(pluginInterface);
         }
     }
 
-    private static void DrawBarPositions()
+    private void DrawBarPositions()
     {
         ImGui.Indent();
         ImGui.Spacing();
         if (DragInput2(ref config.HPBarPosition, "HPPositionX", "HPPositionY", "HP Bar Position"))
         {
-            config.Save();
+            config.Save(pluginInterface);
         }
         if (DragInput2Size(ref config.HPBarSize, "HPSizeX", "HPSizeY", "HP Bar Size"))
         {
-            config.Save();
+            config.Save(pluginInterface);
         }
 
         ImGui.Spacing();
 
         if (DragInput2(ref config.MPBarPosition, "MPPositionX", "MPPositionY", "MP Bar Position"))
         {
-            config.Save();
+            config.Save(pluginInterface);
         }
 
         if (DragInput2Size(ref config.MPBarSize, "MPSizeX", "MPSizeY", "MP Bar Size"))
         {
-            config.Save();
+            config.Save(pluginInterface);
         }
         ImGui.Spacing();
         ImGui.Unindent();
@@ -237,12 +240,12 @@ public class ConfigWindow : Window, IDisposable
         return change;
     }
 
-    private static void ResetButton(string label, ref Vector4 color, Vector4 defaultColor)
+    private void ResetButton(string label, ref Vector4 color, Vector4 defaultColor)
     {
         if (ImGui.Button("Reset##" + label))
         {
             color = defaultColor;
-            config.Save();
+            config.Save(pluginInterface);
         }
     }
 
