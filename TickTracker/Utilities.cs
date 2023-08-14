@@ -12,52 +12,63 @@ namespace TickTracker;
 /// <summary>
 ///     A class that contains different helper functions necessary for this plugin's operation
 /// </summary>
-public class Utilities
+public static partial class Utilities
 {
     private static Configuration config => Plugin.config;
 
     /// <summary>
     ///     A set of words that indicate regeneration
     /// </summary>
-    public static readonly HashSet<string> RegenKeywords = new()
+    public static readonly IEnumerable<string> RegenKeywords = new string[]
     {
         "regenerating",
         "restoring",
         "restore",
-        "recovering"
+        "recovering",
     };
 
     /// <summary>
     ///     A set of words that indicate an effect over time
     /// </summary>
-    public static readonly HashSet<string> TimeKeywords = new()
+    public static readonly IEnumerable<string> TimeKeywords = new string[]
     {
         "gradually",
-        "over time"
+        "over time",
     };
 
     /// <summary>
     ///     A set of words that indicate health
     /// </summary>
-    public static readonly HashSet<string> HealthKeywords = new()
+    public static readonly IEnumerable<string> HealthKeywords = new string[]
     {
         "hp",
-        "health"
+        "health",
     };
 
     /// <summary>
     ///     A set of words that indicate mana
     /// </summary>
-    public static readonly HashSet<string> ManaKeywords = new()
+    public static readonly IEnumerable<string> ManaKeywords = new string[]
     {
         "mp",
-        "mana"
+        "mana",
+    };
+
+    /// <summary>
+    ///     A set of words that indicate the halt of regen
+    /// </summary>
+    public static readonly IEnumerable<string> RegenNullKeywords = new string[]
+    {
+        "null",
+        "nullified",
+        "stop",
+        "stopped",
     };
 
     /// <summary>
     ///     Indicates if the <paramref name="window"/> is allowed to be drawn
     /// </summary>
-    public static bool WindowCondition(WindowType window)
+    public static bool WindowCondition(Enum.WindowType window)
     {
         if (!config.PluginEnabled)
         {
@@ -67,15 +78,15 @@ public class Utilities
         {
             var DisplayThisWindow = window switch
             {
-                WindowType.HpWindow => config.HPVisible,
-                WindowType.MpWindow => config.MPVisible,
+                Enum.WindowType.HpWindow => config.HPVisible,
+                Enum.WindowType.MpWindow => config.MPVisible,
                 _ => throw new Exception("Unknown Window")
             };
             return DisplayThisWindow;
         }
         catch (Exception e)
         {
-            PluginLog.Error("{error} triggered by {type}.", e.Message, window);
+            PluginLog.Error("{error} triggered by {type}.", e.Message, window.ToString());
             return false;
         }
     }
@@ -83,9 +94,9 @@ public class Utilities
     /// <summary>
     ///     Saves the size and position for the indicated <paramref name="window"/>.
     /// </summary>
-    public static void UpdateWindowConfig(Vector2 currentPos, Vector2 currentSize, WindowType window)
+    public static void UpdateWindowConfig(Vector2 currentPos, Vector2 currentSize, Enum.WindowType window)
     {
-        if (window == WindowType.HpWindow)
+        if (window == Enum.WindowType.HpWindow)
         {
             if (!currentPos.Equals(config.HPBarPosition))
             {
@@ -98,7 +109,7 @@ public class Utilities
                 config.Save();
             }
         }
-        if (window == WindowType.MpWindow)
+        if (window == Enum.WindowType.MpWindow)
         {
             if (!currentPos.Equals(config.MPBarPosition))
             {
@@ -116,9 +127,22 @@ public class Utilities
     /// <summary>
     ///     Check the <paramref name="text"/> for elements from <paramref name="keywords"/>.
     /// </summary>
-    /// <returns><see langword="true"/> if <paramref name="text"/> matches any element, otherwise <see langword="false"/>.</returns>
-    public static bool KeywordMatch(string text, HashSet<string> keywords)
+    /// <returns><see langword="true"/> if <paramref name="text"/> contains any element, otherwise <see langword="false"/>.</returns>
+    public static bool KeywordMatch(string text, IEnumerable<string> keywords)
         => keywords.Any(k => text.Contains(k, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    ///     Check each word from <paramref name="text"/> for an exact match with any element from <paramref name="keywords"/>.
+    /// </summary>
+    /// <returns><see langword="true"/> if <paramref name="text"/> matches any element, otherwise <see langword="false"/>.</returns>
+    public static bool WholeKeywordMatch(string text, IEnumerable<string> keywords)
+    {
+        var words = KeywordsRegex()
+            .Split(text)
+            .Where(word => !string.IsNullOrWhiteSpace(word))
+            .Select(word => word.Trim());
+        return keywords.Any(keyword => words.Any(word => word.Equals(keyword, StringComparison.OrdinalIgnoreCase)));
+    }
 
     /// <summary>
     ///     Checks the player's <see cref="ConditionFlag" /> for BoundByDuty
@@ -127,14 +151,7 @@ public class Utilities
     public static bool InDuty()
     {
         var dutyBound = Service.Condition[ConditionFlag.BoundByDuty] || Service.Condition[ConditionFlag.BoundByDuty56] || Service.Condition[ConditionFlag.BoundByDuty95] || Service.Condition[ConditionFlag.BoundToDuty97];
-        if (dutyBound == true && !InIgnoredInstances())
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
+        return dutyBound && !InIgnoredInstances();
     }
 
     /// <summary>
@@ -145,21 +162,11 @@ public class Utilities
     public static bool InIgnoredInstances()
     {
         var area = Service.DataManager.GetExcelSheet<TerritoryType>()!.GetRow(Service.ClientState.TerritoryType);
-        if (area is not null)
-        {
-            if (area.TerritoryIntendedUse is (byte)TerritoryIntendedUseType.IslandSanctuary or (byte)TerritoryIntendedUseType.Diadem)
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-        else
+        if (area is null)
         {
             return false;
         }
+        return area.TerritoryIntendedUse is (byte)Enum.TerritoryIntendedUseType.IslandSanctuary or (byte)Enum.TerritoryIntendedUseType.Diadem;
     }
 
     /// <summary>
@@ -182,4 +189,6 @@ public class Utilities
         return true;
     }
 
+    [System.Text.RegularExpressions.GeneratedRegex("\\W+", System.Text.RegularExpressions.RegexOptions.Compiled,500)]
+    private static partial System.Text.RegularExpressions.Regex KeywordsRegex();
 }

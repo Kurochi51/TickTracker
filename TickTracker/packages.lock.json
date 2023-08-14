@@ -7,6 +7,12 @@
         "requested": "[2.1.11, )",
         "resolved": "2.1.11",
         "contentHash": "9qlAWoRRTiL/geAvuwR/g6Bcbrd/bJJgVnB/RurBiyKs6srsP0bvpoo8IK+Eg8EA6jWeM6/YJWs66w4FIAzqPw=="
+      },
+      "Meziantou.Analyzer": {
+        "type": "Direct",
+        "requested": "[2.0.82, )",
+        "resolved": "2.0.82",
+        "contentHash": "Qfl/5ZwqKWC9n8w8iaKgfaHJ3SeGX+BsLXAAU08EXdqpdraIGVJNOcZ809tDbYal9X2GXYYlno8DJtJWfy0Dlw=="
       }
     }
   }

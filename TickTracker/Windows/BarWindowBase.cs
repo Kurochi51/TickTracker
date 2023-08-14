@@ -8,7 +8,7 @@ public abstract class BarWindowBase : Window
 {
     protected static Configuration config => Plugin.config;
 
-    protected WindowType WindowType { get; set; }
+    protected Enum.WindowType WindowType { get; set; }
     protected const ImGuiWindowFlags _defaultFlags = ImGuiWindowFlags.NoScrollbar |
                                               ImGuiWindowFlags.NoTitleBar |
                                               ImGuiWindowFlags.NoCollapse;
@@ -21,7 +21,7 @@ public abstract class BarWindowBase : Window
     public bool UpdateAvailable { get; set; } = false;
     public bool FastTick { get; set; } = false;
 
-    public BarWindowBase(WindowType type, string name) : base(name)
+    protected BarWindowBase(Enum.WindowType type, string name) : base(name)
     {
         SizeCondition = ImGuiCond.FirstUseEver;
         PositionCondition = ImGuiCond.FirstUseEver;

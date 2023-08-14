@@ -10,7 +10,7 @@ public class HPBar : BarWindowBase
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
     public double LastTick = 1;
 
-    public HPBar() : base(WindowType.HpWindow, "HPBarWindow")
+    public HPBar() : base(Enum.WindowType.HpWindow, "HPBarWindow")
     {
         Size = config.HPBarSize * ImGuiHelpers.GlobalScale;
         Position = config.HPBarPosition;

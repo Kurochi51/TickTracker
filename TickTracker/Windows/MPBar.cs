@@ -10,7 +10,7 @@ public class MPBar : BarWindowBase
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
     public double LastTick = 1;
 
-    public MPBar() : base(WindowType.MpWindow, "MPBarWindow")
+    public MPBar() : base(Enum.WindowType.MpWindow, "MPBarWindow")
     {
         Size = config.MPBarSize * ImGuiHelpers.GlobalScale;
         Position = config.MPBarPosition;
