@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using Lumina.Excel;
 using Dalamud.Plugin;
+using Dalamud.Plugin.Services;
 using Dalamud.Logging;
 using Dalamud.Utility;
 using Dalamud.Interface.Windowing;
@@ -11,11 +12,10 @@ using Dalamud.Game;
 using Dalamud.Game.Command;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.Enums;
+using Dalamud.Game.ClientState.JobGauge;
 using Dalamud.Game.ClientState.JobGauge.Types;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using TickTracker.Windows;
-using Dalamud.Plugin.Services;
-using Dalamud.Game.ClientState.JobGauge;
 
 namespace TickTracker;
 
@@ -33,10 +33,6 @@ public sealed class Plugin : IDalamudPlugin
     /// A <see cref="HashSet{T}" /> list of Status IDs that stop HP regen
     /// </summary>
     private static readonly HashSet<uint> DisabledHealthRegenList = new();
-    /// <summary>
-    /// A <see cref="HashSet{T}" /> list of Status IDs that stop MP regen
-    /// </summary>
-    private static readonly HashSet<uint> DisabledManaRegenList = new();
     /// <summary>
     ///     A <see cref="Configuration"/> instance to be referenced across the plugin.
     /// </summary>
@@ -234,7 +230,7 @@ public sealed class Plugin : IDalamudPlugin
             if (statusSheet == null)
             {
                 nullSheet = true;
-                PluginLog.Error("Invalid lumina sheet!");
+                PluginLog.Fatal("Invalid lumina sheet!");
                 return;
             }
             sheet = statusSheet;
@@ -242,7 +238,7 @@ public sealed class Plugin : IDalamudPlugin
         catch (Exception e)
         {
             nullSheet = true;
-            PluginLog.Error("Retrieving lumina sheet failed! Exception: {e}", e.Message);
+            PluginLog.Fatal("Retrieving lumina sheet failed! Exception: {e}", e.Message);
             return;
         }
         List<int> bannedStatus = new() { 135, 307, 751, 1419, 1465, 1730, 2326 };
@@ -261,7 +257,8 @@ public sealed class Plugin : IDalamudPlugin
             }
             if (Utilities.WholeKeywordMatch(text, Utilities.RegenNullKeywords) && Utilities.WholeKeywordMatch(text, Utilities.ManaKeywords))
             {
-                DisabledManaRegenList.Add(stat.RowId);
+                // Since only Astral Fire meets the criteria, and Astral Fire isn't a status effect anymore, it's unnecessary to store it in a HashSet.
+                // However I'd like to keep it in the dictionary for clarity.
                 DebugWindow.DisabledManaRegenDictionary.Add(stat.RowId, stat.Name);
             }
             if (Utilities.KeywordMatch(text, Utilities.RegenKeywords) && Utilities.KeywordMatch(text, Utilities.TimeKeywords))
