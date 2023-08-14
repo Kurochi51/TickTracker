@@ -1,5 +1,6 @@
 using Dalamud.Game;
 using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Game.ClientState.JobGauge;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
@@ -15,4 +16,5 @@ public class Service
     [PluginService] public static ICommandManager CommandManager { get; set; } = null!;
     [PluginService] public static Condition Condition { get; set; } = null!;
     [PluginService] public static IDataManager DataManager { get; set; } = null!;
+    [PluginService] public static JobGauges JobGauges { get; set; } = null!;
 }

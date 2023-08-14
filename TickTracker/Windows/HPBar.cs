@@ -7,9 +7,6 @@ namespace TickTracker.Windows;
 
 public class HPBar : BarWindowBase
 {
-    private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
-    public double LastTick = 1;
-
     public HPBar() : base(Enum.WindowType.HpWindow, "HPBarWindow")
     {
         Size = config.HPBarSize * ImGuiHelpers.GlobalScale;
@@ -21,12 +18,16 @@ public class HPBar : BarWindowBase
         var now = DateTime.Now.TimeOfDay.TotalSeconds;
         UpdateWindow();
         var progress = (float)((now - LastTick) / (FastTick ? FastTickInterval : ActorTickInterval));
+        if (RegenHalted)
+        {
+            progress = PreviousProgress;
+        }
         if (progress > 1)
         {
             progress = 1;
         }
-
         DrawProgress(progress);
+        PreviousProgress = progress;
     }
 
     private void UpdateWindow()

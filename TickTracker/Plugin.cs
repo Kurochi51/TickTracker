@@ -2,22 +2,23 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-using Dalamud.Interface.Windowing;
+using Lumina.Excel;
+using Lumina.Excel.GeneratedSheets;
 using Dalamud.Plugin;
 using Dalamud.Logging;
 using Dalamud.Utility;
+using Dalamud.Interface.Windowing;
 using Dalamud.Game;
 using Dalamud.Game.Command;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.Enums;
+using Dalamud.Game.ClientState.JobGauge.Types;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using TickTracker.Windows;
-using Lumina.Excel;
-using Lumina.Excel.GeneratedSheets;
 
 namespace TickTracker;
 
-public sealed unsafe class Plugin : IDalamudPlugin
+public sealed class Plugin : IDalamudPlugin
 {
     /// <summary>
     /// A <see cref="HashSet{T}" /> list of Status IDs that trigger HP regen
@@ -52,7 +53,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
     private int lastHPValue = -1, lastMPValue = -1;
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
     private uint currentHP = 1, currentMP = 1, maxHP = 2, maxMP = 2;
-    private static AtkUnitBase* NameplateAddon => (AtkUnitBase*)Service.GameGui.GetAddonByName("NamePlate");
+    private static unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)Service.GameGui.GetAddonByName("NamePlate");
 
     public Plugin(DalamudPluginInterface pluginInterface)
     {
@@ -104,17 +105,18 @@ public sealed unsafe class Plugin : IDalamudPlugin
         {
             return;
         }
-        bool HealthRegen;
-        bool DisabledHPregen;
-        bool ManaRegen;
-        bool DisabledMPregen;
-        bool Enemy;
+        bool HealthRegen, DisabledHPregen, ManaRegen, DisabledMPregen, Enemy;
         if (Service.ClientState is { LocalPlayer: { } player })
         {
             HealthRegen = player.StatusList.Any(e => HealthRegenList.Contains(e.StatusId));
             DisabledHPregen = player.StatusList.Any(e => DisabledHealthRegenList.Contains(e.StatusId));
             ManaRegen = player.StatusList.Any(e => ManaRegenList.Contains(e.StatusId));
-            DisabledMPregen = player.StatusList.Any(e => DisabledManaRegenList.Contains(e.StatusId));
+            DisabledMPregen = false;
+            if (player.ClassJob.Id == 25)
+            {
+                var gauge = Service.JobGauges.Get<BLMGauge>();
+                DisabledMPregen = gauge.InAstralFire;
+            }
             Enemy = player.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
             inCombat = Service.Condition[ConditionFlag.InCombat];
             currentHP = player.CurrentHp;
@@ -126,11 +128,14 @@ public sealed unsafe class Plugin : IDalamudPlugin
         {
             return;
         }
-        if (!PluginEnabled(Enemy) || !Utilities.IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || Utilities.inCustcene())
+        unsafe
         {
-            HPBarWindow.IsOpen = false;
-            MPBarWindow.IsOpen = false;
-            return;
+            if (!PluginEnabled(Enemy) || !Utilities.IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || Utilities.inCustcene())
+            {
+                HPBarWindow.IsOpen = false;
+                MPBarWindow.IsOpen = false;
+                return;
+            }
         }
         var shouldShowHPBar = !config.HideOnFullResource ||
                             (config.AlwaysShowInCombat && inCombat) ||
@@ -165,10 +170,11 @@ public sealed unsafe class Plugin : IDalamudPlugin
         {
             HPBarWindow.LastTick = currentTime;
         }
-        else if (HPBarWindow.LastTick + (HPBarWindow.FastTick ? FastTickInterval : ActorTickInterval) <= currentTime && !regenHalt)
+        else if (HPBarWindow.LastTick + (HPBarWindow.FastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
         {
             HPBarWindow.LastTick += HPBarWindow.FastTick ? FastTickInterval : ActorTickInterval;
         }
+        HPBarWindow.RegenHalted = regenHalt;
         lastHPValue = (int)currentHP;
         HPBarWindow.UpdateAvailable = true;
     }
@@ -184,10 +190,11 @@ public sealed unsafe class Plugin : IDalamudPlugin
         {
             MPBarWindow.LastTick = currentTime;
         }
-        else if (MPBarWindow.LastTick + (MPBarWindow.FastTick ? FastTickInterval : ActorTickInterval) <= currentTime && !regenHalt)
+        else if (MPBarWindow.LastTick + (MPBarWindow.FastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
         {
             MPBarWindow.LastTick += MPBarWindow.FastTick ? FastTickInterval : ActorTickInterval;
         }
+        MPBarWindow.RegenHalted = regenHalt;
         lastMPValue = (int)currentMP;
         MPBarWindow.UpdateAvailable = true;
     }
@@ -212,7 +219,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
             PluginLog.Error("Retrieving lumina sheet failed! Exception: {e}", e.Message);
             return;
         }
-        List<int> bannedStatus = new() { 135, 307, 1419, 1465, 1730, 2326 };
+        List<int> bannedStatus = new() { 135, 307, 751, 1419, 1465, 1730, 2326 };
         var filteredSheet = sheet.Where(s => !bannedStatus.Exists(rowId => rowId == s.RowId));
         foreach (var stat in filteredSheet)
         {

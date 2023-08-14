@@ -7,9 +7,6 @@ namespace TickTracker.Windows;
 
 public class MPBar : BarWindowBase
 {
-    private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
-    public double LastTick = 1;
-
     public MPBar() : base(Enum.WindowType.MpWindow, "MPBarWindow")
     {
         Size = config.MPBarSize * ImGuiHelpers.GlobalScale;
@@ -21,12 +18,16 @@ public class MPBar : BarWindowBase
         var now = DateTime.Now.TimeOfDay.TotalSeconds;
         UpdateWindow();
         var progress = (float)((now - LastTick) / (FastTick ? FastTickInterval : ActorTickInterval));
+        if (RegenHalted)
+        {
+            progress = PreviousProgress;
+        }
         if (progress > 1)
         {
             progress = 1;
         }
-
         DrawProgress(progress);
+        PreviousProgress = progress;
     }
 
     private void UpdateWindow()
