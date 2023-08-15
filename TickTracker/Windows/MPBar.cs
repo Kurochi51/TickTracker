@@ -69,7 +69,8 @@ public class MPBar : BarWindowBase
 
         // Calculate progress bar dimensions
         var barWidth = bottomRight.X - topLeft.X;
-        var filledWidth = new Vector2((barWidth * progress) + topLeft.X, bottomRight.Y - 1);
+        var filledWidth = new Vector2((barWidth * Math.Max(progress, 0.0001f)) + topLeft.X, bottomRight.Y - 1);
+        filledWidth = (progress <= 0) ? filledWidth - barFillSizeOffset : filledWidth;
 
         // Draw main bar
         var drawList = ImGui.GetWindowDrawList();
