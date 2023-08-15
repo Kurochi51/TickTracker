@@ -90,7 +90,6 @@ public sealed class Plugin : IDalamudPlugin
         WindowSystem.AddWindow(HPBarWindow);
         WindowSystem.AddWindow(MPBarWindow);
 
-
         commandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
             HelpMessage = "Open or close Tick Tracker's config window.",
