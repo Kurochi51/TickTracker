@@ -100,7 +100,7 @@ public class ConfigWindow : Window, IDisposable
             changed |= ImGui.Checkbox("Always show in combat", ref config.AlwaysShowInCombat);
             ImGui.Unindent();
 
-            changed |= ImGui.Checkbox("Hide while not in combat", ref config.HideOutOfCombat);
+            changed |= ImGui.Checkbox("Show only in combat", ref config.HideOutOfCombat);
 
             ImGui.Indent();
             changed |= ImGui.Checkbox("Always show while in duties", ref config.AlwaysShowInDuties);

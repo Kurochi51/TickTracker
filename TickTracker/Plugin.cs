@@ -62,12 +62,12 @@ public sealed class Plugin : IDalamudPlugin
     private uint currentHP = 1, currentMP = 1, maxHP = 2, maxMP = 2;
     private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
 
-    public Plugin(DalamudPluginInterface _pluginInterface, 
-        IClientState _clientState, 
-        Framework _framework, 
-        IGameGui _gameGui, 
-        ICommandManager _commandManager, 
-        Condition _condition, 
+    public Plugin(DalamudPluginInterface _pluginInterface,
+        IClientState _clientState,
+        Framework _framework,
+        IGameGui _gameGui,
+        ICommandManager _commandManager,
+        Condition _condition,
         IDataManager _dataManager,
         JobGauges _jobGauges)
     {

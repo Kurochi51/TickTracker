@@ -204,6 +204,6 @@ public partial class Utilities
         return true;
     }
 
-    [System.Text.RegularExpressions.GeneratedRegex("\\W+", System.Text.RegularExpressions.RegexOptions.Compiled,500)]
+    [System.Text.RegularExpressions.GeneratedRegex("\\W+", System.Text.RegularExpressions.RegexOptions.Compiled, 500)]
     private static partial System.Text.RegularExpressions.Regex KeywordsRegex();
 }

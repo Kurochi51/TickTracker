@@ -131,7 +131,7 @@ public class DebugWindow : Window, IDisposable
         }
     }
 
-    private static void DetermineColumnWidth(string column1, string column2, IDictionary<uint,string> dictionary1, IDictionary<uint, string> dictionary2, ref float column1Width, ref float column2Width)
+    private static void DetermineColumnWidth(string column1, string column2, IDictionary<uint, string> dictionary1, IDictionary<uint, string> dictionary2, ref float column1Width, ref float column2Width)
     {
         column1Width = ImGui.CalcTextSize(column1).X;
         foreach (var item in dictionary1)
@@ -154,7 +154,7 @@ public class DebugWindow : Window, IDisposable
         }
     }
 
-    private static void DrawTable(string id,string column1, string column2, float column1Width, float column2Width, int maxItemCount, IDictionary<uint, string> dictionary1, IDictionary<uint, string> dictionary2)
+    private static void DrawTable(string id, string column1, string column2, float column1Width, float column2Width, int maxItemCount, IDictionary<uint, string> dictionary1, IDictionary<uint, string> dictionary2)
     {
         ImGui.BeginTable(id, 2, ImGuiTableFlags.None);
 
