@@ -183,6 +183,7 @@ public sealed class Plugin : IDalamudPlugin
     private void UpdateHPTick(double currentTime, bool hpRegen, bool regenHalt)
     {
         HPBarWindow.FastTick = (hpRegen && currentHP != maxHP);
+
         if (currentHP == maxHP)
         {
             HPBarWindow.LastTick = syncValue;
@@ -190,11 +191,14 @@ public sealed class Plugin : IDalamudPlugin
         else if (lastHPValue < currentHP)
         {
             HPBarWindow.LastTick = currentTime;
+            syncValue = HPBarWindow.LastTick;
         }
         else if (HPBarWindow.LastTick + (HPBarWindow.FastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
         {
             HPBarWindow.LastTick += HPBarWindow.FastTick ? FastTickInterval : ActorTickInterval;
+            syncValue = HPBarWindow.LastTick;
         }
+
         HPBarWindow.RegenHalted = regenHalt;
         lastHPValue = (int)currentHP;
         HPBarWindow.UpdateAvailable = true;
@@ -203,6 +207,7 @@ public sealed class Plugin : IDalamudPlugin
     private void UpdateMPTick(double currentTime, bool mpRegen, bool regenHalt)
     {
         MPBarWindow.FastTick = (mpRegen && currentMP != maxMP);
+
         if (currentMP == maxMP)
         {
             MPBarWindow.LastTick = syncValue;
@@ -210,11 +215,14 @@ public sealed class Plugin : IDalamudPlugin
         else if (lastMPValue < currentMP)
         {
             MPBarWindow.LastTick = currentTime;
+            syncValue = MPBarWindow.LastTick;
         }
         else if (MPBarWindow.LastTick + (MPBarWindow.FastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
         {
             MPBarWindow.LastTick += MPBarWindow.FastTick ? FastTickInterval : ActorTickInterval;
+            syncValue = MPBarWindow.LastTick;
         }
+
         MPBarWindow.RegenHalted = regenHalt;
         lastMPValue = (int)currentMP;
         MPBarWindow.UpdateAvailable = true;

@@ -84,7 +84,7 @@ public class DebugWindow : Window, IDisposable
         if (!invalidList)
         {
             // Place two buttons in bottom left + some padding / extra space
-            ImGui.SetCursorPosX(ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMax().X + 10f);
+            ImGui.SetCursorPosX(10f);
             ImGui.SetCursorPosY(ImGui.GetWindowContentRegionMax().Y - ImGui.GetFrameHeight() - 5f);
             if (ImGui.Button("Copy top table"))
             {

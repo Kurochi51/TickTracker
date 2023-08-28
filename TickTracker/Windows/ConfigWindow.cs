@@ -46,7 +46,7 @@ public class ConfigWindow : Window, IDisposable
     {
         var originPos = ImGui.GetCursorPos();
         // Place a button in the bottom left
-        ImGui.SetCursorPosX(ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMax().X + 10f);
+        ImGui.SetCursorPosX(10f);
         ImGui.SetCursorPosY(ImGui.GetWindowContentRegionMax().Y - ImGui.GetFrameHeight() - 5f);
         if (ImGui.Button("Debug"))
         {
@@ -212,7 +212,7 @@ public class ConfigWindow : Window, IDisposable
         return change;
     }
     /// <summary>
-    ///     This exists because the window don't actually go under 32x32 because of the drawn bar inside it.
+    ///     This exists because the window can't actually go under 32x32 because of the drawn bar inside it.
     /// </summary>
     private static bool DragInput2Size(ref Vector2 vector, string label1, string label2, string description)
     {
