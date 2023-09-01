@@ -344,10 +344,6 @@ public sealed class Plugin : IDalamudPlugin
                 {
                     PluginLog.Debug("{s} comes from {p}", sourceId, player.Name);
                 }
-                else
-                {
-                    
-                }
             }
             var entryCount = effectHeader->TargetCount switch
             {
