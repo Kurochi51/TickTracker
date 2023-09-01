@@ -119,6 +119,7 @@ public class ConfigWindow : Window, IDisposable
     {
         var colorModified = false;
         var flags = ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar;
+
         colorModified |= ImGui.ColorEdit4("HP Bar Background Color", ref config.HPBarBackgroundColor, flags);
         ImGui.SameLine();
         var resetButtonX = ImGui.GetCursorPosX();
@@ -133,6 +134,7 @@ public class ConfigWindow : Window, IDisposable
         ImGui.SameLine();
         ImGui.SetCursorPosX(resetButtonX);
         ResetButton("ResetHPBarBorderColor", ref config.HPBarBorderColor, new Vector4(0.246f, 0.262f, 0.270f, 1f)); // Default Color: Dark Grey - #3F4345
+
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
@@ -151,6 +153,7 @@ public class ConfigWindow : Window, IDisposable
         ImGui.SameLine();
         ImGui.SetCursorPosX(resetButtonX);
         ResetButton("ResetMPBarBorderColor", ref config.MPBarBorderColor, new Vector4(0.246f, 0.262f, 0.270f, 1f)); // Default Color: Dark Grey - #3F4345
+
         if (colorModified)
         {
             config.Save(pluginInterface);

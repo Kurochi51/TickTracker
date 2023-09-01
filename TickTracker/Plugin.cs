@@ -16,6 +16,9 @@ using Dalamud.Game.ClientState.JobGauge;
 using Dalamud.Game.ClientState.JobGauge.Types;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using TickTracker.Windows;
+using Dalamud.Hooking;
+using FFXIVClientStructs.FFXIV.Client.Game.Character;
+using Dalamud.Memory;
 
 namespace TickTracker;
 
@@ -38,6 +41,10 @@ public sealed class Plugin : IDalamudPlugin
     /// </summary>
     public static Configuration config { get; set; } = null!;
 
+    //DamageInfo Delegate/Hook
+    private unsafe delegate void ReceiveActionEffectDelegate(uint sourceId, Character* sourceCharacter, IntPtr pos, EffectHeader* effectHeader, EffectEntry* effectArray, ulong* effectTail);
+    private readonly Hook<ReceiveActionEffectDelegate> receiveActionEffectHook;
+
     private readonly DalamudPluginInterface pluginInterface;
     private readonly IClientState clientState;
     private readonly Framework framework;
@@ -47,6 +54,8 @@ public sealed class Plugin : IDalamudPlugin
     private readonly IDataManager dataManager;
     private readonly Utilities utilities;
     private readonly JobGauges jobGauges;
+    private readonly ISigScanner sigScanner;
+    private readonly IPartyList partyList;
 
     public string Name => "Tick Tracker";
     private const string CommandName = "/tick";
@@ -69,7 +78,9 @@ public sealed class Plugin : IDalamudPlugin
         ICommandManager _commandManager,
         Condition _condition,
         IDataManager _dataManager,
-        JobGauges _jobGauges)
+        JobGauges _jobGauges,
+        ISigScanner _scanner,
+        IPartyList _partyList)
     {
         pluginInterface = _pluginInterface;
         clientState = _clientState;
@@ -79,6 +90,8 @@ public sealed class Plugin : IDalamudPlugin
         condition = _condition;
         dataManager = _dataManager;
         jobGauges = _jobGauges;
+        sigScanner = _scanner;
+        partyList = _partyList;
         utilities = new Utilities(pluginInterface, condition, dataManager, clientState);
         config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         ConfigWindow = new ConfigWindow(pluginInterface);
@@ -94,6 +107,27 @@ public sealed class Plugin : IDalamudPlugin
         {
             HelpMessage = "Open or close Tick Tracker's config window.",
         });
+        try
+        {
+            unsafe
+            {
+                // DamageInfo sig
+                var receiveActionEffectFuncPtr = sigScanner.ScanText("40 55 53 57 41 54 41 55 41 56 41 57 48 8D AC 24 ?? ?? ?? ?? 48 81 EC ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 45 70");
+                receiveActionEffectHook = Hook<ReceiveActionEffectDelegate>.FromAddress(receiveActionEffectFuncPtr, ReceiveActionEffect);
+            }
+        }
+        catch (Exception e)
+        {
+            PluginLog.Error(e,"Plugin could not be initialized.");
+            receiveActionEffectHook?.Disable();
+            receiveActionEffectHook?.Dispose();
+            commandManager.RemoveHandler(CommandName);
+            WindowSystem.RemoveAllWindows();
+            ConfigWindow.Dispose();
+            DebugWindow.Dispose();
+            throw;
+        }
+        receiveActionEffectHook.Enable();
         pluginInterface.UiBuilder.Draw += DrawUI;
         pluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
         framework.Update += OnFrameworkUpdate;
@@ -149,6 +183,7 @@ public sealed class Plugin : IDalamudPlugin
         {
             return;
         }
+
         unsafe
         {
             if (!PluginEnabled(Enemy) || !Utilities.IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || utilities.inCustcene())
@@ -168,7 +203,7 @@ public sealed class Plugin : IDalamudPlugin
                             (config.AlwaysShowInDuties && utilities.InDuty());
         HPBarWindow.IsOpen = shouldShowHPBar || (currentHP != maxHP);
         MPBarWindow.IsOpen = shouldShowMPBar || (currentMP != maxMP);
-        if ((lastHPValue < currentHP && !HPBarWindow.FastTick) || (lastMPValue < currentMP && !MPBarWindow.FastTick))
+        if (((lastHPValue < currentHP && !HPBarWindow.FastTick) || (lastMPValue < currentMP && !MPBarWindow.FastTick)))
         {
             syncValue = now;
         }
@@ -191,11 +226,14 @@ public sealed class Plugin : IDalamudPlugin
         else if (lastHPValue < currentHP)
         {
             HPBarWindow.LastTick = currentTime;
-            syncValue = HPBarWindow.LastTick;
         }
         else if (HPBarWindow.LastTick + (HPBarWindow.FastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
         {
             HPBarWindow.LastTick += HPBarWindow.FastTick ? FastTickInterval : ActorTickInterval;
+        }
+
+        if (!HPBarWindow.FastTick)
+        {
             syncValue = HPBarWindow.LastTick;
         }
 
@@ -215,11 +253,14 @@ public sealed class Plugin : IDalamudPlugin
         else if (lastMPValue < currentMP)
         {
             MPBarWindow.LastTick = currentTime;
-            syncValue = MPBarWindow.LastTick;
         }
         else if (MPBarWindow.LastTick + (MPBarWindow.FastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
         {
             MPBarWindow.LastTick += MPBarWindow.FastTick ? FastTickInterval : ActorTickInterval;
+        }
+
+        if (!MPBarWindow.FastTick)
+        {
             syncValue = MPBarWindow.LastTick;
         }
 
@@ -245,7 +286,8 @@ public sealed class Plugin : IDalamudPlugin
         catch (Exception e)
         {
             nullSheet = true;
-            PluginLog.Fatal("Retrieving lumina sheet failed! Exception: {e}", e.Message);
+            PluginLog.Fatal("Retrieving lumina sheet failed!");
+            PluginLog.Fatal(e.Message);
             return;
         }
         List<int> bannedStatus = new() { 135, 307, 751, 1419, 1465, 1730, 2326 };
@@ -287,6 +329,67 @@ public sealed class Plugin : IDalamudPlugin
         PluginLog.Debug("MP regen list generated with {MPcount} status effects.", ManaRegenList.Count);
     }
 
+    // DamageInfo stripped function
+    private unsafe void ReceiveActionEffect(uint sourceId, Character* sourceCharacter, IntPtr pos, EffectHeader* effectHeader, EffectEntry* effectArray, ulong* effectTail)
+    {
+        try
+        {
+            var name = MemoryHelper.ReadStringNullTerminated((nint)sourceCharacter->GameObject.GetName());
+            PluginLog.Debug($"source actor: {name}, action id {effectHeader->ActionId}");
+
+            // testing if I can match local player
+            if(clientState is { LocalPlayer: { } player })
+            {
+                if(player.ObjectId == sourceId)
+                {
+                    PluginLog.Debug("{s} comes from {p}", sourceId, player.Name);
+                }
+                else
+                {
+                    
+                }
+            }
+            var entryCount = effectHeader->TargetCount switch
+            {
+                0 => 0,
+                1 => 8,
+                <= 8 => 64,
+                <= 16 => 128,
+                <= 24 => 192,
+                <= 32 => 256,
+                _ => 0
+            };
+
+            // not quite sure how this works, different single-target heals return different amounts
+            PluginLog.Debug("{e} target count", entryCount);
+
+
+            for (var i = 0; i < entryCount; i++)
+            {
+                //heals, self-inflicted or otherwise, quite often return Nothing
+                if (effectArray[i].type == Enum.ActionEffectType.Nothing)
+                {
+                    continue;
+                }
+
+                // this seemed to work fine for heals done by other players, but stopped working on a different character / DC
+                PluginLog.Debug("{type} type of effect.", effectArray[i].type);
+                if (effectArray[i].type == Enum.ActionEffectType.Heal)
+                {
+                    PluginLog.Debug("Healing done by: {e}", effectArray[i]);
+                    PluginLog.Debug("--details: {1}, {2}, {3}", effectArray[i].param0, effectArray[i].param1, effectArray[i].param2);
+                    PluginLog.Debug("--details: {1}, {2}, {3}", effectArray[i].mult, effectArray[i].value, effectArray[i].flags);
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            PluginLog.Error(e, "Shit's on fire yo.");
+        }
+
+        receiveActionEffectHook.Original(sourceId, sourceCharacter, pos, effectHeader, effectArray, effectTail);
+    }
+
     private void TerritoryChanged(object? sender, ushort e)
     {
         lastHPValue = -1;
@@ -295,6 +398,8 @@ public sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
+        receiveActionEffectHook?.Disable();
+        receiveActionEffectHook?.Dispose();
         WindowSystem.RemoveAllWindows();
         ConfigWindow.Dispose();
         DebugWindow.Dispose();

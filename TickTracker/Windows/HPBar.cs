@@ -29,7 +29,7 @@ public class HPBar : BarWindowBase
         {
             progress = 1;
         }
-        DrawProgress(progress);
+        DrawProgress(progress, config.HPBarBackgroundColor, config.HPBarFillColor, config.HPBarBorderColor);
         PreviousProgress = progress;
     }
 
@@ -56,27 +56,5 @@ public class HPBar : BarWindowBase
                 ImGui.SetWindowSize(config.HPBarSize);
             }
         }
-    }
-
-    private static void DrawProgress(float progress)
-    {
-        var cornerRounding = 4f; // Maybe make it user configurable?
-        var borderThickness = 1.35f; // Maybe make it user configurable?
-        var barFillPosOffset = new Vector2(1, 1);
-        var barFillSizeOffset = new Vector2(-1, 0);
-        var topLeft = ImGui.GetWindowContentRegionMin() + ImGui.GetWindowPos();
-        var bottomRight = ImGui.GetWindowContentRegionMax() + ImGui.GetWindowPos();
-        bottomRight = (progress <= 0) ? bottomRight - barFillSizeOffset : bottomRight;
-
-        // Calculate progress bar dimensions
-        var barWidth = bottomRight.X - topLeft.X;
-        var filledWidth = new Vector2((barWidth * Math.Max(progress, 0.0001f)) + topLeft.X, bottomRight.Y);
-        filledWidth = (progress <= 0) ? filledWidth - barFillSizeOffset : filledWidth;
-
-        // Draw main bar
-        var drawList = ImGui.GetWindowDrawList();
-        drawList.AddRectFilled(topLeft + barFillPosOffset, bottomRight, ImGui.GetColorU32(config.HPBarBackgroundColor), cornerRounding, ImDrawFlags.RoundCornersAll);
-        drawList.AddRectFilled(topLeft + barFillPosOffset, filledWidth, ImGui.GetColorU32(config.HPBarFillColor), cornerRounding, ImDrawFlags.RoundCornersAll);
-        drawList.AddRect(topLeft, bottomRight, ImGui.GetColorU32(config.HPBarBorderColor), cornerRounding, ImDrawFlags.RoundCornersAll, borderThickness);
     }
 }
