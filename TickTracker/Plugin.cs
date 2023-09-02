@@ -119,7 +119,7 @@ public sealed class Plugin : IDalamudPlugin
         }
         catch (Exception e)
         {
-            PluginLog.Error(e,"Plugin could not be initialized.");
+            PluginLog.Error(e,"Plugin could not be initialized. Hook failed.");
             receiveActionEffectHook?.Disable();
             receiveActionEffectHook?.Dispose();
             commandManager.RemoveHandler(CommandName);
@@ -204,7 +204,7 @@ public sealed class Plugin : IDalamudPlugin
                             (config.AlwaysShowInDuties && utilities.InDuty());
         HPBarWindow.IsOpen = shouldShowHPBar || (currentHP != maxHP);
         MPBarWindow.IsOpen = shouldShowMPBar || (currentMP != maxMP);
-        if (((lastHPValue < currentHP && !HPBarWindow.FastTick) || (lastMPValue < currentMP && !MPBarWindow.FastTick)))
+        if ((lastHPValue < currentHP && !HPBarWindow.FastTick && !healTriggered) || (lastMPValue < currentMP && !MPBarWindow.FastTick))
         {
             syncValue = now;
         }
@@ -218,32 +218,30 @@ public sealed class Plugin : IDalamudPlugin
 
     private void UpdateHPTick(double currentTime, bool hpRegen, bool regenHalt)
     {
-        // need to figure out how to handle healTriggered
-        // right now I don't want to wait until the next action happens to set it to false
-        // but I can't set it false the very first time I encounter it
-
-        // maybe go further up the chain, and never assign current hp if heal triggered?
-        if (healTriggered)
-        {
-            return;
-        }
-        
         HPBarWindow.FastTick = (hpRegen && currentHP != maxHP);
 
         if (currentHP == maxHP)
         {
             HPBarWindow.LastTick = syncValue;
         }
-        else if (lastHPValue < currentHP)
+        else if (lastHPValue < currentHP && HPBarWindow.CanUpdate)
         {
-            HPBarWindow.LastTick = currentTime;
+            if (healTriggered)
+            {
+                healTriggered = false;
+            }
+            else
+            {
+                HPBarWindow.LastTick = currentTime;
+            }
         }
         else if (HPBarWindow.LastTick + (HPBarWindow.FastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
         {
             HPBarWindow.LastTick += HPBarWindow.FastTick ? FastTickInterval : ActorTickInterval;
         }
 
-        if (!HPBarWindow.FastTick && syncValue < HPBarWindow.LastTick)
+        // The idea is to safe guard the syncValue as much as possible from erronous updates
+        if (!HPBarWindow.FastTick && syncValue < HPBarWindow.LastTick && !healTriggered)
         {
             syncValue = HPBarWindow.LastTick;
         }
@@ -261,7 +259,7 @@ public sealed class Plugin : IDalamudPlugin
         {
             MPBarWindow.LastTick = syncValue;
         }
-        else if (lastMPValue < currentMP)
+        else if (lastMPValue < currentMP && MPBarWindow.CanUpdate)
         {
             MPBarWindow.LastTick = currentTime;
         }
@@ -270,7 +268,7 @@ public sealed class Plugin : IDalamudPlugin
             MPBarWindow.LastTick += MPBarWindow.FastTick ? FastTickInterval : ActorTickInterval;
         }
 
-        if (!MPBarWindow.FastTick)
+        if (!MPBarWindow.FastTick && syncValue < MPBarWindow.LastTick)
         {
             syncValue = MPBarWindow.LastTick;
         }
@@ -343,10 +341,12 @@ public sealed class Plugin : IDalamudPlugin
     // DamageInfo stripped function
     private unsafe void ReceiveActionEffect(uint sourceId, Character* sourceCharacter, IntPtr pos, EffectHeader* effectHeader, EffectEntry* effectArray, ulong* effectTail)
     {
-        //healTriggered = false;
+        // The goal is only to intercept and inspect the values, not alter and feed different values back
+        receiveActionEffectHook.Original(sourceId, sourceCharacter, pos, effectHeader, effectArray, effectTail);
         try
         {
             PlayerCharacter? player;
+
             // Can this even be called if LocalPlayer isn't set? who knows, better safe than sorry
             if (clientState is { LocalPlayer: { } character })
             {
@@ -354,7 +354,6 @@ public sealed class Plugin : IDalamudPlugin
             }
             else
             {
-                receiveActionEffectHook.Original(sourceId, sourceCharacter, pos, effectHeader, effectArray, effectTail);
                 return;
             }
 
@@ -371,6 +370,7 @@ public sealed class Plugin : IDalamudPlugin
                 <= 32 => 256,
                 _ => 0
             };
+
             for (var i = 0; i < entryCount; i++)
             {
                 if (effectArray[i].type != Enum.ActionEffectType.Heal)
@@ -391,10 +391,8 @@ public sealed class Plugin : IDalamudPlugin
         }
         catch (Exception e)
         {
-            PluginLog.Error(e, "An error has occured with the delegate.");
+            PluginLog.Error(e, "An error has occured with the detour.");
         }
-
-        receiveActionEffectHook.Original(sourceId, sourceCharacter, pos, effectHeader, effectArray, effectTail);
     }
 
     private void TerritoryChanged(object? sender, ushort e)

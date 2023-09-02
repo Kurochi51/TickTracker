@@ -28,6 +28,11 @@ public class MPBar : BarWindowBase
         if (progress > 1)
         {
             progress = 1;
+            CanUpdate = true;
+        }
+        else
+        {
+            CanUpdate = false;
         }
         DrawProgress(progress, config.MPBarBackgroundColor, config.MPBarFillColor, config.MPBarBorderColor);
         PreviousProgress = progress;

@@ -28,6 +28,11 @@ public class HPBar : BarWindowBase
         if (progress > 1)
         {
             progress = 1;
+            CanUpdate = true;
+        }
+        else
+        {
+            CanUpdate = false;
         }
         DrawProgress(progress, config.HPBarBackgroundColor, config.HPBarFillColor, config.HPBarBorderColor);
         PreviousProgress = progress;

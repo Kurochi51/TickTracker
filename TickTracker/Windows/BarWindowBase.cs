@@ -23,6 +23,7 @@ public abstract class BarWindowBase : Window
     public bool UpdateAvailable { get; set; } = false;
     public bool RegenHalted { get; set; } = false;
     public bool FastTick { get; set; } = false;
+    public bool CanUpdate { get; set; } = true;
     public double LastTick { get; set; } = 1;
     public float PreviousProgress { get; set; } = -1;
     public const float ActorTickInterval = 3, FastTickInterval = 1.5f;
