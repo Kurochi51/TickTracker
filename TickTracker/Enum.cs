@@ -62,6 +62,7 @@ public class Enum
         StatusNoEffect = 20,
         Unknown0 = 27,
         Unknown1 = 28,
+        Ukknown2 = 32,
         Knockback = 33,
         Mount = 40,
         VFX = 59,
@@ -78,7 +79,7 @@ public struct EffectHeader
     [FieldOffset(33)] public byte TargetCount;
 }
 
-[StructLayout(LayoutKind.Auto)]
+#pragma warning disable MA0008 // Add StructLayoutAttribute
 public struct EffectEntry
 {
     public Enum.ActionEffectType type;
@@ -89,12 +90,13 @@ public struct EffectEntry
     public byte flags;
     public ushort value;
 
-    public byte AttackType => (byte)(param1 & 0xF);
+    public readonly byte AttackType => (byte)(param1 & 0xF);
 
-    public override string ToString()
+    public override readonly string ToString()
     {
         return
             $"Type: {type}, p0: {param0:D3}, p1: {param1:D3}, p2: {param2:D3} 0x{param2:X2} '{Convert.ToString(param2, 2).PadLeft(8, '0')}', mult: {mult:D3}, flags: {flags:D3} | {Convert.ToString(flags, 2).PadLeft(8, '0')}, value: {value:D6} ATTACK TYPE: {AttackType}";
     }
+#pragma warning restore MA0008 // Add StructLayoutAttribute
 #pragma warning restore MA0048 // File name must match type name
 }

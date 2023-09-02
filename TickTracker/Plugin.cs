@@ -3,22 +3,24 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Lumina.Excel;
+using Dalamud.Memory;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.Logging;
 using Dalamud.Utility;
+using Dalamud.Hooking;
 using Dalamud.Interface.Windowing;
 using Dalamud.Game;
 using Dalamud.Game.Command;
-using Dalamud.Game.ClientState.Conditions;
-using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.JobGauge;
 using Dalamud.Game.ClientState.JobGauge.Types;
+using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Game.ClientState.Objects.Enums;
+using Dalamud.Game.ClientState.Objects.SubKinds;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using TickTracker.Windows;
-using Dalamud.Hooking;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
-using Dalamud.Memory;
+using TickTracker.Windows;
+using System.Diagnostics;
 
 namespace TickTracker;
 
@@ -41,7 +43,7 @@ public sealed class Plugin : IDalamudPlugin
     /// </summary>
     public static Configuration config { get; set; } = null!;
 
-    //DamageInfo Delegate/Hook
+    //DamageInfo Delegate & Hook
     private unsafe delegate void ReceiveActionEffectDelegate(uint sourceId, Character* sourceCharacter, IntPtr pos, EffectHeader* effectHeader, EffectEntry* effectArray, ulong* effectTail);
     private readonly Hook<ReceiveActionEffectDelegate> receiveActionEffectHook;
 
@@ -55,7 +57,6 @@ public sealed class Plugin : IDalamudPlugin
     private readonly Utilities utilities;
     private readonly JobGauges jobGauges;
     private readonly ISigScanner sigScanner;
-    private readonly IPartyList partyList;
 
     public string Name => "Tick Tracker";
     private const string CommandName = "/tick";
@@ -64,11 +65,12 @@ public sealed class Plugin : IDalamudPlugin
     private HPBar HPBarWindow { get; init; }
     private MPBar MPBarWindow { get; init; }
     public static DebugWindow DebugWindow { get; set; } = null!;
-    private bool inCombat, nullSheet = true;
+    private bool inCombat, nullSheet = true, healTriggered;
     private double syncValue = 1;
     private int lastHPValue = -1, lastMPValue = -1;
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
     private uint currentHP = 1, currentMP = 1, maxHP = 2, maxMP = 2;
+    private readonly Stopwatch sw;
     private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
 
     public Plugin(DalamudPluginInterface _pluginInterface,
@@ -79,8 +81,7 @@ public sealed class Plugin : IDalamudPlugin
         Condition _condition,
         IDataManager _dataManager,
         JobGauges _jobGauges,
-        ISigScanner _scanner,
-        IPartyList _partyList)
+        ISigScanner _scanner)
     {
         pluginInterface = _pluginInterface;
         clientState = _clientState;
@@ -91,7 +92,7 @@ public sealed class Plugin : IDalamudPlugin
         dataManager = _dataManager;
         jobGauges = _jobGauges;
         sigScanner = _scanner;
-        partyList = _partyList;
+        sw = new Stopwatch();
         utilities = new Utilities(pluginInterface, condition, dataManager, clientState);
         config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         ConfigWindow = new ConfigWindow(pluginInterface);
@@ -217,6 +218,16 @@ public sealed class Plugin : IDalamudPlugin
 
     private void UpdateHPTick(double currentTime, bool hpRegen, bool regenHalt)
     {
+        // need to figure out how to handle healTriggered
+        // right now I don't want to wait until the next action happens to set it to false
+        // but I can't set it false the very first time I encounter it
+
+        // maybe go further up the chain, and never assign current hp if heal triggered?
+        if (healTriggered)
+        {
+            return;
+        }
+        
         HPBarWindow.FastTick = (hpRegen && currentHP != maxHP);
 
         if (currentHP == maxHP)
@@ -232,7 +243,7 @@ public sealed class Plugin : IDalamudPlugin
             HPBarWindow.LastTick += HPBarWindow.FastTick ? FastTickInterval : ActorTickInterval;
         }
 
-        if (!HPBarWindow.FastTick)
+        if (!HPBarWindow.FastTick && syncValue < HPBarWindow.LastTick)
         {
             syncValue = HPBarWindow.LastTick;
         }
@@ -332,19 +343,24 @@ public sealed class Plugin : IDalamudPlugin
     // DamageInfo stripped function
     private unsafe void ReceiveActionEffect(uint sourceId, Character* sourceCharacter, IntPtr pos, EffectHeader* effectHeader, EffectEntry* effectArray, ulong* effectTail)
     {
+        //healTriggered = false;
         try
         {
-            var name = MemoryHelper.ReadStringNullTerminated((nint)sourceCharacter->GameObject.GetName());
-            PluginLog.Debug($"source actor: {name}, action id {effectHeader->ActionId}");
-
-            // testing if I can match local player
-            if(clientState is { LocalPlayer: { } player })
+            PlayerCharacter? player;
+            // Can this even be called if LocalPlayer isn't set? who knows, better safe than sorry
+            if (clientState is { LocalPlayer: { } character })
             {
-                if(player.ObjectId == sourceId)
-                {
-                    PluginLog.Debug("{s} comes from {p}", sourceId, player.Name);
-                }
+                player = character;
             }
+            else
+            {
+                receiveActionEffectHook.Original(sourceId, sourceCharacter, pos, effectHeader, effectArray, effectTail);
+                return;
+            }
+
+            var name = MemoryHelper.ReadStringNullTerminated((nint)sourceCharacter->GameObject.GetName());
+            var castTarget = sourceCharacter->GetCastInfo()->CastTargetID;
+            var target = sourceCharacter->GetTargetId();
             var entryCount = effectHeader->TargetCount switch
             {
                 0 => 0,
@@ -355,32 +371,27 @@ public sealed class Plugin : IDalamudPlugin
                 <= 32 => 256,
                 _ => 0
             };
-
-            // not quite sure how this works, different single-target heals return different amounts
-            PluginLog.Debug("{e} target count", entryCount);
-
-
             for (var i = 0; i < entryCount; i++)
             {
-                //heals, self-inflicted or otherwise, quite often return Nothing
-                if (effectArray[i].type == Enum.ActionEffectType.Nothing)
+                if (effectArray[i].type != Enum.ActionEffectType.Heal)
                 {
                     continue;
                 }
-
-                // this seemed to work fine for heals done by other players, but stopped working on a different character / DC
-                PluginLog.Debug("{type} type of effect.", effectArray[i].type);
-                if (effectArray[i].type == Enum.ActionEffectType.Heal)
+                if (sourceId == player.ObjectId && (target == player.OwnerId || castTarget == player.OwnerId))
                 {
-                    PluginLog.Debug("Healing done by: {e}", effectArray[i]);
-                    PluginLog.Debug("--details: {1}, {2}, {3}", effectArray[i].param0, effectArray[i].param1, effectArray[i].param2);
-                    PluginLog.Debug("--details: {1}, {2}, {3}", effectArray[i].mult, effectArray[i].value, effectArray[i].flags);
+                    PluginLog.Debug("Self-healing.");
+                    healTriggered = true;
+                }
+                else if (target == player.ObjectId || castTarget == player.ObjectId)
+                {
+                    PluginLog.Debug("Healed by {n}", name);
+                    healTriggered = true;
                 }
             }
         }
         catch (Exception e)
         {
-            PluginLog.Error(e, "Shit's on fire yo.");
+            PluginLog.Error(e, "An error has occured with the delegate.");
         }
 
         receiveActionEffectHook.Original(sourceId, sourceCharacter, pos, effectHeader, effectArray, effectTail);
