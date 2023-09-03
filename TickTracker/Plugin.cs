@@ -20,7 +20,6 @@ using Dalamud.Game.ClientState.Objects.SubKinds;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using TickTracker.Windows;
-using System.Diagnostics;
 
 namespace TickTracker;
 
@@ -70,7 +69,6 @@ public sealed class Plugin : IDalamudPlugin
     private int lastHPValue = -1, lastMPValue = -1;
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
     private uint currentHP = 1, currentMP = 1, maxHP = 2, maxMP = 2;
-    private readonly Stopwatch sw;
     private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
 
     public Plugin(DalamudPluginInterface _pluginInterface,
@@ -92,7 +90,26 @@ public sealed class Plugin : IDalamudPlugin
         dataManager = _dataManager;
         jobGauges = _jobGauges;
         sigScanner = _scanner;
-        sw = new Stopwatch();
+
+        try
+        {
+            unsafe
+            {
+                // DamageInfo sig
+                var signature = "40 55 53 57 41 54 41 55 41 56 41 57 48 8D AC 24 ?? ?? ?? ?? 48 81 EC ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 45 70";
+                var receiveActionEffectFuncPtr = sigScanner.ScanText(signature);
+                receiveActionEffectHook = Hook<ReceiveActionEffectDelegate>.FromAddress(receiveActionEffectFuncPtr, ReceiveActionEffect);
+            }
+        }
+        catch (Exception e)
+        {
+            PluginLog.Error(e,"Plugin could not be initialized. Hook failed.");
+            receiveActionEffectHook?.Disable();
+            receiveActionEffectHook?.Dispose();
+            throw;
+        }
+        receiveActionEffectHook.Enable();
+
         utilities = new Utilities(pluginInterface, condition, dataManager, clientState);
         config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         ConfigWindow = new ConfigWindow(pluginInterface);
@@ -108,27 +125,6 @@ public sealed class Plugin : IDalamudPlugin
         {
             HelpMessage = "Open or close Tick Tracker's config window.",
         });
-        try
-        {
-            unsafe
-            {
-                // DamageInfo sig
-                var receiveActionEffectFuncPtr = sigScanner.ScanText("40 55 53 57 41 54 41 55 41 56 41 57 48 8D AC 24 ?? ?? ?? ?? 48 81 EC ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 45 70");
-                receiveActionEffectHook = Hook<ReceiveActionEffectDelegate>.FromAddress(receiveActionEffectFuncPtr, ReceiveActionEffect);
-            }
-        }
-        catch (Exception e)
-        {
-            PluginLog.Error(e,"Plugin could not be initialized. Hook failed.");
-            receiveActionEffectHook?.Disable();
-            receiveActionEffectHook?.Dispose();
-            commandManager.RemoveHandler(CommandName);
-            WindowSystem.RemoveAllWindows();
-            ConfigWindow.Dispose();
-            DebugWindow.Dispose();
-            throw;
-        }
-        receiveActionEffectHook.Enable();
         pluginInterface.UiBuilder.Draw += DrawUI;
         pluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
         framework.Update += OnFrameworkUpdate;
