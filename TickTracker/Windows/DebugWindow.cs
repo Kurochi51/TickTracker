@@ -5,6 +5,7 @@ using System.Linq;
 using System.Numerics;
 using System.Collections.Generic;
 using Dalamud.Interface.Windowing;
+using Dalamud.Interface.Raii;
 
 namespace TickTracker.Windows;
 
@@ -68,13 +69,13 @@ public class DebugWindow : Window, IDisposable
             DetermineColumnWidth(column1Table2, column2Table2, DisabledHealthRegenDictionary, DisabledManaRegenDictionary, ref disabledHPWidth, ref disabledMPWidth);
             firstTime = false;
         }
-        ImGui.BeginChild("ScrollArea", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y - 40f), border: true);
-        DrawTable("DisabledRegenSID", column1Table2, column2Table2, disabledHPWidth, disabledMPWidth, maxDisabledRegenCount, DisabledHealthRegenDictionary, DisabledManaRegenDictionary);
-        ImGui.Separator();
-        ImGui.Spacing();
-        DrawTable("RegenSID", column1Table1, column2Table1, hpWidth, mpWidth, maxRegenCount, HealthRegenDictionary, ManaRegenDictionary);
-        ImGui.EndChild();
-
+        using (var scrollArea = ImRaii.Child("ScrollArea", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y - 40f), border: true))
+        {
+            DrawTable("DisabledRegenSID", column1Table2, column2Table2, disabledHPWidth, disabledMPWidth, maxDisabledRegenCount, DisabledHealthRegenDictionary, DisabledManaRegenDictionary);
+            ImGui.Separator();
+            ImGui.Spacing();
+            DrawTable("RegenSID", column1Table1, column2Table1, hpWidth, mpWidth, maxRegenCount, HealthRegenDictionary, ManaRegenDictionary);
+        }
         CopyAndClose();
     }
 
@@ -156,7 +157,7 @@ public class DebugWindow : Window, IDisposable
 
     private static void DrawTable(string id, string column1, string column2, float column1Width, float column2Width, int maxItemCount, IDictionary<uint, string> dictionary1, IDictionary<uint, string> dictionary2)
     {
-        ImGui.BeginTable(id, 2, ImGuiTableFlags.None);
+        using var table = ImRaii.Table(id, 2, ImGuiTableFlags.None);
 
         ImGui.TableSetupColumn(column1, ImGuiTableColumnFlags.WidthFixed, column1Width);
         ImGui.TableSetupColumn(column2, ImGuiTableColumnFlags.WidthFixed, column2Width);
@@ -186,8 +187,6 @@ public class DebugWindow : Window, IDisposable
                 ImGui.TableNextRow();
             }
         }
-
-        ImGui.EndTable();
     }
 
     public void Dispose()

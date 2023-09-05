@@ -2,6 +2,7 @@ using ImGuiNET;
 using System;
 using System.Numerics;
 using Dalamud.Interface.Windowing;
+using Dalamud.Interface.Raii;
 using Dalamud.Plugin;
 
 namespace TickTracker.Windows;
@@ -32,12 +33,10 @@ public class ConfigWindow : Window, IDisposable
             config.PluginEnabled = pluginEnabled;
             config.Save(pluginInterface);
         }
-
-        if (ImGui.BeginTabBar("ConfigTabBar", ImGuiTabBarFlags.None))
+        using (var tabBar = ImRaii.TabBar("ConfigTabBar", ImGuiTabBarFlags.None))
         {
             DrawAppearanceTab();
             DrawBehaviorTab();
-            ImGui.EndTabBar();
         }
         DrawCloseButton();
     }
@@ -66,7 +65,8 @@ public class ConfigWindow : Window, IDisposable
 
     private void DrawAppearanceTab()
     {
-        if (ImGui.BeginTabItem("Appearance"))
+        using var appearanceTab = ImRaii.TabItem("Appearance");
+        if (appearanceTab)
         {
             ImGui.Spacing();
             var lockBar = config.LockBar;
@@ -81,13 +81,13 @@ public class ConfigWindow : Window, IDisposable
                 DrawBarPositions();
             }
             DrawColorOptions();
-            ImGui.EndTabItem();
         }
     }
 
     private void DrawBehaviorTab()
     {
-        if (ImGui.BeginTabItem("Behavior"))
+        using var settingsTab = ImRaii.TabItem("Settings");
+        if (settingsTab)
         {
             ImGui.Spacing();
             var changed = false;
@@ -111,7 +111,6 @@ public class ConfigWindow : Window, IDisposable
             {
                 config.Save(pluginInterface);
             }
-            ImGui.EndTabItem();
         }
     }
 
