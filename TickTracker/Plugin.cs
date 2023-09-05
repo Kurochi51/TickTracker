@@ -375,12 +375,12 @@ public sealed class Plugin : IDalamudPlugin
                 }
                 if (sourceId == player.ObjectId && (target == player.OwnerId || castTarget == player.OwnerId))
                 {
-                    PluginLog.Debug("Self-healing.");
+                    PluginLog.Verbose("Self-healing.");
                     healTriggered = true;
                 }
                 else if (target == player.ObjectId || castTarget == player.ObjectId)
                 {
-                    PluginLog.Debug("Healed by {n}", name);
+                    PluginLog.Verbose("Healed by {n}", name);
                     healTriggered = true;
                 }
             }
