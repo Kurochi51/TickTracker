@@ -6,7 +6,6 @@ using Lumina.Excel;
 using Dalamud.Memory;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
-using Dalamud.Logging;
 using Dalamud.Utility;
 using Dalamud.Hooking;
 using Dalamud.Interface.Windowing;
@@ -46,6 +45,7 @@ public sealed class Plugin : IDalamudPlugin
     private unsafe delegate void ReceiveActionEffectDelegate(uint sourceId, Character* sourceCharacter, IntPtr pos, EffectHeader* effectHeader, EffectEntry* effectArray, ulong* effectTail);
     private readonly Hook<ReceiveActionEffectDelegate> receiveActionEffectHook;
 
+    private readonly Utilities utilities;
     private readonly DalamudPluginInterface pluginInterface;
     private readonly IClientState clientState;
     private readonly Framework framework;
@@ -53,9 +53,9 @@ public sealed class Plugin : IDalamudPlugin
     private readonly ICommandManager commandManager;
     private readonly Condition condition;
     private readonly IDataManager dataManager;
-    private readonly Utilities utilities;
     private readonly JobGauges jobGauges;
     private readonly ISigScanner sigScanner;
+    private readonly IPluginLog log;
 
     public string Name => "Tick Tracker";
     private const string CommandName = "/tick";
@@ -79,7 +79,8 @@ public sealed class Plugin : IDalamudPlugin
         Condition _condition,
         IDataManager _dataManager,
         JobGauges _jobGauges,
-        ISigScanner _scanner)
+        ISigScanner _scanner,
+        IPluginLog _pluginLog)
     {
         pluginInterface = _pluginInterface;
         clientState = _clientState;
@@ -90,6 +91,7 @@ public sealed class Plugin : IDalamudPlugin
         dataManager = _dataManager;
         jobGauges = _jobGauges;
         sigScanner = _scanner;
+        log = _pluginLog;
 
         try
         {
@@ -103,14 +105,15 @@ public sealed class Plugin : IDalamudPlugin
         }
         catch (Exception e)
         {
-            PluginLog.Error(e,"Plugin could not be initialized. Hook failed.");
+            log.Error(e, "Plugin could not be initialized. Hook failed.");
+            //PluginLog.Error(e, "Plugin could not be initialized. Hook failed.");
             receiveActionEffectHook?.Disable();
             receiveActionEffectHook?.Dispose();
             throw;
         }
         receiveActionEffectHook.Enable();
 
-        utilities = new Utilities(pluginInterface, condition, dataManager, clientState);
+        utilities = new Utilities(pluginInterface, condition, dataManager, clientState,log);
         config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         ConfigWindow = new ConfigWindow(pluginInterface);
         HPBarWindow = new HPBar(clientState, utilities);
@@ -283,7 +286,8 @@ public sealed class Plugin : IDalamudPlugin
             if (statusSheet == null)
             {
                 nullSheet = true;
-                PluginLog.Fatal("Invalid lumina sheet!");
+                //PluginLog.Fatal("Invalid lumina sheet!");
+                log.Fatal("Invalid lumina sheet!");
                 return;
             }
             sheet = statusSheet;
@@ -291,8 +295,10 @@ public sealed class Plugin : IDalamudPlugin
         catch (Exception e)
         {
             nullSheet = true;
-            PluginLog.Fatal("Retrieving lumina sheet failed!");
-            PluginLog.Fatal(e.Message);
+            //PluginLog.Fatal("Retrieving lumina sheet failed!");
+            //PluginLog.Fatal(e.Message);
+            log.Fatal("Retrieving lumina sheet failed!");
+            log.Fatal(e.Message);
             return;
         }
         List<int> bannedStatus = new() { 135, 307, 751, 1419, 1465, 1730, 2326 };
@@ -330,8 +336,10 @@ public sealed class Plugin : IDalamudPlugin
             }
         }
         nullSheet = false;
-        PluginLog.Debug("HP regen list generated with {HPcount} status effects.", HealthRegenList.Count);
-        PluginLog.Debug("MP regen list generated with {MPcount} status effects.", ManaRegenList.Count);
+        //PluginLog.Debug("HP regen list generated with {HPcount} status effects.", HealthRegenList.Count);
+        //PluginLog.Debug("MP regen list generated with {MPcount} status effects.", ManaRegenList.Count);
+        log.Debug("HP regen list generated with {HPcount} status effects.", HealthRegenList.Count);
+        log.Debug("MP regen list generated with {MPcount} status effects.", ManaRegenList.Count);
     }
 
     // DamageInfo stripped function
@@ -375,19 +383,22 @@ public sealed class Plugin : IDalamudPlugin
                 }
                 if (sourceId == player.ObjectId && (target == player.OwnerId || castTarget == player.OwnerId))
                 {
-                    PluginLog.Verbose("Self-healing.");
+                    //PluginLog.Verbose("Self-healing.");
+                    log.Verbose("Self-healing.");
                     healTriggered = true;
                 }
                 else if (target == player.ObjectId || castTarget == player.ObjectId)
                 {
-                    PluginLog.Verbose("Healed by {n}", name);
+                    //PluginLog.Verbose("Healed by {n}", name);
+                    log.Verbose("Healed by {n}", name);
                     healTriggered = true;
                 }
             }
         }
         catch (Exception e)
         {
-            PluginLog.Error(e, "An error has occured with the detour.");
+            //PluginLog.Error(e, "An error has occured with the detour.");
+            log.Error(e, "An error has occured with the detour.");
         }
     }
 

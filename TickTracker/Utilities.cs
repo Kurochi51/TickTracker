@@ -3,7 +3,6 @@ using System.Linq;
 using System.Numerics;
 using System.Collections.Generic;
 using Lumina.Excel.GeneratedSheets;
-using Dalamud.Logging;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.Game.ClientState.Conditions;
@@ -71,19 +70,21 @@ public partial class Utilities
     private readonly Dalamud.Game.ClientState.Conditions.Condition condition;
     private readonly IDataManager dataManager;
     private readonly IClientState clientState;
+    private readonly IPluginLog log;
 
-    public Utilities(DalamudPluginInterface _pluginInterface, Dalamud.Game.ClientState.Conditions.Condition _condition, IDataManager _dataManager, IClientState _clientState)
+    public Utilities(DalamudPluginInterface _pluginInterface, Dalamud.Game.ClientState.Conditions.Condition _condition, IDataManager _dataManager, IClientState _clientState, IPluginLog _pluginLog)
     {
         pluginInterface = _pluginInterface;
         condition = _condition;
         dataManager = _dataManager;
         clientState = _clientState;
+        log = _pluginLog;
     }
 
     /// <summary>
     ///     Indicates if the <paramref name="window"/> is allowed to be drawn
     /// </summary>
-    public static bool WindowCondition(Enum.WindowType window)
+    public bool WindowCondition(Enum.WindowType window)
     {
         if (!config.PluginEnabled)
         {
@@ -101,7 +102,8 @@ public partial class Utilities
         }
         catch (Exception e)
         {
-            PluginLog.Error("{error} triggered by {type}.", e.Message, window.ToString());
+            //PluginLog.Error("{error} triggered by {type}.", e.Message, window.ToString());
+            log.Error("{error} triggered by {type}.", e.Message, window.ToString());
             return false;
         }
     }
