@@ -113,7 +113,7 @@ public sealed class Plugin : IDalamudPlugin
         }
         receiveActionEffectHook.Enable();
 
-        utilities = new Utilities(pluginInterface, condition, dataManager, clientState,log);
+        utilities = new Utilities(pluginInterface, condition, dataManager, clientState, log);
         config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         ConfigWindow = new ConfigWindow(pluginInterface);
         HPBarWindow = new HPBar(clientState, utilities);
@@ -343,6 +343,10 @@ public sealed class Plugin : IDalamudPlugin
     }
 
     // DamageInfo stripped function
+    /// <summary>
+    /// This detour function is triggered every time the client receives a network packet containing
+    /// an action that happens in the vecinity of the user.
+    /// </summary>
     private unsafe void ReceiveActionEffect(uint sourceId, Character* sourceCharacter, IntPtr pos, EffectHeader* effectHeader, EffectEntry* effectArray, ulong* effectTail)
     {
         // The goal is only to intercept and inspect the values, not alter and feed different values back
