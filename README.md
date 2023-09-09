@@ -1,2 +1,2 @@
-# Tick Tracker
+# Tick Tracker <br> [![Download count](https://img.shields.io/endpoint?url=https://qzysathwfhebdai6xgauhz4q7m0mzmrf.lambda-url.us-east-1.on.aws/TickTracker)](https://github.com/Kurochi51/TickTracker) [![Build](https://github.com/Kurochi51/TickTracker/actions/workflows/build.yml/badge.svg)](https://github.com/Kurochi51/TickTracker/actions/workflows/build.yml)
 A Dalamud plugin that visualizes the progress from one HP/MP tick to the next, taking into account any status effects that makes it faster or slower.
