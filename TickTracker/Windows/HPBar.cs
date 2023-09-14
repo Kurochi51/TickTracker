@@ -8,11 +8,14 @@ namespace TickTracker.Windows;
 public class HPBar : BarWindowBase
 {
     private readonly Utilities utilities;
-    public HPBar(IClientState _clientState, Utilities _utilities) : base(_clientState, _utilities, Enum.WindowType.HpWindow, "HPBarWindow")
+    private readonly IPluginLog log;
+    private bool test = true;
+    public HPBar(IClientState _clientState, IPluginLog _pluginLog, Utilities _utilities) : base(_clientState, _pluginLog, _utilities, Enum.WindowType.HpWindow, "HPBarWindow")
     {
         Size = config.HPBarSize * ImGuiHelpers.GlobalScale;
         Position = config.HPBarPosition;
         utilities = _utilities;
+        log = _pluginLog;
     }
 
     public override void Draw()
@@ -20,18 +23,25 @@ public class HPBar : BarWindowBase
         var now = DateTime.Now.TimeOfDay.TotalSeconds;
         UpdateWindow();
         var progress = (float)((now - LastTick) / (FastTick ? FastTickInterval : ActorTickInterval));
+        FastRegenSwitch = FastTick;
+        if (!FastTick)
+        {
+            test = true;
+            FastRegenSwitch = true;
+        }
         if (RegenHalted)
         {
             progress = PreviousProgress;
         }
-        if (progress > 1)
+        if (progress > 1 && FastRegenSwitch && test)
         {
-            progress = 1;
-            CanUpdate = true;
-        }
-        else
-        {
-            CanUpdate = false;
+            progress /= 2;
+            FastRegenSwitch = false;
+            test = false;
+            /*log.Debug("Progress is over 1: {c}", progress);
+            log.Debug("LastTick is: {a} and FastTick is {b}", LastTick, FastTick);
+            log.Debug("now is {a} now - LastTick is {b} and now - LastTick / currentInterval is {c}", now, now - LastTick, (now - LastTick) / (FastTick ? FastTickInterval : ActorTickInterval));
+            progress = FastTick ? progress / 2 : 0;*/
         }
         DrawProgress(progress, config.HPBarBackgroundColor, config.HPBarFillColor, config.HPBarBorderColor);
         PreviousProgress = progress;

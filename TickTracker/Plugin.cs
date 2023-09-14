@@ -15,10 +15,10 @@ using Dalamud.Game.ClientState.JobGauge;
 using Dalamud.Game.ClientState.JobGauge.Types;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.Enums;
-using Dalamud.Game.ClientState.Objects.SubKinds;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using TickTracker.Windows;
+using System.Diagnostics;
 
 namespace TickTracker;
 
@@ -45,6 +45,10 @@ public sealed class Plugin : IDalamudPlugin
     private unsafe delegate void ReceiveActionEffectDelegate(uint sourceId, Character* sourceCharacter, IntPtr pos, EffectHeader* effectHeader, EffectEntry* effectArray, ulong* effectTail);
     private readonly Hook<ReceiveActionEffectDelegate> receiveActionEffectHook;
 
+    //Experimental shit
+    private unsafe delegate void ActorTickUpdateDelegate(uint objectId, uint* packetData, byte unkByte);
+    private readonly Hook<ActorTickUpdateDelegate> playerTickUpdateHook;
+
     private readonly Utilities utilities;
     private readonly DalamudPluginInterface pluginInterface;
     private readonly IClientState clientState;
@@ -56,6 +60,10 @@ public sealed class Plugin : IDalamudPlugin
     private readonly JobGauges jobGauges;
     private readonly ISigScanner sigScanner;
     private readonly IPluginLog log;
+    private readonly unsafe CharacterManager* characterManager;
+#if DEBUG
+    private readonly Stopwatch sw;
+#endif
 
     public string Name => "Tick Tracker";
     private const string CommandName = "/tick";
@@ -64,13 +72,14 @@ public sealed class Plugin : IDalamudPlugin
     private HPBar HPBarWindow { get; init; }
     private MPBar MPBarWindow { get; init; }
     public static DebugWindow DebugWindow { get; set; } = null!;
-    private bool inCombat, nullSheet = true, healTriggered;
+    private bool inCombat, nullSheet = true, healTriggered, syncAvailable = true;
     private double syncValue = 1;
     private int lastHPValue = -1, lastMPValue = -1;
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
     private uint currentHP = 1, currentMP = 1, maxHP = 2, maxMP = 2;
     private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "MA0051:Method is too long")]
     public Plugin(DalamudPluginInterface _pluginInterface,
         IClientState _clientState,
         Framework _framework,
@@ -82,6 +91,10 @@ public sealed class Plugin : IDalamudPlugin
         ISigScanner _scanner,
         IPluginLog _pluginLog)
     {
+        unsafe
+        {
+            characterManager = CharacterManager.Instance();
+        }
         pluginInterface = _pluginInterface;
         clientState = _clientState;
         framework = _framework;
@@ -92,32 +105,41 @@ public sealed class Plugin : IDalamudPlugin
         jobGauges = _jobGauges;
         sigScanner = _scanner;
         log = _pluginLog;
-
+#if DEBUG
+        sw = new Stopwatch();
+        sw.Start();
+#endif
         try
         {
             unsafe
             {
+                var playerTickSignature = "48 89 5C 24 ?? 48 89 6C 24 ?? 56 48 83 EC 20 83 3D ?? ?? ?? ?? ?? 41 0F B6 E8 48 8B DA 8B F1 0F 84 ?? ?? ?? ?? 48 89 7C 24 ??";
+                var playerTickUpdateFuncPtr = sigScanner.ScanText(playerTickSignature);
+                playerTickUpdateHook = Hook<ActorTickUpdateDelegate>.FromAddress(playerTickUpdateFuncPtr, ActorTickUpdate);
+
                 // DamageInfo sig
-                var signature = "40 55 53 57 41 54 41 55 41 56 41 57 48 8D AC 24 ?? ?? ?? ?? 48 81 EC ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 45 70";
-                var receiveActionEffectFuncPtr = sigScanner.ScanText(signature);
+                var receiveActionEffectSignature = "40 55 53 57 41 54 41 55 41 56 41 57 48 8D AC 24 ?? ?? ?? ?? 48 81 EC ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 45 70";
+                var receiveActionEffectFuncPtr = sigScanner.ScanText(receiveActionEffectSignature);
                 receiveActionEffectHook = Hook<ReceiveActionEffectDelegate>.FromAddress(receiveActionEffectFuncPtr, ReceiveActionEffect);
             }
         }
         catch (Exception e)
         {
-            log.Error(e, "Plugin could not be initialized. Hook failed.");
-            //PluginLog.Error(e, "Plugin could not be initialized. Hook failed.");
+            log.Error(e, "Plugin could not be initialized. Hooks failed.");
+            playerTickUpdateHook?.Disable();
+            playerTickUpdateHook?.Dispose();
             receiveActionEffectHook?.Disable();
             receiveActionEffectHook?.Dispose();
             throw;
         }
+        playerTickUpdateHook.Enable();
         receiveActionEffectHook.Enable();
 
         utilities = new Utilities(pluginInterface, condition, dataManager, clientState, log);
         config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         ConfigWindow = new ConfigWindow(pluginInterface);
-        HPBarWindow = new HPBar(clientState, utilities);
-        MPBarWindow = new MPBar(clientState, utilities);
+        HPBarWindow = new HPBar(clientState, log, utilities);
+        MPBarWindow = new MPBar(clientState, log, utilities);
         DebugWindow = new DebugWindow();
         WindowSystem.AddWindow(DebugWindow);
         WindowSystem.AddWindow(ConfigWindow);
@@ -160,30 +182,22 @@ public sealed class Plugin : IDalamudPlugin
         {
             return;
         }
-        bool HealthRegen, DisabledHPregen, ManaRegen, DisabledMPregen, Enemy;
-        if (clientState is { LocalPlayer: { } player })
-        {
-            HealthRegen = player.StatusList.Any(e => HealthRegenList.Contains(e.StatusId));
-            DisabledHPregen = player.StatusList.Any(e => DisabledHealthRegenList.Contains(e.StatusId));
-            ManaRegen = player.StatusList.Any(e => ManaRegenList.Contains(e.StatusId));
-            DisabledMPregen = false;
-            if (player.ClassJob.Id == 25)
-            {
-                var gauge = jobGauges.Get<BLMGauge>();
-                DisabledMPregen = gauge.InAstralFire;
-            }
-            Enemy = player.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
-            inCombat = condition[ConditionFlag.InCombat];
-            currentHP = player.CurrentHp;
-            maxHP = player.MaxHp;
-            currentMP = player.CurrentMp;
-            maxMP = player.MaxMp;
-        }
-        else
+        if (clientState is not { LocalPlayer: { } player })
         {
             return;
         }
-
+        var HealthRegen = player.StatusList.Any(e => HealthRegenList.Contains(e.StatusId));
+        var DisabledHPregen = player.StatusList.Any(e => DisabledHealthRegenList.Contains(e.StatusId));
+        var ManaRegen = player.StatusList.Any(e => ManaRegenList.Contains(e.StatusId));
+        var gauge = player.ClassJob.Id == 25 ? jobGauges.Get<BLMGauge>() : null;
+        var DisabledMPregen = gauge is not null && gauge.InAstralFire;
+        var jobType = player.ClassJob.GameData?.ClassJobCategory.Row ?? 0;
+        var Enemy = player.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
+        inCombat = condition[ConditionFlag.InCombat];
+        currentHP = player.CurrentHp;
+        maxHP = player.MaxHp;
+        currentMP = player.CurrentMp;
+        maxMP = player.MaxMp;
         unsafe
         {
             if (!PluginEnabled(Enemy) || !Utilities.IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || utilities.inCustcene())
@@ -203,43 +217,80 @@ public sealed class Plugin : IDalamudPlugin
                             (config.AlwaysShowInDuties && utilities.InDuty());
         HPBarWindow.IsOpen = shouldShowHPBar || (currentHP != maxHP);
         MPBarWindow.IsOpen = shouldShowMPBar || (currentMP != maxMP);
-        if ((lastHPValue < currentHP && !HPBarWindow.FastTick && !healTriggered) || (lastMPValue < currentMP && !MPBarWindow.FastTick))
+        /*if (jobType == 32) // 32 = Disciple of the Land
         {
+            // TODO: Implement GP bar support
+        }*/
+        /*if (syncAvailable)// && currentHP == maxHP && currentMP == maxMP)
+        {
+            log.Warning("Sync reset.");
             syncValue = now;
+            syncAvailable = false;
+        }*/
+        if (syncValue + ActorTickInterval <= now || syncAvailable)
+        {
+            //syncValue = syncAvailable ? now : syncValue + ActorTickInterval;
+            if (syncAvailable)
+            {
+                log.Debug("Sync reset. {c} to {d}", syncValue, now);
+                syncValue = now;
+                syncAvailable = false;
+            }
+            else
+            {
+                //log.Warning("Current time is: {n} Current syncValue is: {s}", now, syncValue);
+                syncValue += ActorTickInterval;
+                log.Debug("Sync manually increased. {c}",syncValue);
+            }
+            //syncValue += ActorTickInterval;
         }
         UpdateHPTick(now, HealthRegen, DisabledHPregen);
-        UpdateMPTick(now, ManaRegen, DisabledMPregen);
-        if (syncValue + ActorTickInterval <= now)
-        {
-            syncValue += ActorTickInterval;
-        }
+        //UpdateMPTick(now, ManaRegen, DisabledMPregen);
     }
 
     private void UpdateHPTick(double currentTime, bool hpRegen, bool regenHalt)
     {
         HPBarWindow.FastTick = (hpRegen && currentHP != maxHP);
+        //HPBarWindow.CanUpdate = HPBarWindow.FastTick || HPBarWindow.CanUpdate;
 
         if (currentHP == maxHP)
         {
+            //log.Debug("shit's broken? {c}", syncValue);
             HPBarWindow.LastTick = syncValue;
         }
-        else if (lastHPValue < currentHP && HPBarWindow.CanUpdate)
+        else if (lastHPValue < currentHP && HPBarWindow.CanUpdate && !healTriggered)//(HPBarWindow.CanUpdate || HPBarWindow.FastTick))
         {
-            if (healTriggered)
+            // CanUpdate is only set on server tick, heal trigger is irrelevant
+            HPBarWindow.LastTick = currentTime;
+            HPBarWindow.CanUpdate = false;
+            //healTriggered = false;
+            /*if (healTriggered)
             {
                 healTriggered = false;
             }
             else
             {
                 HPBarWindow.LastTick = currentTime;
+                HPBarWindow.CanUpdate = false;
+            }*/
+        }
+        else if (lastHPValue < currentHP && HPBarWindow.FastTick)// && !HPBarWindow.CanUpdate)
+        {
+            if (healTriggered)
+            {
+                log.Debug("Heal blocked update");
+                healTriggered = false;
+            }
+            else //if (HPBarWindow.LastTick + FastTickInterval <= currentTime)
+            {
+                // should I snap this to currentTime or just increase by FastTickInterval? hmmm
+                log.Debug("FastTick and can't update -> currentTime is {c}", currentTime);
+                //log.Debug("FastTick and can't update -> LastTick + FastTick is {c}", (HPBarWindow.LastTick + FastTickInterval));
+                HPBarWindow.LastTick = currentTime;
+                //HPBarWindow.LastTick += FastTickInterval;
             }
         }
-        else if (HPBarWindow.LastTick + (HPBarWindow.FastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
-        {
-            HPBarWindow.LastTick += HPBarWindow.FastTick ? FastTickInterval : ActorTickInterval;
-        }
 
-        // The idea is to safe guard the syncValue as much as possible from erronous updates
         if (!HPBarWindow.FastTick && syncValue < HPBarWindow.LastTick && !healTriggered)
         {
             syncValue = HPBarWindow.LastTick;
@@ -253,6 +304,7 @@ public sealed class Plugin : IDalamudPlugin
     private void UpdateMPTick(double currentTime, bool mpRegen, bool regenHalt)
     {
         MPBarWindow.FastTick = (mpRegen && currentMP != maxMP);
+        //MPBarWindow.CanUpdate = MPBarWindow.FastTick || MPBarWindow.CanUpdate;
 
         if (currentMP == maxMP)
         {
@@ -261,10 +313,11 @@ public sealed class Plugin : IDalamudPlugin
         else if (lastMPValue < currentMP && MPBarWindow.CanUpdate)
         {
             MPBarWindow.LastTick = currentTime;
+            MPBarWindow.CanUpdate = false;
         }
-        else if (MPBarWindow.LastTick + (MPBarWindow.FastTick ? FastTickInterval : ActorTickInterval) <= currentTime)
+        else if (lastMPValue < currentMP && MPBarWindow.FastTick )//&& MPBarWindow.LastTick + FastTickInterval <= currentTime)
         {
-            MPBarWindow.LastTick += MPBarWindow.FastTick ? FastTickInterval : ActorTickInterval;
+            MPBarWindow.LastTick = currentTime;
         }
 
         if (!MPBarWindow.FastTick && syncValue < MPBarWindow.LastTick)
@@ -279,30 +332,13 @@ public sealed class Plugin : IDalamudPlugin
 
     private void InitializeLuminaSheet()
     {
-        ExcelSheet<Lumina.Excel.GeneratedSheets.Status>? sheet;
-        try
+        var statusSheet = RetrieveSheet();
+        if (statusSheet is null)
         {
-            var statusSheet = dataManager.GetExcelSheet<Lumina.Excel.GeneratedSheets.Status>(Dalamud.ClientLanguage.English);
-            if (statusSheet == null)
-            {
-                nullSheet = true;
-                //PluginLog.Fatal("Invalid lumina sheet!");
-                log.Fatal("Invalid lumina sheet!");
-                return;
-            }
-            sheet = statusSheet;
-        }
-        catch (Exception e)
-        {
-            nullSheet = true;
-            //PluginLog.Fatal("Retrieving lumina sheet failed!");
-            //PluginLog.Fatal(e.Message);
-            log.Fatal("Retrieving lumina sheet failed!");
-            log.Fatal(e.Message);
             return;
         }
         List<int> bannedStatus = new() { 135, 307, 751, 1419, 1465, 1730, 2326 };
-        var filteredSheet = sheet.Where(s => !bannedStatus.Exists(rowId => rowId == s.RowId));
+        var filteredSheet = statusSheet.Where(s => !bannedStatus.Exists(rowId => rowId == s.RowId));
         foreach (var stat in filteredSheet)
         {
             var text = stat.Description.ToDalamudString().TextValue;
@@ -336,16 +372,36 @@ public sealed class Plugin : IDalamudPlugin
             }
         }
         nullSheet = false;
-        //PluginLog.Debug("HP regen list generated with {HPcount} status effects.", HealthRegenList.Count);
-        //PluginLog.Debug("MP regen list generated with {MPcount} status effects.", ManaRegenList.Count);
         log.Debug("HP regen list generated with {HPcount} status effects.", HealthRegenList.Count);
         log.Debug("MP regen list generated with {MPcount} status effects.", ManaRegenList.Count);
     }
 
+    private ExcelSheet<Lumina.Excel.GeneratedSheets.Status>? RetrieveSheet()
+    {
+        try
+        {
+            var sheet = dataManager.GetExcelSheet<Lumina.Excel.GeneratedSheets.Status>(Dalamud.ClientLanguage.English);
+            if (sheet is null)
+            {
+                nullSheet = true;
+                log.Fatal("Invalid lumina sheet!");
+                return null;
+            }
+            return sheet;
+        }
+        catch (Exception e)
+        {
+            nullSheet = true;
+            log.Fatal("Retrieving lumina sheet failed!");
+            log.Fatal(e.Message);
+            return null;
+        }
+    }
+
     // DamageInfo stripped function
     /// <summary>
-    /// This detour function is triggered every time the client receives a network packet containing
-    /// an action that happens in the vecinity of the user.
+    /// This detour function is triggered every time the client receives
+    /// a network packet containing an action that happens in the vecinity of the user.
     /// </summary>
     private unsafe void ReceiveActionEffect(uint sourceId, Character* sourceCharacter, IntPtr pos, EffectHeader* effectHeader, EffectEntry* effectArray, ulong* effectTail)
     {
@@ -353,14 +409,8 @@ public sealed class Plugin : IDalamudPlugin
         receiveActionEffectHook.Original(sourceId, sourceCharacter, pos, effectHeader, effectArray, effectTail);
         try
         {
-            PlayerCharacter? player;
-
             // Can this even be called if LocalPlayer isn't set? who knows, better safe than sorry
-            if (clientState is { LocalPlayer: { } character })
-            {
-                player = character;
-            }
-            else
+            if (clientState is not { LocalPlayer: { } player })
             {
                 return;
             }
@@ -387,13 +437,11 @@ public sealed class Plugin : IDalamudPlugin
                 }
                 if (sourceId == player.ObjectId && (target == player.OwnerId || castTarget == player.OwnerId))
                 {
-                    //PluginLog.Verbose("Self-healing.");
                     log.Verbose("Self-healing.");
                     healTriggered = true;
                 }
                 else if (target == player.ObjectId || castTarget == player.ObjectId)
                 {
-                    //PluginLog.Verbose("Healed by {n}", name);
                     log.Verbose("Healed by {n}", name);
                     healTriggered = true;
                 }
@@ -401,8 +449,62 @@ public sealed class Plugin : IDalamudPlugin
         }
         catch (Exception e)
         {
-            //PluginLog.Error(e, "An error has occured with the detour.");
-            log.Error(e, "An error has occured with the detour.");
+            log.Error(e, "An error has occured with the ReceiveActionEffect detour.");
+        }
+    }
+
+    /// <summary>
+    /// This detour function is triggered every time the client receives
+    /// a network packet containing an update for the visible? actors
+    /// with hp, mana, gp
+    /// </summary>
+    private unsafe void ActorTickUpdate(uint objectId, uint* packetData, byte unkByte)
+    {
+        playerTickUpdateHook.Original(objectId, packetData, unkByte);
+        try
+        {
+            // Can this even be called if LocalPlayer isn't set? who knows, better safe than sorry
+            if (clientState is not { LocalPlayer: { } player })
+            {
+                return;
+            }
+#if DEBUG
+            var nkHP = *(int*)packetData;
+            var nkMP = *((ushort*)packetData + 2);
+            var nkGP = *((short*)packetData + 3);
+            if (sw.ElapsedMilliseconds >= 1000)
+            {
+                var character = characterManager->LookupBattleCharaByObjectId((int)objectId)->Character;
+                var name = MemoryHelper.ReadStringNullTerminated((nint)character.GameObject.GetName());
+                DebugWindow.name1 = name ?? "invalid";
+                DebugWindow.name2 = string.Empty;
+                DebugWindow.variable4 = unkByte;
+                //var test = MemoryHelper.ReadRawNullTerminated(partyMemberIndex);
+                //DebugWindow.variable5 = test.ToString() ?? "cry";
+                if (objectId != player.ObjectId)
+                {
+                    DebugWindow.name2 = "Supposedly ";
+                }
+                DebugWindow.variable1 = nkHP;
+                DebugWindow.variable2 = nkMP;
+                DebugWindow.variable3 = nkGP;
+                sw.Restart();
+            }
+#endif
+            if (objectId != player.ObjectId)
+            {
+                return;
+            }
+            var networkHP = *(int*)packetData;
+            var networkMP = *((ushort*)packetData + 2);
+            var networkGP = *((short*)packetData + 3); // Goes up to 10000 and is tracked and updated at all times
+            HPBarWindow.CanUpdate = true;
+            MPBarWindow.CanUpdate = true;
+            syncAvailable = true;
+        }
+        catch (Exception e)
+        {
+            log.Error(e, "An error has occured with the PlayerTickUpdate detour.");
         }
     }
 
@@ -414,6 +516,8 @@ public sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
+        playerTickUpdateHook?.Disable();
+        playerTickUpdateHook?.Dispose();
         receiveActionEffectHook?.Disable();
         receiveActionEffectHook?.Dispose();
         WindowSystem.RemoveAllWindows();

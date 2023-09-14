@@ -3,6 +3,7 @@ using System.Numerics;
 using Dalamud.Plugin.Services;
 using Dalamud.Interface.Windowing;
 using System;
+using Dalamud.Logging;
 
 namespace TickTracker.Windows;
 
@@ -24,13 +25,14 @@ public abstract class BarWindowBase : Window
     public bool RegenHalted { get; set; } = false;
     public bool FastTick { get; set; } = false;
     public bool CanUpdate { get; set; } = true;
+    public bool FastRegenSwitch { get; set; } = false;
     public double LastTick { get; set; } = 1;
     public float PreviousProgress { get; set; } = -1;
     public const float ActorTickInterval = 3, FastTickInterval = 1.5f;
     private readonly IClientState clientState;
     private readonly Utilities utilities;
 
-    protected BarWindowBase(IClientState _clientState, Utilities _utilities, Enum.WindowType type, string name) : base(name)
+    protected BarWindowBase(IClientState _clientState, IPluginLog _pluginLog, Utilities _utilities, Enum.WindowType type, string name) : base(name)
     {
         SizeCondition = ImGuiCond.FirstUseEver;
         PositionCondition = ImGuiCond.FirstUseEver;
@@ -67,6 +69,11 @@ public abstract class BarWindowBase : Window
             Flags |= _lockedBarFlags;
         }
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, barWindowPadding);
+    }
+
+    public override void Draw()
+    {
+        PluginLog.Warning("AbstractBase log from {c}", WindowType);
     }
 
     public override void PostDraw()

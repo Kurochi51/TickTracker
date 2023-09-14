@@ -102,7 +102,6 @@ public partial class Utilities
         }
         catch (Exception e)
         {
-            //PluginLog.Error("{error} triggered by {type}.", e.Message, window.ToString());
             log.Error("{error} triggered by {type}.", e.Message, window.ToString());
             return false;
         }

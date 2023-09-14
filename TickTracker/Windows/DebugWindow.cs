@@ -30,6 +30,15 @@ public class DebugWindow : Window, IDisposable
 
     private float hpWidth = 0, mpWidth = 0, disabledHPWidth = 0, disabledMPWidth = 0;
     private bool firstTime = true, invalidList = false;
+#if DEBUG
+    public int variable1 { get; set; } = -1;
+    public ushort variable2 { get; set; } = 6942;
+    public short variable3 { get; set; } = -1;
+    public byte variable4 { get; set; } = 69;
+    public string variable5 { get; set; } = "no";
+    public string name1 { get; set; } = "Yes";
+    public string name2 { get; set; } = "Yes2";
+#endif
 
     public DebugWindow() : base("DebugWindow")
     {
@@ -45,6 +54,15 @@ public class DebugWindow : Window, IDisposable
 
     public override void Draw()
     {
+#if DEBUG
+#pragma warning disable MA0076 // Do not use implicit culture-sensitive ToString in interpolated strings
+        ImGui.TextUnformatted($"Current Player: {name1}");
+        ImGui.TextUnformatted($"{name2}HP : {variable1}");
+        ImGui.TextUnformatted($"{name2}MP : {variable2}");
+        ImGui.TextUnformatted($"{name2}GP : {variable3}");
+        ImGui.TextUnformatted($"PartyMemberIndex : {variable4} or {variable5}");
+#pragma warning restore MA0076 // Do not use implicit culture-sensitive ToString in interpolated strings
+#endif
         if (HealthRegenDictionary is null || ManaRegenDictionary is null || DisabledHealthRegenDictionary is null || DisabledManaRegenDictionary is null || HealthRegenDictionary.Count <= 0 || ManaRegenDictionary.Count <= 0 || DisabledHealthRegenDictionary.Count <= 0 || DisabledManaRegenDictionary.Count <= 0)
         {
             invalidList = true;

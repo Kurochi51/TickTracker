@@ -8,7 +8,7 @@ namespace TickTracker.Windows;
 public class MPBar : BarWindowBase
 {
     private readonly Utilities utilities;
-    public MPBar(IClientState _clientState, Utilities _utilities) : base(_clientState, _utilities, Enum.WindowType.MpWindow, "MPBarWindow")
+    public MPBar(IClientState _clientState, IPluginLog _pluginLog, Utilities _utilities) : base(_clientState, _pluginLog, _utilities, Enum.WindowType.MpWindow, "MPBarWindow")
     {
         Size = config.MPBarSize * ImGuiHelpers.GlobalScale;
         Position = config.MPBarPosition;
@@ -26,12 +26,7 @@ public class MPBar : BarWindowBase
         }
         if (progress > 1)
         {
-            progress = 1;
-            CanUpdate = true;
-        }
-        else
-        {
-            CanUpdate = false;
+            progress = FastTick ? progress / 2 : 1;
         }
         DrawProgress(progress, config.MPBarBackgroundColor, config.MPBarFillColor, config.MPBarBorderColor);
         PreviousProgress = progress;
