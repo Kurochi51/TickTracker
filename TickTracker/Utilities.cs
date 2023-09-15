@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Numerics;
 using System.Collections.Generic;
+
 using Lumina.Excel.GeneratedSheets;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;

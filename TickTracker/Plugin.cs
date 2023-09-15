@@ -1,7 +1,9 @@
 using System;
 using System.Linq;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+
 using Lumina.Excel;
 using Dalamud.Memory;
 using Dalamud.Plugin;
@@ -18,7 +20,6 @@ using Dalamud.Game.ClientState.Objects.Enums;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using TickTracker.Windows;
-using System.Diagnostics;
 
 namespace TickTracker;
 
@@ -41,13 +42,18 @@ public sealed class Plugin : IDalamudPlugin
     /// </summary>
     public static Configuration config { get; set; } = null!;
 
-    //DamageInfo Delegate & Hook
+    // DamageInfo Delegate & Hook
     private unsafe delegate void ReceiveActionEffectDelegate(uint sourceId, Character* sourceCharacter, IntPtr pos, EffectHeader* effectHeader, EffectEntry* effectArray, ulong* effectTail);
     private readonly Hook<ReceiveActionEffectDelegate> receiveActionEffectHook;
 
-    //Experimental shit
-    private unsafe delegate void ActorTickUpdateDelegate(uint objectId, uint* packetData, byte unkByte);
-    private readonly Hook<ActorTickUpdateDelegate> playerTickUpdateHook;
+    // Function that triggers when client receives a network packet with an update for nearby actors
+    private unsafe delegate void ReceiveActorUpdateDelegate(uint objectId, uint* packetData, byte unkByte);
+    private readonly Hook<ReceiveActorUpdateDelegate> receiveActorUpdateHook;
+
+#if DEBUG
+    private unsafe delegate void AltReceiveActorUpdateDelegate(uint objectId, byte* packetData, byte unkByte);
+    private readonly Hook<AltReceiveActorUpdateDelegate> altReceiveActorUpdateHook;
+#endif
 
     private readonly Utilities utilities;
     private readonly DalamudPluginInterface pluginInterface;
@@ -68,10 +74,10 @@ public sealed class Plugin : IDalamudPlugin
     public string Name => "Tick Tracker";
     private const string CommandName = "/tick";
     public WindowSystem WindowSystem = new("TickTracker");
+    public static DebugWindow DebugWindow { get; set; } = null!;
     private ConfigWindow ConfigWindow { get; init; }
     private HPBar HPBarWindow { get; init; }
     private MPBar MPBarWindow { get; init; }
-    public static DebugWindow DebugWindow { get; set; } = null!;
     private bool inCombat, nullSheet = true, healTriggered, syncAvailable = true;
     private double syncValue = 1;
     private int lastHPValue = -1, lastMPValue = -1;
@@ -113,9 +119,15 @@ public sealed class Plugin : IDalamudPlugin
         {
             unsafe
             {
-                var playerTickSignature = "48 89 5C 24 ?? 48 89 6C 24 ?? 56 48 83 EC 20 83 3D ?? ?? ?? ?? ?? 41 0F B6 E8 48 8B DA 8B F1 0F 84 ?? ?? ?? ?? 48 89 7C 24 ??";
-                var playerTickUpdateFuncPtr = sigScanner.ScanText(playerTickSignature);
-                playerTickUpdateHook = Hook<ActorTickUpdateDelegate>.FromAddress(playerTickUpdateFuncPtr, ActorTickUpdate);
+#if DEBUG
+                var altActorUpdateSig = "48 8B C4 55 57 41 56 48 83 EC 60";
+                var altActorUpdateFuncPtr = sigScanner.ScanText(altActorUpdateSig);
+                altReceiveActorUpdateHook = Hook<AltReceiveActorUpdateDelegate>.FromAddress(altActorUpdateFuncPtr, AltActorTickUpdate);
+#endif
+
+                var actorUpdateSignature = "48 89 5C 24 ?? 48 89 6C 24 ?? 56 48 83 EC 20 83 3D ?? ?? ?? ?? ?? 41 0F B6 E8 48 8B DA 8B F1 0F 84 ?? ?? ?? ?? 48 89 7C 24 ??";
+                var actorUpdateFuncPtr = sigScanner.ScanText(actorUpdateSignature);
+                receiveActorUpdateHook = Hook<ReceiveActorUpdateDelegate>.FromAddress(actorUpdateFuncPtr, ActorTickUpdate);
 
                 // DamageInfo sig
                 var receiveActionEffectSignature = "40 55 53 57 41 54 41 55 41 56 41 57 48 8D AC 24 ?? ?? ?? ?? 48 81 EC ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 45 70";
@@ -126,13 +138,20 @@ public sealed class Plugin : IDalamudPlugin
         catch (Exception e)
         {
             log.Error(e, "Plugin could not be initialized. Hooks failed.");
-            playerTickUpdateHook?.Disable();
-            playerTickUpdateHook?.Dispose();
+#if DEBUG
+            altReceiveActorUpdateHook?.Disable();
+            altReceiveActorUpdateHook?.Dispose();
+#endif
+            receiveActorUpdateHook?.Disable();
+            receiveActorUpdateHook?.Dispose();
             receiveActionEffectHook?.Disable();
             receiveActionEffectHook?.Dispose();
             throw;
         }
-        playerTickUpdateHook.Enable();
+#if DEBUG
+        altReceiveActorUpdateHook.Enable();
+#endif
+        receiveActorUpdateHook.Enable();
         receiveActionEffectHook.Enable();
 
         utilities = new Utilities(pluginInterface, condition, dataManager, clientState, log);
@@ -221,73 +240,55 @@ public sealed class Plugin : IDalamudPlugin
         {
             // TODO: Implement GP bar support
         }*/
-        /*if (syncAvailable)// && currentHP == maxHP && currentMP == maxMP)
-        {
-            log.Warning("Sync reset.");
-            syncValue = now;
-            syncAvailable = false;
-        }*/
         if (syncValue + ActorTickInterval <= now || syncAvailable)
         {
-            //syncValue = syncAvailable ? now : syncValue + ActorTickInterval;
             if (syncAvailable)
             {
-                log.Debug("Sync reset. {c} to {d}", syncValue, now);
                 syncValue = now;
                 syncAvailable = false;
             }
             else
             {
-                //log.Warning("Current time is: {n} Current syncValue is: {s}", now, syncValue);
                 syncValue += ActorTickInterval;
-                log.Debug("Sync manually increased. {c}",syncValue);
             }
-            //syncValue += ActorTickInterval;
         }
         UpdateHPTick(now, HealthRegen, DisabledHPregen);
-        //UpdateMPTick(now, ManaRegen, DisabledMPregen);
+        UpdateMPTick(now, ManaRegen, DisabledMPregen);
     }
 
     private void UpdateHPTick(double currentTime, bool hpRegen, bool regenHalt)
     {
+        if (hpRegen && currentHP != maxHP && !HPBarWindow.FastTick)
+        {
+            HPBarWindow.FastRegenSwitch = true;
+        }
         HPBarWindow.FastTick = (hpRegen && currentHP != maxHP);
-        //HPBarWindow.CanUpdate = HPBarWindow.FastTick || HPBarWindow.CanUpdate;
 
         if (currentHP == maxHP)
         {
-            //log.Debug("shit's broken? {c}", syncValue);
             HPBarWindow.LastTick = syncValue;
         }
-        else if (lastHPValue < currentHP && HPBarWindow.CanUpdate && !healTriggered)//(HPBarWindow.CanUpdate || HPBarWindow.FastTick))
+        else if (lastHPValue < currentHP && HPBarWindow.CanUpdate && !HPBarWindow.FastTick)
         {
             // CanUpdate is only set on server tick, heal trigger is irrelevant
             HPBarWindow.LastTick = currentTime;
             HPBarWindow.CanUpdate = false;
-            //healTriggered = false;
-            /*if (healTriggered)
+            if (healTriggered)
+            {
+                healTriggered = false;
+            }
+        }
+        else if (lastHPValue < currentHP && HPBarWindow.FastTick)
+        {
+            // if there's a heal triggered but the progress would restart, I want to update regardless
+            var progress = (currentTime - HPBarWindow.LastTick) / FastTickInterval;
+            if (healTriggered && progress < 0.9)
             {
                 healTriggered = false;
             }
             else
             {
                 HPBarWindow.LastTick = currentTime;
-                HPBarWindow.CanUpdate = false;
-            }*/
-        }
-        else if (lastHPValue < currentHP && HPBarWindow.FastTick)// && !HPBarWindow.CanUpdate)
-        {
-            if (healTriggered)
-            {
-                log.Debug("Heal blocked update");
-                healTriggered = false;
-            }
-            else //if (HPBarWindow.LastTick + FastTickInterval <= currentTime)
-            {
-                // should I snap this to currentTime or just increase by FastTickInterval? hmmm
-                log.Debug("FastTick and can't update -> currentTime is {c}", currentTime);
-                //log.Debug("FastTick and can't update -> LastTick + FastTick is {c}", (HPBarWindow.LastTick + FastTickInterval));
-                HPBarWindow.LastTick = currentTime;
-                //HPBarWindow.LastTick += FastTickInterval;
             }
         }
 
@@ -298,24 +299,26 @@ public sealed class Plugin : IDalamudPlugin
 
         HPBarWindow.RegenHalted = regenHalt;
         lastHPValue = (int)currentHP;
-        HPBarWindow.UpdateAvailable = true;
     }
 
     private void UpdateMPTick(double currentTime, bool mpRegen, bool regenHalt)
     {
+        if (mpRegen && currentMP != maxMP && !MPBarWindow.FastTick)
+        {
+            MPBarWindow.FastRegenSwitch = true;
+        }
         MPBarWindow.FastTick = (mpRegen && currentMP != maxMP);
-        //MPBarWindow.CanUpdate = MPBarWindow.FastTick || MPBarWindow.CanUpdate;
 
         if (currentMP == maxMP)
         {
             MPBarWindow.LastTick = syncValue;
         }
-        else if (lastMPValue < currentMP && MPBarWindow.CanUpdate)
+        else if (lastMPValue < currentMP && MPBarWindow.CanUpdate && !MPBarWindow.FastTick)
         {
             MPBarWindow.LastTick = currentTime;
             MPBarWindow.CanUpdate = false;
         }
-        else if (lastMPValue < currentMP && MPBarWindow.FastTick )//&& MPBarWindow.LastTick + FastTickInterval <= currentTime)
+        else if (lastMPValue < currentMP && MPBarWindow.FastTick)
         {
             MPBarWindow.LastTick = currentTime;
         }
@@ -327,7 +330,6 @@ public sealed class Plugin : IDalamudPlugin
 
         MPBarWindow.RegenHalted = regenHalt;
         lastMPValue = (int)currentMP;
-        MPBarWindow.UpdateAvailable = true;
     }
 
     private void InitializeLuminaSheet()
@@ -453,14 +455,31 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
+#if DEBUG
+    private unsafe void AltActorTickUpdate(uint objectId, byte* packetData, byte unkByte)
+    {
+        altReceiveActorUpdateHook.Original(objectId, packetData, unkByte);
+        try
+        {
+            log.Warning("Alt detour happened.");
+            var unk1 = *((uint*)packetData + 1);
+            var unk2 = *((ushort*)packetData + 6);
+        }
+        catch (Exception e)
+        {
+            log.Error(e, "An error has occured with the AltActorTickUpdate detour.");
+        }
+    }
+#endif
+
     /// <summary>
     /// This detour function is triggered every time the client receives
-    /// a network packet containing an update for the visible? actors
+    /// a network packet containing an update for the nearby actors
     /// with hp, mana, gp
     /// </summary>
     private unsafe void ActorTickUpdate(uint objectId, uint* packetData, byte unkByte)
     {
-        playerTickUpdateHook.Original(objectId, packetData, unkByte);
+        receiveActorUpdateHook.Original(objectId, packetData, unkByte);
         try
         {
             // Can this even be called if LocalPlayer isn't set? who knows, better safe than sorry
@@ -469,9 +488,9 @@ public sealed class Plugin : IDalamudPlugin
                 return;
             }
 #if DEBUG
-            var nkHP = *(int*)packetData;
-            var nkMP = *((ushort*)packetData + 2);
-            var nkGP = *((short*)packetData + 3);
+            var networkHP = *(int*)packetData;
+            var networkMP = *((ushort*)packetData + 2);
+            var networkGP = *((short*)packetData + 3); // Goes up to 10000 and is tracked and updated at all times
             if (sw.ElapsedMilliseconds >= 1000)
             {
                 var character = characterManager->LookupBattleCharaByObjectId((int)objectId)->Character;
@@ -479,15 +498,13 @@ public sealed class Plugin : IDalamudPlugin
                 DebugWindow.name1 = name ?? "invalid";
                 DebugWindow.name2 = string.Empty;
                 DebugWindow.variable4 = unkByte;
-                //var test = MemoryHelper.ReadRawNullTerminated(partyMemberIndex);
-                //DebugWindow.variable5 = test.ToString() ?? "cry";
                 if (objectId != player.ObjectId)
                 {
                     DebugWindow.name2 = "Supposedly ";
                 }
-                DebugWindow.variable1 = nkHP;
-                DebugWindow.variable2 = nkMP;
-                DebugWindow.variable3 = nkGP;
+                DebugWindow.variable1 = networkHP;
+                DebugWindow.variable2 = networkMP;
+                DebugWindow.variable3 = networkGP;
                 sw.Restart();
             }
 #endif
@@ -495,16 +512,13 @@ public sealed class Plugin : IDalamudPlugin
             {
                 return;
             }
-            var networkHP = *(int*)packetData;
-            var networkMP = *((ushort*)packetData + 2);
-            var networkGP = *((short*)packetData + 3); // Goes up to 10000 and is tracked and updated at all times
             HPBarWindow.CanUpdate = true;
             MPBarWindow.CanUpdate = true;
             syncAvailable = true;
         }
         catch (Exception e)
         {
-            log.Error(e, "An error has occured with the PlayerTickUpdate detour.");
+            log.Error(e, "An error has occured with the ActorTickUpdate detour.");
         }
     }
 
@@ -516,8 +530,12 @@ public sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
-        playerTickUpdateHook?.Disable();
-        playerTickUpdateHook?.Dispose();
+#if DEBUG
+        altReceiveActorUpdateHook?.Disable();
+        altReceiveActorUpdateHook?.Dispose();
+#endif
+        receiveActorUpdateHook?.Disable();
+        receiveActorUpdateHook?.Dispose();
         receiveActionEffectHook?.Disable();
         receiveActionEffectHook?.Dispose();
         WindowSystem.RemoveAllWindows();

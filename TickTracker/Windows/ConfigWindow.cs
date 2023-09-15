@@ -1,6 +1,7 @@
-using ImGuiNET;
 using System;
 using System.Numerics;
+
+using ImGuiNET;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Raii;
 using Dalamud.Plugin;
@@ -10,6 +11,7 @@ namespace TickTracker.Windows;
 public class ConfigWindow : Window, IDisposable
 {
     private static Configuration config => Plugin.config;
+    private static DebugWindow debugWindow => Plugin.DebugWindow;
     private readonly DalamudPluginInterface pluginInterface;
 
     public ConfigWindow(DalamudPluginInterface _pluginInterface) : base("Timer Settings")
@@ -49,7 +51,7 @@ public class ConfigWindow : Window, IDisposable
         ImGui.SetCursorPosY(ImGui.GetWindowContentRegionMax().Y - ImGui.GetFrameHeight() - 5f);
         if (ImGui.Button("Debug"))
         {
-            Plugin.DebugWindow.Toggle();
+            debugWindow.Toggle();
         }
         ImGui.SetCursorPos(originPos);
         // Place a button in the bottom right + some padding / extra space

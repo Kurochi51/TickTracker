@@ -1,9 +1,9 @@
-using ImGuiNET;
+using System;
 using System.Numerics;
+
+using ImGuiNET;
 using Dalamud.Plugin.Services;
 using Dalamud.Interface.Windowing;
-using System;
-using Dalamud.Logging;
 
 namespace TickTracker.Windows;
 
@@ -21,16 +21,17 @@ public abstract class BarWindowBase : Window
                                                     ImGuiWindowFlags.NoResize |
                                                     ImGuiWindowFlags.NoNav |
                                                     ImGuiWindowFlags.NoInputs;
-    public bool UpdateAvailable { get; set; } = false;
     public bool RegenHalted { get; set; } = false;
     public bool FastTick { get; set; } = false;
     public bool CanUpdate { get; set; } = true;
     public bool FastRegenSwitch { get; set; } = false;
     public double LastTick { get; set; } = 1;
-    public float PreviousProgress { get; set; } = -1;
+    public double PreviousProgress { get; set; } = -1;
     public const float ActorTickInterval = 3, FastTickInterval = 1.5f;
     private readonly IClientState clientState;
     private readonly Utilities utilities;
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0052:Remove unread private members", Justification = "Not going to re-add this everytime I need to log something.")]
+    private readonly IPluginLog log;
 
     protected BarWindowBase(IClientState _clientState, IPluginLog _pluginLog, Utilities _utilities, Enum.WindowType type, string name) : base(name)
     {
@@ -39,6 +40,7 @@ public abstract class BarWindowBase : Window
 
         clientState = _clientState;
         utilities = _utilities;
+        log = _pluginLog;
         WindowType = type;
     }
 
@@ -51,11 +53,6 @@ public abstract class BarWindowBase : Window
         if (!utilities.WindowCondition(WindowType))
         {
             return false;
-        }
-        if (UpdateAvailable)
-        {
-            UpdateAvailable = false;
-            return true;
         }
         return true;
     }
@@ -71,17 +68,12 @@ public abstract class BarWindowBase : Window
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, barWindowPadding);
     }
 
-    public override void Draw()
-    {
-        PluginLog.Warning("AbstractBase log from {c}", WindowType);
-    }
-
     public override void PostDraw()
     {
         ImGui.PopStyleVar();
     }
 
-    public static void DrawProgress(float progress, Vector4 backgroundColor, Vector4 fillColor, Vector4 borderColor)
+    public static void DrawProgress(double progress, Vector4 backgroundColor, Vector4 fillColor, Vector4 borderColor)
     {
         var cornerRounding = 4f; // Maybe make it user configurable?
         var borderThickness = 1.35f; // Maybe make it user configurable?
@@ -93,7 +85,7 @@ public abstract class BarWindowBase : Window
 
         // Calculate progress bar dimensions
         var barWidth = bottomRight.X - topLeft.X;
-        var filledWidth = new Vector2((barWidth * Math.Max(progress, 0.0001f)) + topLeft.X, bottomRight.Y);
+        var filledWidth = new Vector2((barWidth * (float)Math.Max(progress, 0.0001f)) + topLeft.X, bottomRight.Y);
         filledWidth = (progress <= 0) ? filledWidth - barFillSizeOffset : filledWidth;
 
         // Draw main bar

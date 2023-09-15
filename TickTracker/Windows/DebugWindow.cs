@@ -1,9 +1,10 @@
-using ImGuiNET;
 using System;
 using System.Text;
 using System.Linq;
 using System.Numerics;
 using System.Collections.Generic;
+
+using ImGuiNET;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Raii;
 

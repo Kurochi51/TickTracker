@@ -1,5 +1,6 @@
-using ImGuiNET;
 using System;
+
+using ImGuiNET;
 using Dalamud.Interface;
 using Dalamud.Plugin.Services;
 
@@ -8,8 +9,8 @@ namespace TickTracker.Windows;
 public class HPBar : BarWindowBase
 {
     private readonly Utilities utilities;
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0052:Remove unread private members", Justification = "Not going to re-add this everytime I need to log something.")]
     private readonly IPluginLog log;
-    private bool test = true;
     public HPBar(IClientState _clientState, IPluginLog _pluginLog, Utilities _utilities) : base(_clientState, _pluginLog, _utilities, Enum.WindowType.HpWindow, "HPBarWindow")
     {
         Size = config.HPBarSize * ImGuiHelpers.GlobalScale;
@@ -22,26 +23,18 @@ public class HPBar : BarWindowBase
     {
         var now = DateTime.Now.TimeOfDay.TotalSeconds;
         UpdateWindow();
-        var progress = (float)((now - LastTick) / (FastTick ? FastTickInterval : ActorTickInterval));
-        FastRegenSwitch = FastTick;
-        if (!FastTick)
+        var progress = (now - LastTick) / (FastTick ? FastTickInterval : ActorTickInterval);
+        if (FastRegenSwitch && progress > 1)
         {
-            test = true;
-            FastRegenSwitch = true;
+            progress /= 2;
+            if (CanUpdate)
+            {
+                FastRegenSwitch = false;
+            }
         }
         if (RegenHalted)
         {
             progress = PreviousProgress;
-        }
-        if (progress > 1 && FastRegenSwitch && test)
-        {
-            progress /= 2;
-            FastRegenSwitch = false;
-            test = false;
-            /*log.Debug("Progress is over 1: {c}", progress);
-            log.Debug("LastTick is: {a} and FastTick is {b}", LastTick, FastTick);
-            log.Debug("now is {a} now - LastTick is {b} and now - LastTick / currentInterval is {c}", now, now - LastTick, (now - LastTick) / (FastTick ? FastTickInterval : ActorTickInterval));
-            progress = FastTick ? progress / 2 : 0;*/
         }
         DrawProgress(progress, config.HPBarBackgroundColor, config.HPBarFillColor, config.HPBarBorderColor);
         PreviousProgress = progress;
