@@ -1,6 +1,5 @@
 using System;
 using System.Linq;
-using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 
@@ -47,13 +46,13 @@ public sealed class Plugin : IDalamudPlugin
     private readonly Hook<ReceiveActionEffectDelegate> receiveActionEffectHook;
 
     // Function that triggers when client receives a network packet with an update for nearby actors
-    private unsafe delegate void ReceiveActorUpdateDelegate(uint objectId, uint* packetData, byte unkByte);
-    private readonly Hook<ReceiveActorUpdateDelegate> receiveActorUpdateHook;
+    private unsafe delegate void ReceivePrimaryActorUpdateDelegate(uint objectId, uint* packetData, byte unkByte);
+    private readonly Hook<ReceivePrimaryActorUpdateDelegate> receivePrimaryActorUpdateHook;
 
-#if DEBUG
-    private unsafe delegate void AltReceiveActorUpdateDelegate(uint objectId, byte* packetData, byte unkByte);
-    private readonly Hook<AltReceiveActorUpdateDelegate> altReceiveActorUpdateHook;
-#endif
+    // Different Function that triggers when client receives a network packet with an update for nearby actors
+    // Seems to trigger when a regen would be active, or there's a CP/GP update
+    private unsafe delegate void ReceiveSecondaryActorUpdateDelegate(uint objectId, byte* packetData, byte unkByte);
+    private readonly Hook<ReceiveSecondaryActorUpdateDelegate> receiveSecondaryActorUpdateHook;
 
     private readonly Utilities utilities;
     private readonly DalamudPluginInterface pluginInterface;
@@ -66,10 +65,6 @@ public sealed class Plugin : IDalamudPlugin
     private readonly JobGauges jobGauges;
     private readonly ISigScanner sigScanner;
     private readonly IPluginLog log;
-    private readonly unsafe CharacterManager* characterManager;
-#if DEBUG
-    private readonly Stopwatch sw;
-#endif
 
     public string Name => "Tick Tracker";
     private const string CommandName = "/tick";
@@ -78,7 +73,7 @@ public sealed class Plugin : IDalamudPlugin
     private ConfigWindow ConfigWindow { get; init; }
     private HPBar HPBarWindow { get; init; }
     private MPBar MPBarWindow { get; init; }
-    private bool inCombat, nullSheet = true, healTriggered, syncAvailable = true;
+    private bool inCombat, mpGainTriggered, healTriggered, syncAvailable = true, nullSheet = true;
     private double syncValue = 1;
     private int lastHPValue = -1, lastMPValue = -1;
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
@@ -97,10 +92,6 @@ public sealed class Plugin : IDalamudPlugin
         ISigScanner _scanner,
         IPluginLog _pluginLog)
     {
-        unsafe
-        {
-            characterManager = CharacterManager.Instance();
-        }
         pluginInterface = _pluginInterface;
         clientState = _clientState;
         framework = _framework;
@@ -111,47 +102,48 @@ public sealed class Plugin : IDalamudPlugin
         jobGauges = _jobGauges;
         sigScanner = _scanner;
         log = _pluginLog;
-#if DEBUG
-        sw = new Stopwatch();
-        sw.Start();
-#endif
+        var signatures = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         try
         {
             unsafe
             {
-#if DEBUG
-                var altActorUpdateSig = "48 8B C4 55 57 41 56 48 83 EC 60";
-                var altActorUpdateFuncPtr = sigScanner.ScanText(altActorUpdateSig);
-                altReceiveActorUpdateHook = Hook<AltReceiveActorUpdateDelegate>.FromAddress(altActorUpdateFuncPtr, AltActorTickUpdate);
-#endif
+                var primaryActorUpdateSignature = "48 89 5C 24 ?? 48 89 6C 24 ?? 56 48 83 EC 20 83 3D ?? ?? ?? ?? ?? 41 0F B6 E8 48 8B DA 8B F1 0F 84 ?? ?? ?? ?? 48 89 7C 24 ??";
+                signatures.Add(primaryActorUpdateSignature);
+                var primaryActorUpdateFuncPtr = sigScanner.ScanText(primaryActorUpdateSignature);
+                receivePrimaryActorUpdateHook = Hook<ReceivePrimaryActorUpdateDelegate>.FromAddress(primaryActorUpdateFuncPtr, PrimaryActorTickUpdate);
 
-                var actorUpdateSignature = "48 89 5C 24 ?? 48 89 6C 24 ?? 56 48 83 EC 20 83 3D ?? ?? ?? ?? ?? 41 0F B6 E8 48 8B DA 8B F1 0F 84 ?? ?? ?? ?? 48 89 7C 24 ??";
-                var actorUpdateFuncPtr = sigScanner.ScanText(actorUpdateSignature);
-                receiveActorUpdateHook = Hook<ReceiveActorUpdateDelegate>.FromAddress(actorUpdateFuncPtr, ActorTickUpdate);
+                var secondaryActorUpdateSig = "48 8B C4 55 57 41 56 48 83 EC 60";
+                signatures.Add(secondaryActorUpdateSig);
+                var secondaryActorUpdateFuncPtr = sigScanner.ScanText(secondaryActorUpdateSig);
+                receiveSecondaryActorUpdateHook = Hook<ReceiveSecondaryActorUpdateDelegate>.FromAddress(secondaryActorUpdateFuncPtr, SecondaryActorTickUpdate);
 
                 // DamageInfo sig
                 var receiveActionEffectSignature = "40 55 53 57 41 54 41 55 41 56 41 57 48 8D AC 24 ?? ?? ?? ?? 48 81 EC ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 45 70";
+                signatures.Add(receiveActionEffectSignature);
                 var receiveActionEffectFuncPtr = sigScanner.ScanText(receiveActionEffectSignature);
                 receiveActionEffectHook = Hook<ReceiveActionEffectDelegate>.FromAddress(receiveActionEffectFuncPtr, ReceiveActionEffect);
             }
         }
         catch (Exception e)
         {
-            log.Error(e, "Plugin could not be initialized. Hooks failed.");
-#if DEBUG
-            altReceiveActorUpdateHook?.Disable();
-            altReceiveActorUpdateHook?.Dispose();
-#endif
-            receiveActorUpdateHook?.Disable();
-            receiveActorUpdateHook?.Dispose();
+            foreach (var sig in signatures)
+            {
+                if (e.Message.Contains(sig, StringComparison.OrdinalIgnoreCase))
+                {
+                    log.Fatal("{a} is out of date.", sig);
+                }
+            }
+            log.Fatal(e, "Plugin could not be initialized. Hook failed.");
+            receiveSecondaryActorUpdateHook?.Disable();
+            receiveSecondaryActorUpdateHook?.Dispose();
+            receivePrimaryActorUpdateHook?.Disable();
+            receivePrimaryActorUpdateHook?.Dispose();
             receiveActionEffectHook?.Disable();
             receiveActionEffectHook?.Dispose();
             throw;
         }
-#if DEBUG
-        altReceiveActorUpdateHook.Enable();
-#endif
-        receiveActorUpdateHook.Enable();
+        receiveSecondaryActorUpdateHook.Enable();
+        receivePrimaryActorUpdateHook.Enable();
         receiveActionEffectHook.Enable();
 
         utilities = new Utilities(pluginInterface, condition, dataManager, clientState, log);
@@ -280,15 +272,14 @@ public sealed class Plugin : IDalamudPlugin
         }
         else if (lastHPValue < currentHP && HPBarWindow.FastTick)
         {
-            // if there's a heal triggered but the progress would restart, I want to update regardless
-            var progress = (currentTime - HPBarWindow.LastTick) / FastTickInterval;
-            if (healTriggered && progress < 0.9)
-            {
-                healTriggered = false;
-            }
-            else
+            if (HPBarWindow.CanUpdate || HPBarWindow.DelayedUpdate)
             {
                 HPBarWindow.LastTick = currentTime;
+                HPBarWindow.CanUpdate = HPBarWindow.DelayedUpdate = false;
+                if (healTriggered)
+                {
+                    healTriggered = false;
+                }
             }
         }
 
@@ -317,13 +308,25 @@ public sealed class Plugin : IDalamudPlugin
         {
             MPBarWindow.LastTick = currentTime;
             MPBarWindow.CanUpdate = false;
+            if (mpGainTriggered)
+            {
+                mpGainTriggered = false;
+            }
         }
         else if (lastMPValue < currentMP && MPBarWindow.FastTick)
         {
-            MPBarWindow.LastTick = currentTime;
+            if (MPBarWindow.CanUpdate || MPBarWindow.DelayedUpdate)
+            {
+                MPBarWindow.LastTick = currentTime;
+                MPBarWindow.CanUpdate = MPBarWindow.DelayedUpdate = false;
+                if (mpGainTriggered)
+                {
+                    mpGainTriggered = false;
+                }
+            }
         }
 
-        if (!MPBarWindow.FastTick && syncValue < MPBarWindow.LastTick)
+        if (!MPBarWindow.FastTick && syncValue < MPBarWindow.LastTick && !mpGainTriggered)
         {
             syncValue = MPBarWindow.LastTick;
         }
@@ -341,38 +344,40 @@ public sealed class Plugin : IDalamudPlugin
         }
         List<int> bannedStatus = new() { 135, 307, 751, 1419, 1465, 1730, 2326 };
         var filteredSheet = statusSheet.Where(s => !bannedStatus.Exists(rowId => rowId == s.RowId));
-        foreach (var stat in filteredSheet)
+        var parallelOptions = new ParallelOptions
+        {
+            MaxDegreeOfParallelism = Environment.ProcessorCount / 2,
+        };
+        Parallel.ForEach(filteredSheet, parallelOptions, stat =>
         {
             var text = stat.Description.ToDalamudString().TextValue;
             if (string.IsNullOrWhiteSpace(text))
             {
-                continue;
+                return;
             }
             if (Utilities.WholeKeywordMatch(text, Utilities.RegenNullKeywords) && Utilities.WholeKeywordMatch(text, Utilities.HealthKeywords))
             {
                 DisabledHealthRegenList.Add(stat.RowId);
-                DebugWindow.DisabledHealthRegenDictionary.Add(stat.RowId, stat.Name);
+                DebugWindow.DisabledHealthRegenDictionary.TryAdd(stat.RowId, stat.Name);
             }
             if (Utilities.WholeKeywordMatch(text, Utilities.RegenNullKeywords) && Utilities.WholeKeywordMatch(text, Utilities.ManaKeywords))
             {
-                // Since only Astral Fire meets the criteria, and Astral Fire isn't a status effect anymore, it's unnecessary to store it in a HashSet.
-                // However I'd like to keep it in the dictionary for clarity.
-                DebugWindow.DisabledManaRegenDictionary.Add(stat.RowId, stat.Name);
+                DebugWindow.DisabledManaRegenDictionary.TryAdd(stat.RowId, stat.Name);
             }
             if (Utilities.KeywordMatch(text, Utilities.RegenKeywords) && Utilities.KeywordMatch(text, Utilities.TimeKeywords))
             {
                 if (Utilities.KeywordMatch(text, Utilities.HealthKeywords))
                 {
                     HealthRegenList.Add(stat.RowId);
-                    DebugWindow.HealthRegenDictionary.Add(stat.RowId, stat.Name);
+                    DebugWindow.HealthRegenDictionary.TryAdd(stat.RowId, stat.Name);
                 }
                 if (Utilities.KeywordMatch(text, Utilities.ManaKeywords))
                 {
                     ManaRegenList.Add(stat.RowId);
-                    DebugWindow.ManaRegenDictionary.Add(stat.RowId, stat.Name);
+                    DebugWindow.ManaRegenDictionary.TryAdd(stat.RowId, stat.Name);
                 }
             }
-        }
+        });
         nullSheet = false;
         log.Debug("HP regen list generated with {HPcount} status effects.", HealthRegenList.Count);
         log.Debug("MP regen list generated with {MPcount} status effects.", ManaRegenList.Count);
@@ -403,7 +408,8 @@ public sealed class Plugin : IDalamudPlugin
     // DamageInfo stripped function
     /// <summary>
     /// This detour function is triggered every time the client receives
-    /// a network packet containing an action that happens in the vecinity of the user.
+    /// a network packet containing an action that's triggered by a player
+    /// in the vecinity of the user
     /// </summary>
     private unsafe void ReceiveActionEffect(uint sourceId, Character* sourceCharacter, IntPtr pos, EffectHeader* effectHeader, EffectEntry* effectArray, ulong* effectTail)
     {
@@ -411,11 +417,7 @@ public sealed class Plugin : IDalamudPlugin
         receiveActionEffectHook.Original(sourceId, sourceCharacter, pos, effectHeader, effectArray, effectTail);
         try
         {
-            // Can this even be called if LocalPlayer isn't set? who knows, better safe than sorry
-            if (clientState is not { LocalPlayer: { } player })
-            {
-                return;
-            }
+            if (clientState is not { LocalPlayer: { } player }) return;
 
             var name = MemoryHelper.ReadStringNullTerminated((nint)sourceCharacter->GameObject.GetName());
             var castTarget = sourceCharacter->GetCastInfo()->CastTargetID;
@@ -430,22 +432,39 @@ public sealed class Plugin : IDalamudPlugin
                 <= 32 => 256,
                 _ => 0
             };
-
             for (var i = 0; i < entryCount; i++)
             {
-                if (effectArray[i].type != Enum.ActionEffectType.Heal)
+                if (effectArray[i].type != Enum.ActionEffectType.Heal && effectArray[i].type != Enum.ActionEffectType.MpGain)
                 {
                     continue;
                 }
                 if (sourceId == player.ObjectId && (target == player.OwnerId || castTarget == player.OwnerId))
                 {
-                    log.Verbose("Self-healing.");
-                    healTriggered = true;
+                    switch (effectArray[i].type)
+                    {
+                        case Enum.ActionEffectType.Heal:
+                            log.Warning("Self-healing.");
+                            healTriggered = true;
+                            break;
+                        case Enum.ActionEffectType.MpGain:
+                            log.Warning("Restoring your own mana.");
+                            mpGainTriggered = true;
+                            break;
+                    }
                 }
                 else if (target == player.ObjectId || castTarget == player.ObjectId)
                 {
-                    log.Verbose("Healed by {n}", name);
-                    healTriggered = true;
+                    switch (effectArray[i].type)
+                    {
+                        case Enum.ActionEffectType.Heal:
+                            log.Warning("Healed by {n}", name);
+                            healTriggered = true;
+                            break;
+                        case Enum.ActionEffectType.MpGain:
+                            log.Warning("Mana resotred by {n}", name);
+                            mpGainTriggered = true;
+                            break;
+                    }
                 }
             }
         }
@@ -455,31 +474,42 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
-#if DEBUG
-    private unsafe void AltActorTickUpdate(uint objectId, byte* packetData, byte unkByte)
+    private unsafe void SecondaryActorTickUpdate(uint objectId, byte* packetData, byte unkByte)
     {
-        altReceiveActorUpdateHook.Original(objectId, packetData, unkByte);
+        receiveSecondaryActorUpdateHook.Original(objectId, packetData, unkByte);
         try
         {
-            log.Warning("Alt detour happened.");
-            var unk1 = *((uint*)packetData + 1);
-            var unk2 = *((ushort*)packetData + 6);
+            if (clientState is not { LocalPlayer: { } player })
+            {
+                return;
+            }
+#if DEBUG
+            var unk1 = *((uint*)packetData + 1); // HP without buffs?
+            var unk2 = *((ushort*)packetData + 6); // Current resource, MP or GP or CP
+            var unk3 = *((ushort*)packetData + 7); // Seems to be the maximum MP / GP / CP respective to the current job
+            var unk4 = *((uint*)packetData + 2); // True HP?
+#endif
+            if (objectId != player.ObjectId)
+            {
+                return;
+            }
+            HPBarWindow.DelayedUpdate = true;
+            MPBarWindow.DelayedUpdate = true;
         }
         catch (Exception e)
         {
-            log.Error(e, "An error has occured with the AltActorTickUpdate detour.");
+            log.Error(e, "An error has occured with the SecondaryActorTickUpdate detour.");
         }
     }
-#endif
 
     /// <summary>
     /// This detour function is triggered every time the client receives
     /// a network packet containing an update for the nearby actors
     /// with hp, mana, gp
     /// </summary>
-    private unsafe void ActorTickUpdate(uint objectId, uint* packetData, byte unkByte)
+    private unsafe void PrimaryActorTickUpdate(uint objectId, uint* packetData, byte unkByte)
     {
-        receiveActorUpdateHook.Original(objectId, packetData, unkByte);
+        receivePrimaryActorUpdateHook.Original(objectId, packetData, unkByte);
         try
         {
             // Can this even be called if LocalPlayer isn't set? who knows, better safe than sorry
@@ -491,22 +521,6 @@ public sealed class Plugin : IDalamudPlugin
             var networkHP = *(int*)packetData;
             var networkMP = *((ushort*)packetData + 2);
             var networkGP = *((short*)packetData + 3); // Goes up to 10000 and is tracked and updated at all times
-            if (sw.ElapsedMilliseconds >= 1000)
-            {
-                var character = characterManager->LookupBattleCharaByObjectId((int)objectId)->Character;
-                var name = MemoryHelper.ReadStringNullTerminated((nint)character.GameObject.GetName());
-                DebugWindow.name1 = name ?? "invalid";
-                DebugWindow.name2 = string.Empty;
-                DebugWindow.variable4 = unkByte;
-                if (objectId != player.ObjectId)
-                {
-                    DebugWindow.name2 = "Supposedly ";
-                }
-                DebugWindow.variable1 = networkHP;
-                DebugWindow.variable2 = networkMP;
-                DebugWindow.variable3 = networkGP;
-                sw.Restart();
-            }
 #endif
             if (objectId != player.ObjectId)
             {
@@ -518,7 +532,7 @@ public sealed class Plugin : IDalamudPlugin
         }
         catch (Exception e)
         {
-            log.Error(e, "An error has occured with the ActorTickUpdate detour.");
+            log.Error(e, "An error has occured with the PrimaryActorTickUpdate detour.");
         }
     }
 
@@ -530,14 +544,12 @@ public sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
-#if DEBUG
-        altReceiveActorUpdateHook?.Disable();
-        altReceiveActorUpdateHook?.Dispose();
-#endif
-        receiveActorUpdateHook?.Disable();
-        receiveActorUpdateHook?.Dispose();
         receiveActionEffectHook?.Disable();
         receiveActionEffectHook?.Dispose();
+        receivePrimaryActorUpdateHook?.Disable();
+        receivePrimaryActorUpdateHook?.Dispose();
+        receiveSecondaryActorUpdateHook?.Disable();
+        receiveSecondaryActorUpdateHook?.Dispose();
         WindowSystem.RemoveAllWindows();
         ConfigWindow.Dispose();
         DebugWindow.Dispose();

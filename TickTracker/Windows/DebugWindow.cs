@@ -7,39 +7,31 @@ using System.Collections.Generic;
 using ImGuiNET;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Raii;
+using System.Collections.Concurrent;
 
 namespace TickTracker.Windows;
 
 public class DebugWindow : Window, IDisposable
 {
     /// <summary>
-    /// An <see cref="IDictionary{TKey, TValue}" /> of Status IDs and Status Names that trigger HP regen
+    /// An <see cref="ConcurrentDictionary{TKey, TValue}" /> of Status IDs and Status Names that trigger HP regen
     /// </summary>
-    public static readonly IDictionary<uint, string> HealthRegenDictionary = new Dictionary<uint, string>();
+    public static readonly ConcurrentDictionary<uint, string> HealthRegenDictionary = new();
     /// <summary>
-    /// An <see cref="IDictionary{TKey, TValue}" /> of Status IDs and Status Names that trigger MP regen
+    /// An <see cref="ConcurrentDictionary{TKey, TValue}" /> of Status IDs and Status Names that trigger MP regen
     /// </summary>
-    public static readonly IDictionary<uint, string> ManaRegenDictionary = new Dictionary<uint, string>();
+    public static readonly ConcurrentDictionary<uint, string> ManaRegenDictionary = new();
     /// <summary>
-    /// An <see cref="IDictionary{TKey, TValue}" /> of Status IDs and Status Names that stop HP regen
+    /// An <see cref="ConcurrentDictionary{TKey, TValue}" /> of Status IDs and Status Names that stop HP regen
     /// </summary>
-    public static readonly IDictionary<uint, string> DisabledHealthRegenDictionary = new Dictionary<uint, string>();
+    public static readonly ConcurrentDictionary<uint, string> DisabledHealthRegenDictionary = new();
     /// <summary>
-    /// An <see cref="IDictionary{TKey, TValue}" /> of Status IDs and Status Names that stop MP regen
+    /// An <see cref="ConcurrentDictionary{TKey, TValue}" /> of Status IDs and Status Names that stop MP regen
     /// </summary>
-    public static readonly IDictionary<uint, string> DisabledManaRegenDictionary = new Dictionary<uint, string>();
+    public static readonly ConcurrentDictionary<uint, string> DisabledManaRegenDictionary = new();
 
     private float hpWidth = 0, mpWidth = 0, disabledHPWidth = 0, disabledMPWidth = 0;
     private bool firstTime = true, invalidList = false;
-#if DEBUG
-    public int variable1 { get; set; } = -1;
-    public ushort variable2 { get; set; } = 6942;
-    public short variable3 { get; set; } = -1;
-    public byte variable4 { get; set; } = 69;
-    public string variable5 { get; set; } = "no";
-    public string name1 { get; set; } = "Yes";
-    public string name2 { get; set; } = "Yes2";
-#endif
 
     public DebugWindow() : base("DebugWindow")
     {
@@ -55,16 +47,7 @@ public class DebugWindow : Window, IDisposable
 
     public override void Draw()
     {
-#if DEBUG
-#pragma warning disable MA0076 // Do not use implicit culture-sensitive ToString in interpolated strings
-        ImGui.TextUnformatted($"Current Player: {name1}");
-        ImGui.TextUnformatted($"{name2}HP : {variable1}");
-        ImGui.TextUnformatted($"{name2}MP : {variable2}");
-        ImGui.TextUnformatted($"{name2}GP : {variable3}");
-        ImGui.TextUnformatted($"PartyMemberIndex : {variable4} or {variable5}");
-#pragma warning restore MA0076 // Do not use implicit culture-sensitive ToString in interpolated strings
-#endif
-        if (HealthRegenDictionary is null || ManaRegenDictionary is null || DisabledHealthRegenDictionary is null || DisabledManaRegenDictionary is null || HealthRegenDictionary.Count <= 0 || ManaRegenDictionary.Count <= 0 || DisabledHealthRegenDictionary.Count <= 0 || DisabledManaRegenDictionary.Count <= 0)
+        if (HealthRegenDictionary is null || ManaRegenDictionary is null || DisabledHealthRegenDictionary is null || DisabledManaRegenDictionary is null || HealthRegenDictionary.IsEmpty || ManaRegenDictionary.IsEmpty || DisabledHealthRegenDictionary.IsEmpty || DisabledManaRegenDictionary.IsEmpty)
         {
             invalidList = true;
             ImGui.Text("Lists are null or empty!");

@@ -24,6 +24,7 @@ public abstract class BarWindowBase : Window
     public bool RegenHalted { get; set; } = false;
     public bool FastTick { get; set; } = false;
     public bool CanUpdate { get; set; } = true;
+    public bool DelayedUpdate { get; set; } = true;
     public bool FastRegenSwitch { get; set; } = false;
     public double LastTick { get; set; } = 1;
     public double PreviousProgress { get; set; } = -1;
