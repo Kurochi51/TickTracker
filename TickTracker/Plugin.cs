@@ -5,10 +5,11 @@ using System.Collections.Generic;
 
 using Lumina.Excel;
 using Dalamud.Memory;
+using Dalamud.Utility;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
-using Dalamud.Utility;
 using Dalamud.Hooking;
+using Dalamud.Utility.Signatures;
 using Dalamud.Interface.Windowing;
 using Dalamud.Game;
 using Dalamud.Game.Command;
@@ -43,15 +44,21 @@ public sealed class Plugin : IDalamudPlugin
 
     // DamageInfo Delegate & Hook
     private unsafe delegate void ReceiveActionEffectDelegate(uint sourceId, Character* sourceCharacter, IntPtr pos, EffectHeader* effectHeader, EffectEntry* effectArray, ulong* effectTail);
-    private readonly Hook<ReceiveActionEffectDelegate>? receiveActionEffectHook;
 
     // Function that triggers when client receives a network packet with an update for nearby actors
     private unsafe delegate void ReceivePrimaryActorUpdateDelegate(uint objectId, uint* packetData, byte unkByte);
-    private readonly Hook<ReceivePrimaryActorUpdateDelegate>? receivePrimaryActorUpdateHook;
 
     // Different Function that triggers when client receives a network packet with an update for nearby actors
     // Seems to trigger when a regen would be active, or there's a CP/GP update
     private unsafe delegate void ReceiveSecondaryActorUpdateDelegate(uint objectId, byte* packetData, byte unkByte);
+
+    [Signature("40 55 53 57 41 54 41 55 41 56 41 57 48 8D AC 24 ?? ?? ?? ?? 48 81 EC ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 45 70", DetourName = nameof(ReceiveActionEffect))]
+    private readonly Hook<ReceiveActionEffectDelegate>? receiveActionEffectHook;
+
+    [Signature("48 89 5C 24 ?? 48 89 6C 24 ?? 56 48 83 EC 20 83 3D ?? ?? ?? ?? ?? 41 0F B6 E8 48 8B DA 8B F1 0F 84 ?? ?? ?? ?? 48 89 7C 24 ??", DetourName = nameof(PrimaryActorTickUpdate))]
+    private readonly Hook<ReceivePrimaryActorUpdateDelegate>? receivePrimaryActorUpdateHook;
+
+    [Signature("48 8B C4 55 57 41 56 48 83 EC 60", DetourName = nameof(SecondaryActorTickUpdate))]
     private readonly Hook<ReceiveSecondaryActorUpdateDelegate>? receiveSecondaryActorUpdateHook;
 
     private readonly Utilities utilities;
@@ -63,7 +70,6 @@ public sealed class Plugin : IDalamudPlugin
     private readonly Condition condition;
     private readonly IDataManager dataManager;
     private readonly JobGauges jobGauges;
-    private readonly ISigScanner sigScanner;
     private readonly IPluginLog log;
 
     public string Name => "Tick Tracker";
@@ -82,7 +88,6 @@ public sealed class Plugin : IDalamudPlugin
     private uint currentHP = 1, currentMP = 1, currentGP = 1, maxHP = 2, maxMP = 2, maxGP = 2;
     private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "MA0051:Method is too long")]
     public Plugin(DalamudPluginInterface _pluginInterface,
         IClientState _clientState,
         Framework _framework,
@@ -91,7 +96,6 @@ public sealed class Plugin : IDalamudPlugin
         Condition _condition,
         IDataManager _dataManager,
         JobGauges _jobGauges,
-        ISigScanner _scanner,
         IPluginLog _pluginLog)
     {
         pluginInterface = _pluginInterface;
@@ -102,51 +106,16 @@ public sealed class Plugin : IDalamudPlugin
         condition = _condition;
         dataManager = _dataManager;
         jobGauges = _jobGauges;
-        sigScanner = _scanner;
         log = _pluginLog;
-        unsafe
+
+        SignatureHelper.Initialise(this);
+        if (receivePrimaryActorUpdateHook is null || receiveSecondaryActorUpdateHook is null || receiveActionEffectHook is null)
         {
-            try
-            {
-                var primaryActorUpdateSignature = "48 89 5C 24 ?? 48 89 6C 24 ?? 56 48 83 EC 20 83 3D ?? ?? ?? ?? ?? 41 0F B6 E8 48 8B DA 8B F1 0F 84 ?? ?? ?? ?? 48 89 7C 24 ??";
-                var primaryActorUpdateFuncPtr = sigScanner.ScanText(primaryActorUpdateSignature);
-                receivePrimaryActorUpdateHook = Hook<ReceivePrimaryActorUpdateDelegate>.FromAddress(primaryActorUpdateFuncPtr, PrimaryActorTickUpdate);
-                receivePrimaryActorUpdateHook.Enable();
-            }
-            catch (Exception e)
-            {
-                log.Fatal(e,"receivePrimaryActorUpdateHook is out of date.");
-                receivePrimaryActorUpdateHook?.Disable();
-                receivePrimaryActorUpdateHook?.Dispose();
-            }
-            try
-            {
-                var secondaryActorUpdateSig = "48 8B C4 55 57 41 56 48 83 EC 60";
-                var secondaryActorUpdateFuncPtr = sigScanner.ScanText(secondaryActorUpdateSig);
-                receiveSecondaryActorUpdateHook = Hook<ReceiveSecondaryActorUpdateDelegate>.FromAddress(secondaryActorUpdateFuncPtr, SecondaryActorTickUpdate);
-                receiveSecondaryActorUpdateHook.Enable();
-            }
-            catch (Exception e)
-            {
-                log.Fatal(e,"receiveSecondaryActorUpdateHook is out of date.");
-                receiveSecondaryActorUpdateHook?.Disable();
-                receiveSecondaryActorUpdateHook?.Dispose();
-            }
-            try
-            {
-                // DamageInfo sig
-                var receiveActionEffectSignature = "40 55 53 57 41 54 41 55 41 56 41 57 48 8D AC 24 ?? ?? ?? ?? 48 81 EC ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 45 70";
-                var receiveActionEffectFuncPtr = sigScanner.ScanText(receiveActionEffectSignature);
-                receiveActionEffectHook = Hook<ReceiveActionEffectDelegate>.FromAddress(receiveActionEffectFuncPtr, ReceiveActionEffect);
-                receiveActionEffectHook.Enable();
-            }
-            catch (Exception e)
-            {
-                log.Fatal(e, "receiveActionEffectHook is out of date.");
-                receiveActionEffectHook?.Disable();
-                receiveActionEffectHook?.Dispose();
-            }
+            log.Fatal("Atleast one hook failed, and the plugin is not functional.");
         }
+        receiveActionEffectHook?.Enable();
+        receivePrimaryActorUpdateHook?.Enable();
+        receiveSecondaryActorUpdateHook?.Enable();
 
         utilities = new Utilities(pluginInterface, condition, dataManager, clientState, log);
         config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
