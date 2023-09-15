@@ -83,8 +83,8 @@ public sealed class Plugin : IDalamudPlugin
     private bool inCombat, healTriggered, mpGainTriggered;
     private bool syncAvailable = true, nullSheet = true;
     private double syncValue = 1;
-    private int lastHPValue = -1, lastMPValue = -1, lastGPValue = -1;
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
+    private uint lastHPValue = 0, lastMPValue = 0, lastGPValue = 0;
     private uint currentHP = 1, currentMP = 1, currentGP = 1, maxHP = 2, maxMP = 2, maxGP = 2;
     private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
 
@@ -230,7 +230,7 @@ public sealed class Plugin : IDalamudPlugin
         {
             HPBarWindow.LastTick = syncValue;
         }
-        else if (lastHPValue < currentHP && HPBarWindow.CanUpdate && !HPBarWindow.FastTick)
+        else if (lastHPValue != currentHP && !HPBarWindow.FastTick && HPBarWindow.CanUpdate)
         {
             // CanUpdate is only set on server tick, heal trigger is irrelevant
             HPBarWindow.LastTick = currentTime;
@@ -240,16 +240,13 @@ public sealed class Plugin : IDalamudPlugin
                 healTriggered = false;
             }
         }
-        else if (lastHPValue < currentHP && HPBarWindow.FastTick)
+        else if (lastHPValue != currentHP && HPBarWindow.FastTick && (HPBarWindow.CanUpdate || HPBarWindow.DelayedUpdate))
         {
-            if (HPBarWindow.CanUpdate || HPBarWindow.DelayedUpdate)
+            HPBarWindow.LastTick = currentTime;
+            HPBarWindow.CanUpdate = HPBarWindow.DelayedUpdate = false;
+            if (healTriggered)
             {
-                HPBarWindow.LastTick = currentTime;
-                HPBarWindow.CanUpdate = HPBarWindow.DelayedUpdate = false;
-                if (healTriggered)
-                {
-                    healTriggered = false;
-                }
+                healTriggered = false;
             }
         }
 
@@ -259,7 +256,7 @@ public sealed class Plugin : IDalamudPlugin
         }
 
         HPBarWindow.RegenHalted = regenHalt;
-        lastHPValue = (int)currentHP;
+        lastHPValue = currentHP;
     }
 
     private void UpdateMPTick(double currentTime, bool mpRegen, bool regenHalt)
@@ -274,7 +271,7 @@ public sealed class Plugin : IDalamudPlugin
         {
             MPBarWindow.LastTick = syncValue;
         }
-        else if (lastMPValue < currentMP && MPBarWindow.CanUpdate && !MPBarWindow.FastTick)
+        else if (lastMPValue != currentMP && !MPBarWindow.FastTick && MPBarWindow.CanUpdate)
         {
             MPBarWindow.LastTick = currentTime;
             MPBarWindow.CanUpdate = false;
@@ -283,16 +280,13 @@ public sealed class Plugin : IDalamudPlugin
                 mpGainTriggered = false;
             }
         }
-        else if (lastMPValue < currentMP && MPBarWindow.FastTick)
+        else if (lastMPValue != currentMP && MPBarWindow.FastTick && (MPBarWindow.CanUpdate || MPBarWindow.DelayedUpdate))
         {
-            if (MPBarWindow.CanUpdate || MPBarWindow.DelayedUpdate)
+            MPBarWindow.LastTick = currentTime;
+            MPBarWindow.CanUpdate = MPBarWindow.DelayedUpdate = false;
+            if (mpGainTriggered)
             {
-                MPBarWindow.LastTick = currentTime;
-                MPBarWindow.CanUpdate = MPBarWindow.DelayedUpdate = false;
-                if (mpGainTriggered)
-                {
-                    mpGainTriggered = false;
-                }
+                mpGainTriggered = false;
             }
         }
 
@@ -302,7 +296,7 @@ public sealed class Plugin : IDalamudPlugin
         }
 
         MPBarWindow.RegenHalted = regenHalt;
-        lastMPValue = (int)currentMP;
+        lastMPValue = currentMP;
     }
 
     private void UpdateGPTick(double currentTime)
@@ -323,7 +317,7 @@ public sealed class Plugin : IDalamudPlugin
         }
 
         GPBarWindow.RegenHalted = regenHalt;
-        lastGPValue = (int)currentGP;
+        lastGPValue = currentGP;
     }
 
     private void InitializeLuminaSheet()
@@ -407,11 +401,19 @@ public sealed class Plugin : IDalamudPlugin
         receiveActionEffectHook!.Original(sourceId, sourceCharacter, pos, effectHeader, effectArray, effectTail);
         try
         {
-            if (clientState is not { LocalPlayer: { } player }) return;
+            if (clientState is not { LocalPlayer: { } player })
+            {
+                return;
+            }
 
             var name = MemoryHelper.ReadStringNullTerminated((nint)sourceCharacter->GameObject.GetName());
             var castTarget = sourceCharacter->GetCastInfo()->CastTargetID;
             var target = sourceCharacter->GetTargetId();
+
+            if (target != player.OwnerId && castTarget != player.OwnerId && target != player.ObjectId && castTarget != player.ObjectId)
+            {
+                return;
+            }
             var entryCount = effectHeader->TargetCount switch
             {
                 0 => 0,
@@ -424,37 +426,13 @@ public sealed class Plugin : IDalamudPlugin
             };
             for (var i = 0; i < entryCount; i++)
             {
-                if (effectArray[i].type != Enum.ActionEffectType.Heal && effectArray[i].type != Enum.ActionEffectType.MpGain)
+                if (effectArray[i].type == Enum.ActionEffectType.Heal)
                 {
-                    continue;
+                    healTriggered = true;
                 }
-                if (sourceId == player.ObjectId && (target == player.OwnerId || castTarget == player.OwnerId))
+                else if (effectArray[i].type == Enum.ActionEffectType.MpGain)
                 {
-                    switch (effectArray[i].type)
-                    {
-                        case Enum.ActionEffectType.Heal:
-                            log.Warning("Self-healing.");
-                            healTriggered = true;
-                            break;
-                        case Enum.ActionEffectType.MpGain:
-                            log.Warning("Restoring your own mana.");
-                            mpGainTriggered = true;
-                            break;
-                    }
-                }
-                else if (target == player.ObjectId || castTarget == player.ObjectId)
-                {
-                    switch (effectArray[i].type)
-                    {
-                        case Enum.ActionEffectType.Heal:
-                            log.Warning("Healed by {n}", name);
-                            healTriggered = true;
-                            break;
-                        case Enum.ActionEffectType.MpGain:
-                            log.Warning("Mana resotred by {n}", name);
-                            mpGainTriggered = true;
-                            break;
-                    }
+                    mpGainTriggered = true;
                 }
             }
         }
@@ -530,9 +508,9 @@ public sealed class Plugin : IDalamudPlugin
 
     private void TerritoryChanged(object? sender, ushort e)
     {
-        lastHPValue = -1;
-        lastMPValue = -1;
-        lastGPValue = -1;
+        lastHPValue = 0;
+        lastMPValue = 0;
+        lastGPValue = 0;
     }
 
     public void Dispose()
