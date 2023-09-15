@@ -5,6 +5,7 @@ using ImGuiNET;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Raii;
 using Dalamud.Plugin;
+using Dalamud.Interface.Components;
 
 namespace TickTracker.Windows;
 
@@ -13,11 +14,16 @@ public class ConfigWindow : Window, IDisposable
     private static Configuration config => Plugin.config;
     private static DebugWindow debugWindow => Plugin.DebugWindow;
     private readonly DalamudPluginInterface pluginInterface;
+    private readonly Vector4 defaultDarkGrey = new(0.246f, 0.262f, 0.270f, 1f); // Default Color: Dark Grey - #3F4345
+    private readonly Vector4 defaultBlack = new(0f, 0f, 0f, 1f); // Default Color: Black - #000000
+    private readonly Vector4 defaultPink = new(0.753f, 0.271f, 0.482f, 1f); // #C0457B
+    private readonly Vector4 defaultGreen = new(0.276f, 0.8f, 0.24f, 1f); // #46CC3D
+    private readonly Vector4 defaultBlue = new(0.169f, 0.747f, 0.892f, 1f); // #2BBEE3FF
 
     public ConfigWindow(DalamudPluginInterface _pluginInterface) : base("Timer Settings")
     {
         Size = new(320, 420);
-        SizeCondition = ImGuiCond.Appearing;
+        //SizeCondition = ImGuiCond.None;
         Flags = ImGuiWindowFlags.NoResize;
         pluginInterface = _pluginInterface;
     }
@@ -29,6 +35,7 @@ public class ConfigWindow : Window, IDisposable
 
     public override void Draw()
     {
+        Size = new(320, 420);
         var pluginEnabled = config.PluginEnabled;
         if (ImGui.Checkbox("Enable plugin", ref pluginEnabled))
         {
@@ -60,7 +67,7 @@ public class ConfigWindow : Window, IDisposable
         if (ImGui.Button("Close"))
         {
             config.Save(pluginInterface);
-            this.IsOpen = false;
+            IsOpen = false;
         }
         ImGui.SetCursorPos(originPos);
     }
@@ -77,9 +84,9 @@ public class ConfigWindow : Window, IDisposable
                 config.LockBar = lockBar;
                 config.Save(pluginInterface);
             }
-
             if (!config.LockBar)
             {
+                Size = new(320, 560);
                 DrawBarPositions();
             }
             DrawColorOptions();
@@ -96,6 +103,9 @@ public class ConfigWindow : Window, IDisposable
 
             changed |= ImGui.Checkbox("Show HP Bar", ref config.HPVisible);
             changed |= ImGui.Checkbox("Show MP Bar", ref config.MPVisible);
+            changed |= ImGui.Checkbox("Show GP Bar", ref config.GPVisible);
+            ImGui.SameLine();
+            ImGuiComponents.HelpMarker("Only shows while a Disciple of Land job is active or bars aren't locked.");
             changed |= ImGui.Checkbox("Hide bar on full resource", ref config.HideOnFullResource);
 
             ImGui.Indent();
@@ -124,17 +134,9 @@ public class ConfigWindow : Window, IDisposable
         colorModified |= ImGui.ColorEdit4("HP Bar Background Color", ref config.HPBarBackgroundColor, flags);
         ImGui.SameLine();
         var resetButtonX = ImGui.GetCursorPosX();
-        ResetButton("ResetHPBarBackgroundColor", ref config.HPBarBackgroundColor, new Vector4(0f, 0f, 0f, 1f)); // Default Color: Black - #000000
-
-        colorModified |= ImGui.ColorEdit4("HP Bar Fill Color", ref config.HPBarFillColor, flags);
-        ImGui.SameLine();
-        ImGui.SetCursorPosX(resetButtonX);
-        ResetButton("ResetHPBarFillColor", ref config.HPBarFillColor, new Vector4(0.276f, 0.8f, 0.24f, 1f)); // Default Color: Green - #46CC3D
-
-        colorModified |= ImGui.ColorEdit4("HP Bar Border Color", ref config.HPBarBorderColor, flags);
-        ImGui.SameLine();
-        ImGui.SetCursorPosX(resetButtonX);
-        ResetButton("ResetHPBarBorderColor", ref config.HPBarBorderColor, new Vector4(0.246f, 0.262f, 0.270f, 1f)); // Default Color: Dark Grey - #3F4345
+        ResetButton("ResetHPBarBackgroundColor", ref config.HPBarBackgroundColor, defaultBlack);
+        ColorOption(ref colorModified, "HP Bar Fill Color", ref config.HPBarFillColor, flags, resetButtonX, "ResetHPBarFillColor", defaultGreen);
+        ColorOption(ref colorModified, "HP Bar Border Color", ref config.HPBarBorderColor, flags, resetButtonX, "ResetHPBarBorderColor", defaultDarkGrey);
 
         ImGui.Spacing();
         ImGui.Separator();
@@ -143,22 +145,33 @@ public class ConfigWindow : Window, IDisposable
         colorModified |= ImGui.ColorEdit4("MP Bar Background Color", ref config.MPBarBackgroundColor, flags);
         ImGui.SameLine();
         resetButtonX = ImGui.GetCursorPosX();
-        ResetButton("ResetMPBarBackgroundColor", ref config.MPBarBackgroundColor, new Vector4(0f, 0f, 0f, 1f)); // Default Color: Black - #000000
+        ResetButton("ResetMPBarBackgroundColor", ref config.MPBarBackgroundColor, defaultBlack);
+        ColorOption(ref colorModified, "MP Bar Fill Color", ref config.MPBarFillColor, flags, resetButtonX, "ResetMPBarFillColor", defaultPink);
+        ColorOption(ref colorModified, "MP Bar Border Color", ref config.MPBarBorderColor, flags, resetButtonX, "ResetMPBarBorderColor", defaultDarkGrey);
 
-        colorModified |= ImGui.ColorEdit4("MP Bar Fill Color", ref config.MPBarFillColor, flags);
-        ImGui.SameLine();
-        ImGui.SetCursorPosX(resetButtonX);
-        ResetButton("ResetMPBarFillColor", ref config.MPBarFillColor, new Vector4(0.753f, 0.271f, 0.482f, 1f)); // Default Color: Pink - #C0457B
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
 
-        colorModified |= ImGui.ColorEdit4("MP Bar Border Color", ref config.MPBarBorderColor, flags);
+        colorModified |= ImGui.ColorEdit4("GP Bar Background Color", ref config.GPBarBackgroundColor, flags);
         ImGui.SameLine();
-        ImGui.SetCursorPosX(resetButtonX);
-        ResetButton("ResetMPBarBorderColor", ref config.MPBarBorderColor, new Vector4(0.246f, 0.262f, 0.270f, 1f)); // Default Color: Dark Grey - #3F4345
+        resetButtonX = ImGui.GetCursorPosX();
+        ResetButton("ResetGPBarBackgroundColor", ref config.GPBarBackgroundColor, defaultBlack);
+        ColorOption(ref colorModified, "GP Bar Fill Color", ref config.GPBarFillColor, flags, resetButtonX, "ResetGPBarFillColor", defaultBlue);
+        ColorOption(ref colorModified, "GP Bar Border Color", ref config.GPBarBorderColor, flags, resetButtonX, "ResetGPBarBorderColor", defaultDarkGrey);
 
         if (colorModified)
         {
             config.Save(pluginInterface);
         }
+    }
+
+    private void ColorOption(ref bool colorModified, string colorLabel, ref Vector4 color, ImGuiColorEditFlags flags, float cursorPos, string resetLabel, Vector4 resetColor)
+    {
+        colorModified |= ImGui.ColorEdit4(colorLabel, ref color, flags);
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(cursorPos);
+        ResetButton(resetLabel, ref color, resetColor);
     }
 
     private void DrawBarPositions()
@@ -182,6 +195,18 @@ public class ConfigWindow : Window, IDisposable
         }
 
         if (DragInput2Size(ref config.MPBarSize, "MPSizeX", "MPSizeY", "MP Bar Size"))
+        {
+            config.Save(pluginInterface);
+        }
+
+        ImGui.Spacing();
+
+        if (DragInput2(ref config.GPBarPosition, "GPPositionX", "GPPositionY", "GP Bar Position"))
+        {
+            config.Save(pluginInterface);
+        }
+
+        if (DragInput2Size(ref config.GPBarSize, "GPSizeX", "GPSizeY", "GP Bar Size"))
         {
             config.Save(pluginInterface);
         }

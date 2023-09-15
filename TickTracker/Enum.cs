@@ -11,6 +11,7 @@ public class Enum
     {
         HpWindow,
         MpWindow,
+        GpWindow,
     }
 
     /// <summary>

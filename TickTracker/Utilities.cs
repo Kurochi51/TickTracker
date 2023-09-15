@@ -97,6 +97,7 @@ public partial class Utilities
             {
                 Enum.WindowType.HpWindow => config.HPVisible,
                 Enum.WindowType.MpWindow => config.MPVisible,
+                Enum.WindowType.GpWindow => config.GPVisible,
                 _ => throw new Exception("Unknown Window")
             };
             return DisplayThisWindow;
@@ -136,6 +137,19 @@ public partial class Utilities
             if (!currentSize.Equals(config.MPBarSize))
             {
                 config.MPBarSize = currentSize;
+                config.Save(pluginInterface);
+            }
+        }
+        if (window == Enum.WindowType.GpWindow)
+        {
+            if (!currentPos.Equals(config.GPBarPosition))
+            {
+                config.GPBarPosition = currentPos;
+                config.Save(pluginInterface);
+            }
+            if (!currentSize.Equals(config.GPBarSize))
+            {
+                config.GPBarSize = currentSize;
                 config.Save(pluginInterface);
             }
         }

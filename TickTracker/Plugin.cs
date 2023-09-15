@@ -43,16 +43,16 @@ public sealed class Plugin : IDalamudPlugin
 
     // DamageInfo Delegate & Hook
     private unsafe delegate void ReceiveActionEffectDelegate(uint sourceId, Character* sourceCharacter, IntPtr pos, EffectHeader* effectHeader, EffectEntry* effectArray, ulong* effectTail);
-    private readonly Hook<ReceiveActionEffectDelegate> receiveActionEffectHook;
+    private readonly Hook<ReceiveActionEffectDelegate>? receiveActionEffectHook;
 
     // Function that triggers when client receives a network packet with an update for nearby actors
     private unsafe delegate void ReceivePrimaryActorUpdateDelegate(uint objectId, uint* packetData, byte unkByte);
-    private readonly Hook<ReceivePrimaryActorUpdateDelegate> receivePrimaryActorUpdateHook;
+    private readonly Hook<ReceivePrimaryActorUpdateDelegate>? receivePrimaryActorUpdateHook;
 
     // Different Function that triggers when client receives a network packet with an update for nearby actors
     // Seems to trigger when a regen would be active, or there's a CP/GP update
     private unsafe delegate void ReceiveSecondaryActorUpdateDelegate(uint objectId, byte* packetData, byte unkByte);
-    private readonly Hook<ReceiveSecondaryActorUpdateDelegate> receiveSecondaryActorUpdateHook;
+    private readonly Hook<ReceiveSecondaryActorUpdateDelegate>? receiveSecondaryActorUpdateHook;
 
     private readonly Utilities utilities;
     private readonly DalamudPluginInterface pluginInterface;
@@ -73,11 +73,13 @@ public sealed class Plugin : IDalamudPlugin
     private ConfigWindow ConfigWindow { get; init; }
     private HPBar HPBarWindow { get; init; }
     private MPBar MPBarWindow { get; init; }
-    private bool inCombat, mpGainTriggered, healTriggered, syncAvailable = true, nullSheet = true;
+    private GPBar GPBarWindow { get; init; }
+    private bool inCombat, healTriggered, mpGainTriggered;
+    private bool syncAvailable = true, nullSheet = true;
     private double syncValue = 1;
-    private int lastHPValue = -1, lastMPValue = -1;
+    private int lastHPValue = -1, lastMPValue = -1, lastGPValue = -1;
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
-    private uint currentHP = 1, currentMP = 1, maxHP = 2, maxMP = 2;
+    private uint currentHP = 1, currentMP = 1, currentGP = 1, maxHP = 2, maxMP = 2, maxGP = 2;
     private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "MA0051:Method is too long")]
@@ -102,60 +104,62 @@ public sealed class Plugin : IDalamudPlugin
         jobGauges = _jobGauges;
         sigScanner = _scanner;
         log = _pluginLog;
-        var signatures = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        try
+        unsafe
         {
-            unsafe
+            try
             {
                 var primaryActorUpdateSignature = "48 89 5C 24 ?? 48 89 6C 24 ?? 56 48 83 EC 20 83 3D ?? ?? ?? ?? ?? 41 0F B6 E8 48 8B DA 8B F1 0F 84 ?? ?? ?? ?? 48 89 7C 24 ??";
-                signatures.Add(primaryActorUpdateSignature);
                 var primaryActorUpdateFuncPtr = sigScanner.ScanText(primaryActorUpdateSignature);
                 receivePrimaryActorUpdateHook = Hook<ReceivePrimaryActorUpdateDelegate>.FromAddress(primaryActorUpdateFuncPtr, PrimaryActorTickUpdate);
-
+                receivePrimaryActorUpdateHook.Enable();
+            }
+            catch (Exception e)
+            {
+                log.Fatal(e,"receivePrimaryActorUpdateHook is out of date.");
+                receivePrimaryActorUpdateHook?.Disable();
+                receivePrimaryActorUpdateHook?.Dispose();
+            }
+            try
+            {
                 var secondaryActorUpdateSig = "48 8B C4 55 57 41 56 48 83 EC 60";
-                signatures.Add(secondaryActorUpdateSig);
                 var secondaryActorUpdateFuncPtr = sigScanner.ScanText(secondaryActorUpdateSig);
                 receiveSecondaryActorUpdateHook = Hook<ReceiveSecondaryActorUpdateDelegate>.FromAddress(secondaryActorUpdateFuncPtr, SecondaryActorTickUpdate);
-
+                receiveSecondaryActorUpdateHook.Enable();
+            }
+            catch (Exception e)
+            {
+                log.Fatal(e,"receiveSecondaryActorUpdateHook is out of date.");
+                receiveSecondaryActorUpdateHook?.Disable();
+                receiveSecondaryActorUpdateHook?.Dispose();
+            }
+            try
+            {
                 // DamageInfo sig
                 var receiveActionEffectSignature = "40 55 53 57 41 54 41 55 41 56 41 57 48 8D AC 24 ?? ?? ?? ?? 48 81 EC ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 45 70";
-                signatures.Add(receiveActionEffectSignature);
                 var receiveActionEffectFuncPtr = sigScanner.ScanText(receiveActionEffectSignature);
                 receiveActionEffectHook = Hook<ReceiveActionEffectDelegate>.FromAddress(receiveActionEffectFuncPtr, ReceiveActionEffect);
+                receiveActionEffectHook.Enable();
             }
-        }
-        catch (Exception e)
-        {
-            foreach (var sig in signatures)
+            catch (Exception e)
             {
-                if (e.Message.Contains(sig, StringComparison.OrdinalIgnoreCase))
-                {
-                    log.Fatal("{a} is out of date.", sig);
-                }
+                log.Fatal(e, "receiveActionEffectHook is out of date.");
+                receiveActionEffectHook?.Disable();
+                receiveActionEffectHook?.Dispose();
             }
-            log.Fatal(e, "Plugin could not be initialized. Hook failed.");
-            receiveSecondaryActorUpdateHook?.Disable();
-            receiveSecondaryActorUpdateHook?.Dispose();
-            receivePrimaryActorUpdateHook?.Disable();
-            receivePrimaryActorUpdateHook?.Dispose();
-            receiveActionEffectHook?.Disable();
-            receiveActionEffectHook?.Dispose();
-            throw;
         }
-        receiveSecondaryActorUpdateHook.Enable();
-        receivePrimaryActorUpdateHook.Enable();
-        receiveActionEffectHook.Enable();
 
         utilities = new Utilities(pluginInterface, condition, dataManager, clientState, log);
         config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         ConfigWindow = new ConfigWindow(pluginInterface);
         HPBarWindow = new HPBar(clientState, log, utilities);
         MPBarWindow = new MPBar(clientState, log, utilities);
+        GPBarWindow = new GPBar(clientState, log, utilities);
         DebugWindow = new DebugWindow();
-        WindowSystem.AddWindow(DebugWindow);
         WindowSystem.AddWindow(ConfigWindow);
         WindowSystem.AddWindow(HPBarWindow);
         WindowSystem.AddWindow(MPBarWindow);
+        WindowSystem.AddWindow(GPBarWindow);
+        WindowSystem.AddWindow(DebugWindow);
 
         commandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
@@ -189,14 +193,10 @@ public sealed class Plugin : IDalamudPlugin
     private void OnFrameworkUpdate(Framework framework)
     {
         var now = DateTime.Now.TimeOfDay.TotalSeconds;
-        if (clientState is { IsLoggedIn: false } or { IsPvPExcludingDen: true } || nullSheet)
-        {
-            return;
-        }
-        if (clientState is not { LocalPlayer: { } player })
-        {
-            return;
-        }
+
+        if (clientState is { IsLoggedIn: false } or { IsPvPExcludingDen: true } || nullSheet) return;
+        if (clientState is not { LocalPlayer: { } player }) return;
+
         var HealthRegen = player.StatusList.Any(e => HealthRegenList.Contains(e.StatusId));
         var DisabledHPregen = player.StatusList.Any(e => DisabledHealthRegenList.Contains(e.StatusId));
         var ManaRegen = player.StatusList.Any(e => ManaRegenList.Contains(e.StatusId));
@@ -209,12 +209,15 @@ public sealed class Plugin : IDalamudPlugin
         maxHP = player.MaxHp;
         currentMP = player.CurrentMp;
         maxMP = player.MaxMp;
+        currentGP = player.CurrentGp;
+        maxGP = player.MaxGp;
         unsafe
         {
             if (!PluginEnabled(Enemy) || !Utilities.IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || utilities.inCustcene())
             {
                 HPBarWindow.IsOpen = false;
                 MPBarWindow.IsOpen = false;
+                GPBarWindow.IsOpen = false;
                 return;
             }
         }
@@ -227,11 +230,8 @@ public sealed class Plugin : IDalamudPlugin
                             (config.AlwaysShowWithHostileTarget && Enemy) ||
                             (config.AlwaysShowInDuties && utilities.InDuty());
         HPBarWindow.IsOpen = shouldShowHPBar || (currentHP != maxHP);
-        MPBarWindow.IsOpen = shouldShowMPBar || (currentMP != maxMP);
-        /*if (jobType == 32) // 32 = Disciple of the Land
-        {
-            // TODO: Implement GP bar support
-        }*/
+        GPBarWindow.IsOpen = (jobType == 32 && (!config.HideOnFullResource || (currentGP != maxGP)) && config.GPVisible) || !config.LockBar;
+        MPBarWindow.IsOpen = (jobType != 32 && (shouldShowMPBar || (currentMP != maxMP))) || !config.GPVisible;
         if (syncValue + ActorTickInterval <= now || syncAvailable)
         {
             if (syncAvailable)
@@ -246,6 +246,7 @@ public sealed class Plugin : IDalamudPlugin
         }
         UpdateHPTick(now, HealthRegen, DisabledHPregen);
         UpdateMPTick(now, ManaRegen, DisabledMPregen);
+        UpdateGPTick(now);
     }
 
     private void UpdateHPTick(double currentTime, bool hpRegen, bool regenHalt)
@@ -335,6 +336,27 @@ public sealed class Plugin : IDalamudPlugin
         lastMPValue = (int)currentMP;
     }
 
+    private void UpdateGPTick(double currentTime)
+    {
+        var regenHalt = condition[ConditionFlag.Gathering];
+        if (!regenHalt && GPBarWindow.RegenHalted)
+        {
+            GPBarWindow.LastTick = syncValue;
+        }
+        if (currentGP == maxGP)
+        {
+            GPBarWindow.LastTick = syncValue;
+        }
+        else if (lastGPValue < currentGP && (GPBarWindow.CanUpdate || GPBarWindow.DelayedUpdate))
+        {
+            GPBarWindow.LastTick = currentTime;
+            GPBarWindow.CanUpdate = GPBarWindow.DelayedUpdate = false;
+        }
+
+        GPBarWindow.RegenHalted = regenHalt;
+        lastGPValue = (int)currentGP;
+    }
+
     private void InitializeLuminaSheet()
     {
         var statusSheet = RetrieveSheet();
@@ -413,8 +435,7 @@ public sealed class Plugin : IDalamudPlugin
     /// </summary>
     private unsafe void ReceiveActionEffect(uint sourceId, Character* sourceCharacter, IntPtr pos, EffectHeader* effectHeader, EffectEntry* effectArray, ulong* effectTail)
     {
-        // The goal is only to intercept and inspect the values, not alter and feed different values back
-        receiveActionEffectHook.Original(sourceId, sourceCharacter, pos, effectHeader, effectArray, effectTail);
+        receiveActionEffectHook!.Original(sourceId, sourceCharacter, pos, effectHeader, effectArray, effectTail);
         try
         {
             if (clientState is not { LocalPlayer: { } player }) return;
@@ -474,34 +495,6 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
-    private unsafe void SecondaryActorTickUpdate(uint objectId, byte* packetData, byte unkByte)
-    {
-        receiveSecondaryActorUpdateHook.Original(objectId, packetData, unkByte);
-        try
-        {
-            if (clientState is not { LocalPlayer: { } player })
-            {
-                return;
-            }
-#if DEBUG
-            var unk1 = *((uint*)packetData + 1); // HP without buffs?
-            var unk2 = *((ushort*)packetData + 6); // Current resource, MP or GP or CP
-            var unk3 = *((ushort*)packetData + 7); // Seems to be the maximum MP / GP / CP respective to the current job
-            var unk4 = *((uint*)packetData + 2); // True HP?
-#endif
-            if (objectId != player.ObjectId)
-            {
-                return;
-            }
-            HPBarWindow.DelayedUpdate = true;
-            MPBarWindow.DelayedUpdate = true;
-        }
-        catch (Exception e)
-        {
-            log.Error(e, "An error has occured with the SecondaryActorTickUpdate detour.");
-        }
-    }
-
     /// <summary>
     /// This detour function is triggered every time the client receives
     /// a network packet containing an update for the nearby actors
@@ -509,7 +502,7 @@ public sealed class Plugin : IDalamudPlugin
     /// </summary>
     private unsafe void PrimaryActorTickUpdate(uint objectId, uint* packetData, byte unkByte)
     {
-        receivePrimaryActorUpdateHook.Original(objectId, packetData, unkByte);
+        receivePrimaryActorUpdateHook!.Original(objectId, packetData, unkByte);
         try
         {
             // Can this even be called if LocalPlayer isn't set? who knows, better safe than sorry
@@ -528,6 +521,7 @@ public sealed class Plugin : IDalamudPlugin
             }
             HPBarWindow.CanUpdate = true;
             MPBarWindow.CanUpdate = true;
+            GPBarWindow.CanUpdate = true;
             syncAvailable = true;
         }
         catch (Exception e)
@@ -536,10 +530,40 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
+    private unsafe void SecondaryActorTickUpdate(uint objectId, byte* packetData, byte unkByte)
+    {
+        receiveSecondaryActorUpdateHook!.Original(objectId, packetData, unkByte);
+        try
+        {
+            if (clientState is not { LocalPlayer: { } player })
+            {
+                return;
+            }
+#if DEBUG
+            var unk1 = *((uint*)packetData + 1); // HP without buffs?
+            var unk2 = *((ushort*)packetData + 6); // Current resource, MP or GP or CP
+            var unk3 = *((ushort*)packetData + 7); // Seems to be the maximum MP / GP / CP respective to the current job
+            var unk4 = *((uint*)packetData + 2); // True HP?
+#endif
+            if (objectId != player.ObjectId)
+            {
+                return;
+            }
+            HPBarWindow.DelayedUpdate = true;
+            MPBarWindow.DelayedUpdate = true;
+            GPBarWindow.DelayedUpdate = true;
+        }
+        catch (Exception e)
+        {
+            log.Error(e, "An error has occured with the SecondaryActorTickUpdate detour.");
+        }
+    }
+
     private void TerritoryChanged(object? sender, ushort e)
     {
         lastHPValue = -1;
         lastMPValue = -1;
+        lastGPValue = -1;
     }
 
     public void Dispose()
