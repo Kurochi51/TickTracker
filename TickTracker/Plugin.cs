@@ -53,13 +53,13 @@ public sealed class Plugin : IDalamudPlugin
     private unsafe delegate void ReceiveSecondaryActorUpdateDelegate(uint objectId, byte* packetData, byte unkByte);
 
     [Signature("40 55 53 57 41 54 41 55 41 56 41 57 48 8D AC 24 ?? ?? ?? ?? 48 81 EC ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 45 70", DetourName = nameof(ReceiveActionEffect))]
-    private readonly Hook<ReceiveActionEffectDelegate>? receiveActionEffectHook = null!;
+    private readonly Hook<ReceiveActionEffectDelegate>? receiveActionEffectHook = null;
 
     [Signature("48 89 5C 24 ?? 48 89 6C 24 ?? 56 48 83 EC 20 83 3D ?? ?? ?? ?? ?? 41 0F B6 E8 48 8B DA 8B F1 0F 84 ?? ?? ?? ?? 48 89 7C 24 ??", DetourName = nameof(PrimaryActorTickUpdate))]
-    private readonly Hook<ReceivePrimaryActorUpdateDelegate>? receivePrimaryActorUpdateHook = null!;
+    private readonly Hook<ReceivePrimaryActorUpdateDelegate>? receivePrimaryActorUpdateHook = null;
 
     [Signature("48 8B C4 55 57 41 56 48 83 EC 60", DetourName = nameof(SecondaryActorTickUpdate))]
-    private readonly Hook<ReceiveSecondaryActorUpdateDelegate>? receiveSecondaryActorUpdateHook = null!;
+    private readonly Hook<ReceiveSecondaryActorUpdateDelegate>? receiveSecondaryActorUpdateHook = null;
 
     private readonly Utilities utilities;
     private readonly DalamudPluginInterface pluginInterface;
@@ -109,13 +109,13 @@ public sealed class Plugin : IDalamudPlugin
         log = _pluginLog;
 
         SignatureHelper.Initialise(this);
-        if (receivePrimaryActorUpdateHook is null || receiveSecondaryActorUpdateHook is null || receiveActionEffectHook is null)
+        if (receiveActionEffectHook is null || receivePrimaryActorUpdateHook is null || receiveSecondaryActorUpdateHook is null)
         {
-            log.Fatal("Atleast one hook failed, and the plugin is not functional.");
+            throw new Exception("Atleast one hook failed, and the plugin is not functional.");
         }
-        receiveActionEffectHook?.Enable();
-        receivePrimaryActorUpdateHook?.Enable();
-        receiveSecondaryActorUpdateHook?.Enable();
+        receiveActionEffectHook.Enable();
+        receivePrimaryActorUpdateHook.Enable();
+        receiveSecondaryActorUpdateHook.Enable();
 
         utilities = new Utilities(pluginInterface, condition, dataManager, clientState, log);
         config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
