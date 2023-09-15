@@ -20,6 +20,7 @@ using Dalamud.Game.ClientState.Objects.Enums;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using TickTracker.Windows;
+using Dalamud.Logging;
 
 namespace TickTracker;
 
@@ -70,7 +71,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly Condition condition;
     private readonly IDataManager dataManager;
     private readonly JobGauges jobGauges;
-    private readonly IPluginLog log;
+    //private readonly IPluginLog log;
 
     public string Name => "Tick Tracker";
     private const string CommandName = "/tick";
@@ -95,8 +96,8 @@ public sealed class Plugin : IDalamudPlugin
         ICommandManager _commandManager,
         Condition _condition,
         IDataManager _dataManager,
-        JobGauges _jobGauges,
-        IPluginLog _pluginLog)
+        JobGauges _jobGauges
+        /*IPluginLog _pluginLog*/)
     {
         pluginInterface = _pluginInterface;
         clientState = _clientState;
@@ -106,7 +107,7 @@ public sealed class Plugin : IDalamudPlugin
         condition = _condition;
         dataManager = _dataManager;
         jobGauges = _jobGauges;
-        log = _pluginLog;
+        //log = _pluginLog;
 
         SignatureHelper.Initialise(this);
         if (receiveActionEffectHook is null || receivePrimaryActorUpdateHook is null || receiveSecondaryActorUpdateHook is null)
@@ -117,12 +118,12 @@ public sealed class Plugin : IDalamudPlugin
         receivePrimaryActorUpdateHook.Enable();
         receiveSecondaryActorUpdateHook.Enable();
 
-        utilities = new Utilities(pluginInterface, condition, dataManager, clientState, log);
+        utilities = new Utilities(pluginInterface, condition, dataManager, clientState/*, log*/);
         config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         ConfigWindow = new ConfigWindow(pluginInterface);
-        HPBarWindow = new HPBar(clientState, log, utilities);
-        MPBarWindow = new MPBar(clientState, log, utilities);
-        GPBarWindow = new GPBar(clientState, log, utilities);
+        HPBarWindow = new HPBar(clientState,/* log,*/ utilities);
+        MPBarWindow = new MPBar(clientState,/* log,*/ utilities);
+        GPBarWindow = new GPBar(clientState,/* log,*/ utilities);
         DebugWindow = new DebugWindow();
         WindowSystem.AddWindow(ConfigWindow);
         WindowSystem.AddWindow(HPBarWindow);
@@ -240,13 +241,25 @@ public sealed class Plugin : IDalamudPlugin
                 healTriggered = false;
             }
         }
-        else if (lastHPValue != currentHP && HPBarWindow.FastTick && (HPBarWindow.CanUpdate || HPBarWindow.DelayedUpdate))
+        else if (lastHPValue != currentHP && HPBarWindow.FastTick)
         {
-            HPBarWindow.LastTick = currentTime;
-            HPBarWindow.CanUpdate = HPBarWindow.DelayedUpdate = false;
-            if (healTriggered)
+            if (HPBarWindow.CanUpdate)
             {
-                healTriggered = false;
+                HPBarWindow.LastTick = currentTime;
+                HPBarWindow.CanUpdate = false;
+                if (healTriggered)
+                {
+                    healTriggered = false;
+                }
+            }
+            else if (HPBarWindow.DelayedUpdate)
+            {
+                HPBarWindow.LastTick = currentTime;
+                HPBarWindow.DelayedUpdate = false;
+                if (healTriggered)
+                {
+                    healTriggered = false;
+                }
             }
         }
 
@@ -280,13 +293,25 @@ public sealed class Plugin : IDalamudPlugin
                 mpGainTriggered = false;
             }
         }
-        else if (lastMPValue != currentMP && MPBarWindow.FastTick && (MPBarWindow.CanUpdate || MPBarWindow.DelayedUpdate))
+        else if (lastMPValue != currentMP && MPBarWindow.FastTick)
         {
-            MPBarWindow.LastTick = currentTime;
-            MPBarWindow.CanUpdate = MPBarWindow.DelayedUpdate = false;
-            if (mpGainTriggered)
+            if (MPBarWindow.CanUpdate)
             {
-                mpGainTriggered = false;
+                MPBarWindow.LastTick = currentTime;
+                MPBarWindow.CanUpdate = false;
+                if (mpGainTriggered)
+                {
+                    mpGainTriggered = false;
+                }
+            }
+            else if (MPBarWindow.DelayedUpdate)
+            {
+                MPBarWindow.LastTick = currentTime;
+                MPBarWindow.DelayedUpdate = false;
+                if (mpGainTriggered)
+                {
+                    mpGainTriggered = false;
+                }
             }
         }
 
@@ -364,8 +389,8 @@ public sealed class Plugin : IDalamudPlugin
             }
         });
         nullSheet = false;
-        log.Debug("HP regen list generated with {HPcount} status effects.", HealthRegenList.Count);
-        log.Debug("MP regen list generated with {MPcount} status effects.", ManaRegenList.Count);
+        PluginLog.Debug("HP regen list generated with {HPcount} status effects.", HealthRegenList.Count);
+        PluginLog.Debug("MP regen list generated with {MPcount} status effects.", ManaRegenList.Count);
     }
 
     private ExcelSheet<Lumina.Excel.GeneratedSheets.Status>? RetrieveSheet()
@@ -376,7 +401,7 @@ public sealed class Plugin : IDalamudPlugin
             if (sheet is null)
             {
                 nullSheet = true;
-                log.Fatal("Invalid lumina sheet!");
+                PluginLog.Fatal("Invalid lumina sheet!");
                 return null;
             }
             return sheet;
@@ -384,8 +409,8 @@ public sealed class Plugin : IDalamudPlugin
         catch (Exception e)
         {
             nullSheet = true;
-            log.Fatal("Retrieving lumina sheet failed!");
-            log.Fatal(e.Message);
+            PluginLog.Fatal("Retrieving lumina sheet failed!");
+            PluginLog.Fatal(e.Message);
             return null;
         }
     }
@@ -438,7 +463,7 @@ public sealed class Plugin : IDalamudPlugin
         }
         catch (Exception e)
         {
-            log.Error(e, "An error has occured with the ReceiveActionEffect detour.");
+            PluginLog.Error(e, "An error has occured with the ReceiveActionEffect detour.");
         }
     }
 
@@ -473,7 +498,7 @@ public sealed class Plugin : IDalamudPlugin
         }
         catch (Exception e)
         {
-            log.Error(e, "An error has occured with the PrimaryActorTickUpdate detour.");
+            PluginLog.Error(e, "An error has occured with the PrimaryActorTickUpdate detour.");
         }
     }
 
@@ -502,7 +527,7 @@ public sealed class Plugin : IDalamudPlugin
         }
         catch (Exception e)
         {
-            log.Error(e, "An error has occured with the SecondaryActorTickUpdate detour.");
+            PluginLog.Error(e, "An error has occured with the SecondaryActorTickUpdate detour.");
         }
     }
 

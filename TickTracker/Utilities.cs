@@ -8,6 +8,7 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.Game.ClientState.Conditions;
 using FFXIVClientStructs.FFXIV.Component.GUI;
+using Dalamud.Logging;
 
 namespace TickTracker;
 
@@ -71,21 +72,21 @@ public partial class Utilities
     private readonly Dalamud.Game.ClientState.Conditions.Condition condition;
     private readonly IDataManager dataManager;
     private readonly IClientState clientState;
-    private readonly IPluginLog log;
+    //private readonly IPluginLog log;
 
-    public Utilities(DalamudPluginInterface _pluginInterface, Dalamud.Game.ClientState.Conditions.Condition _condition, IDataManager _dataManager, IClientState _clientState, IPluginLog _pluginLog)
+    public Utilities(DalamudPluginInterface _pluginInterface, Dalamud.Game.ClientState.Conditions.Condition _condition, IDataManager _dataManager, IClientState _clientState/*, IPluginLog _pluginLog*/)
     {
         pluginInterface = _pluginInterface;
         condition = _condition;
         dataManager = _dataManager;
         clientState = _clientState;
-        log = _pluginLog;
+        //log = _pluginLog;
     }
 
     /// <summary>
     ///     Indicates if the <paramref name="window"/> is allowed to be drawn
     /// </summary>
-    public bool WindowCondition(Enum.WindowType window)
+    public static bool WindowCondition(Enum.WindowType window)
     {
         if (!config.PluginEnabled)
         {
@@ -104,7 +105,7 @@ public partial class Utilities
         }
         catch (Exception e)
         {
-            log.Error("{error} triggered by {type}.", e.Message, window.ToString());
+            PluginLog.Error("{error} triggered by {type}.", e.Message, window.ToString());
             return false;
         }
     }

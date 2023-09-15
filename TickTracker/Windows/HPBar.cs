@@ -9,14 +9,14 @@ namespace TickTracker.Windows;
 public class HPBar : BarWindowBase
 {
     private readonly Utilities utilities;
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0052:Remove unread private members", Justification = "Not going to re-add this everytime I need to log something.")]
-    private readonly IPluginLog log;
-    public HPBar(IClientState _clientState, IPluginLog _pluginLog, Utilities _utilities) : base(_clientState, _pluginLog, _utilities, Enum.WindowType.HpWindow, "HPBarWindow")
+    //[System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0052:Remove unread private members", Justification = "Not going to re-add this everytime I need to log something.")]
+    //private readonly IPluginLog log;
+    public HPBar(IClientState _clientState,/* IPluginLog _pluginLog,*/ Utilities _utilities) : base(_clientState,/* _pluginLog,*/ _utilities, Enum.WindowType.HpWindow, "HPBarWindow")
     {
         Size = config.HPBarSize * ImGuiHelpers.GlobalScale;
         Position = config.HPBarPosition;
         utilities = _utilities;
-        log = _pluginLog;
+        //log = _pluginLog;
     }
 
     public override void Draw()

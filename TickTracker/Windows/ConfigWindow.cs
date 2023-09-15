@@ -105,7 +105,7 @@ public class ConfigWindow : Window, IDisposable
             changed |= ImGui.Checkbox("Show MP Bar", ref config.MPVisible);
             changed |= ImGui.Checkbox("Show GP Bar", ref config.GPVisible);
             ImGui.SameLine();
-            ImGuiComponents.HelpMarker("Only shows while a Disciple of Land job is active or bars aren't locked.");
+            ImGuiComponents.HelpMarker("Only shown while a Disciple of Land job is active or bars are unlocked.");
             changed |= ImGui.Checkbox("Hide bar on full resource", ref config.HideOnFullResource);
 
             ImGui.Indent();
