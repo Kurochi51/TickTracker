@@ -9,7 +9,7 @@ namespace TickTracker.Windows;
 public class MPBar : BarWindowBase
 {
     private readonly Utilities utilities;
-    public MPBar(IClientState _clientState, Utilities _utilities) : base(_clientState, _utilities, Enum.WindowType.MpWindow, "MPBarWindow")
+    public MPBar(IClientState _clientState, Utilities _utilities) : base(_clientState, _utilities, WindowType.MpWindow, "MPBarWindow")
     {
         Size = config.MPBarSize * ImGuiHelpers.GlobalScale;
         Position = config.MPBarPosition;

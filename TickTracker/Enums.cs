@@ -1,9 +1,8 @@
 using Lumina.Excel.GeneratedSheets;
 
-namespace TickTracker;
-
-public class Enum
+namespace TickTracker
 {
+#pragma warning disable MA0048 // File name must match type name
     /// <summary>
     ///     An enum of expected <see cref="WindowType" />.<paramref name="window"/>
     /// </summary>
@@ -67,4 +66,5 @@ public class Enum
         VFX = 59,
         JobGauge = 61,
     };
+#pragma warning restore MA0048 // File name must match type name
 }

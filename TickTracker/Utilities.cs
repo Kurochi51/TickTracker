@@ -84,7 +84,7 @@ public partial class Utilities
     /// <summary>
     ///     Indicates if the <paramref name="window"/> is allowed to be drawn
     /// </summary>
-    public static bool WindowCondition(Enum.WindowType window)
+    public static bool WindowCondition(WindowType window)
     {
         if (!config.PluginEnabled)
         {
@@ -94,9 +94,9 @@ public partial class Utilities
         {
             var DisplayThisWindow = window switch
             {
-                Enum.WindowType.HpWindow => config.HPVisible,
-                Enum.WindowType.MpWindow => config.MPVisible,
-                Enum.WindowType.GpWindow => config.GPVisible,
+                WindowType.HpWindow => config.HPVisible,
+                WindowType.MpWindow => config.MPVisible,
+                WindowType.GpWindow => config.GPVisible,
                 _ => throw new Exception("Unknown Window")
             };
             return DisplayThisWindow;
@@ -111,9 +111,9 @@ public partial class Utilities
     /// <summary>
     ///     Saves the size and position for the indicated <paramref name="window"/>.
     /// </summary>
-    public void UpdateWindowConfig(Vector2 currentPos, Vector2 currentSize, Enum.WindowType window)
+    public void UpdateWindowConfig(Vector2 currentPos, Vector2 currentSize, WindowType window)
     {
-        if (window == Enum.WindowType.HpWindow)
+        if (window == WindowType.HpWindow)
         {
             if (!currentPos.Equals(config.HPBarPosition))
             {
@@ -126,7 +126,7 @@ public partial class Utilities
                 config.Save(pluginInterface);
             }
         }
-        if (window == Enum.WindowType.MpWindow)
+        if (window == WindowType.MpWindow)
         {
             if (!currentPos.Equals(config.MPBarPosition))
             {
@@ -139,7 +139,7 @@ public partial class Utilities
                 config.Save(pluginInterface);
             }
         }
-        if (window == Enum.WindowType.GpWindow)
+        if (window == WindowType.GpWindow)
         {
             if (!currentPos.Equals(config.GPBarPosition))
             {
@@ -196,7 +196,7 @@ public partial class Utilities
         {
             return false;
         }
-        return area.TerritoryIntendedUse is (byte)Enum.TerritoryIntendedUseType.IslandSanctuary or (byte)Enum.TerritoryIntendedUseType.Diadem;
+        return area.TerritoryIntendedUse is (byte)TerritoryIntendedUseType.IslandSanctuary or (byte)TerritoryIntendedUseType.Diadem;
     }
 
     /// <summary>

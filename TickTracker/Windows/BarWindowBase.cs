@@ -11,7 +11,7 @@ public abstract class BarWindowBase : Window
 {
     protected static Configuration config => Plugin.config;
 
-    protected Enum.WindowType WindowType { get; set; }
+    protected WindowType WindowType { get; set; }
     protected const ImGuiWindowFlags _defaultFlags = ImGuiWindowFlags.NoScrollbar |
                                               ImGuiWindowFlags.NoTitleBar |
                                               ImGuiWindowFlags.NoCollapse;
@@ -32,7 +32,7 @@ public abstract class BarWindowBase : Window
     private readonly IClientState clientState;
     private readonly Utilities utilities;
 
-    protected BarWindowBase(IClientState _clientState, Utilities _utilities, Enum.WindowType type, string name) : base(name)
+    protected BarWindowBase(IClientState _clientState, Utilities _utilities, WindowType type, string name) : base(name)
     {
         SizeCondition = ImGuiCond.FirstUseEver;
         PositionCondition = ImGuiCond.FirstUseEver;

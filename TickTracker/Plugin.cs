@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 
@@ -81,7 +82,7 @@ public sealed class Plugin : IDalamudPlugin
     private MPBar MPBarWindow { get; init; }
     private GPBar GPBarWindow { get; init; }
     private bool inCombat, healTriggered, mpGainTriggered;
-    private bool syncAvailable = true, nullSheet = true;
+    private bool syncAvailable = true, nullSheet = true, finishedLoading = false;
     private double syncValue = 1;
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
     private uint lastHPValue = 0, lastMPValue = 0, lastGPValue = 0;
@@ -159,11 +160,10 @@ public sealed class Plugin : IDalamudPlugin
 
     private void OnFrameworkUpdate(Framework framework)
     {
-        var now = DateTime.Now.TimeOfDay.TotalSeconds;
-
         if (clientState is { IsLoggedIn: false } or { IsPvPExcludingDen: true } || nullSheet) return;
         if (clientState is not { LocalPlayer: { } player }) return;
 
+        var now = DateTime.Now.TimeOfDay.TotalSeconds;
         var HealthRegen = player.StatusList.Any(e => HealthRegenList.Contains(e.StatusId));
         var DisabledHPregen = player.StatusList.Any(e => DisabledHealthRegenList.Contains(e.StatusId));
         var ManaRegen = player.StatusList.Any(e => ManaRegenList.Contains(e.StatusId));
@@ -259,6 +259,11 @@ public sealed class Plugin : IDalamudPlugin
                 }
             }
         }
+        else if (finishedLoading)
+        {
+            // The rare case when you teleport without resource full so no assignment of LastTick causes an overflow
+            HPBarWindow.LastTick = syncValue;
+        }
 
         if (!HPBarWindow.FastTick && syncValue < HPBarWindow.LastTick && !healTriggered)
         {
@@ -311,6 +316,10 @@ public sealed class Plugin : IDalamudPlugin
                 }
             }
         }
+        else if (finishedLoading)
+        {
+            MPBarWindow.LastTick = syncValue;
+        }
 
         if (!MPBarWindow.FastTick && syncValue < MPBarWindow.LastTick && !mpGainTriggered)
         {
@@ -332,10 +341,23 @@ public sealed class Plugin : IDalamudPlugin
         {
             GPBarWindow.LastTick = syncValue;
         }
-        else if (lastGPValue < currentGP && (GPBarWindow.CanUpdate || GPBarWindow.DelayedUpdate))
+        else if (lastGPValue != currentGP)
         {
-            GPBarWindow.LastTick = currentTime;
-            GPBarWindow.CanUpdate = GPBarWindow.DelayedUpdate = false;
+            if (GPBarWindow.CanUpdate)
+            {
+                GPBarWindow.LastTick = currentTime;
+                GPBarWindow.CanUpdate = false;
+            }
+            else if (GPBarWindow.DelayedUpdate)
+            {
+                GPBarWindow.LastTick = currentTime;
+                GPBarWindow.DelayedUpdate = false;
+            }
+        }
+        else if (finishedLoading)
+        {
+            GPBarWindow.LastTick = syncValue;
+            finishedLoading = false;
         }
 
         GPBarWindow.RegenHalted = regenHalt;
@@ -448,11 +470,11 @@ public sealed class Plugin : IDalamudPlugin
             };
             for (var i = 0; i < entryCount; i++)
             {
-                if (effectArray[i].type == Enum.ActionEffectType.Heal)
+                if (effectArray[i].type == ActionEffectType.Heal)
                 {
                     healTriggered = true;
                 }
-                else if (effectArray[i].type == Enum.ActionEffectType.MpGain)
+                else if (effectArray[i].type == ActionEffectType.MpGain)
                 {
                     mpGainTriggered = true;
                 }
@@ -474,7 +496,6 @@ public sealed class Plugin : IDalamudPlugin
         receivePrimaryActorUpdateHook!.Original(objectId, packetData, unkByte);
         try
         {
-            // Can this even be called if LocalPlayer isn't set? who knows, better safe than sorry
             if (clientState is not { LocalPlayer: { } player })
             {
                 return;
@@ -512,7 +533,7 @@ public sealed class Plugin : IDalamudPlugin
             var unk1 = *((uint*)packetData + 1); // HP without buffs?
             var unk2 = *((ushort*)packetData + 6); // Current resource, MP or GP or CP
             var unk3 = *((ushort*)packetData + 7); // Seems to be the maximum MP / GP / CP respective to the current job
-            var unk4 = *((uint*)packetData + 2); // True HP?
+            var unk4 = *((uint*)packetData + 2); // Max HP?
 #endif
             if (objectId != player.ObjectId)
             {
@@ -528,11 +549,33 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
+    private async void Loading(int pollingPeriod)
+    {
+        var timer = new Stopwatch();
+        var loading = condition[ConditionFlag.BetweenAreas] || condition[ConditionFlag.BetweenAreas51];
+        timer.Start();
+        while (loading)
+        {
+            if (timer.ElapsedMilliseconds <= pollingPeriod)
+            {
+                var remainingTime = pollingPeriod - (int)timer.ElapsedMilliseconds;
+                await Task.Delay(remainingTime).ConfigureAwait(false);
+                timer.Restart();
+            }
+            loading = condition[ConditionFlag.BetweenAreas] || condition[ConditionFlag.BetweenAreas51];
+            if (!loading)
+            {
+                timer.Reset();
+                break;
+            }
+        }
+        finishedLoading = true;
+    }
+
     private void TerritoryChanged(object? sender, ushort e)
     {
-        lastHPValue = 0;
-        lastMPValue = 0;
-        lastGPValue = 0;
+        finishedLoading = false;
+        _ = Task.Run(() => Loading(1000));
     }
 
     public void Dispose()

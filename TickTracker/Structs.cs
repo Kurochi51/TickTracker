@@ -16,7 +16,7 @@ namespace TickTracker
     [StructLayout(LayoutKind.Sequential)]
     public struct EffectEntry
     {
-        public Enum.ActionEffectType type;
+        public ActionEffectType type;
         public byte param0;
         public byte param1;
         public byte param2;
