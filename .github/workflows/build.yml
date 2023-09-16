@@ -4,7 +4,8 @@ on:
   workflow_dispatch:
     inputs: {}
   push:
-    branches: '*'
+    branches:
+      - main
     paths-ignore:
       - '.github/**'
       - '*.yml'
