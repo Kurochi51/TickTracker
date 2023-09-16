@@ -9,14 +9,11 @@ namespace TickTracker.Windows;
 public class MPBar : BarWindowBase
 {
     private readonly Utilities utilities;
-    //[System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0052:Remove unread private members", Justification = "Not going to re-add this everytime I need to log something.")]
-    //private readonly IPluginLog log;
-    public MPBar(IClientState _clientState,/* IPluginLog _pluginLog,*/ Utilities _utilities) : base(_clientState,/* _pluginLog,*/ _utilities, Enum.WindowType.MpWindow, "MPBarWindow")
+    public MPBar(IClientState _clientState, Utilities _utilities) : base(_clientState, _utilities, Enum.WindowType.MpWindow, "MPBarWindow")
     {
         Size = config.MPBarSize * ImGuiHelpers.GlobalScale;
         Position = config.MPBarPosition;
         utilities = _utilities;
-        //log = _pluginLog;
     }
 
     public override void Draw()

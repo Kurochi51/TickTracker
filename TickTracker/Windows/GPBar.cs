@@ -9,14 +9,11 @@ namespace TickTracker.Windows;
 public class GPBar : BarWindowBase
 {
     private readonly Utilities utilities;
-    //[System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0052:Remove unread private members", Justification = "Not going to re-add this everytime I need to log something.")]
-    //private readonly IPluginLog log;
-    public GPBar(IClientState _clientState,/* IPluginLog _pluginLog,*/ Utilities _utilities) : base(_clientState,/* _pluginLog,*/ _utilities, Enum.WindowType.GpWindow, "GPBarWindow")
+    public GPBar(IClientState _clientState, Utilities _utilities) : base(_clientState, _utilities, Enum.WindowType.GpWindow, "GPBarWindow")
     {
         Size = config.GPBarSize * ImGuiHelpers.GlobalScale;
         Position = config.GPBarPosition;
         utilities = _utilities;
-        //log = _pluginLog;
     }
 
     public override void Draw()

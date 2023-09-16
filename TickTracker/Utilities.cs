@@ -72,15 +72,13 @@ public partial class Utilities
     private readonly Dalamud.Game.ClientState.Conditions.Condition condition;
     private readonly IDataManager dataManager;
     private readonly IClientState clientState;
-    //private readonly IPluginLog log;
 
-    public Utilities(DalamudPluginInterface _pluginInterface, Dalamud.Game.ClientState.Conditions.Condition _condition, IDataManager _dataManager, IClientState _clientState/*, IPluginLog _pluginLog*/)
+    public Utilities(DalamudPluginInterface _pluginInterface, Dalamud.Game.ClientState.Conditions.Condition _condition, IDataManager _dataManager, IClientState _clientState)
     {
         pluginInterface = _pluginInterface;
         condition = _condition;
         dataManager = _dataManager;
         clientState = _clientState;
-        //log = _pluginLog;
     }
 
     /// <summary>

@@ -31,17 +31,14 @@ public abstract class BarWindowBase : Window
     public const float ActorTickInterval = 3, FastTickInterval = 1.5f;
     private readonly IClientState clientState;
     private readonly Utilities utilities;
-    //[System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0052:Remove unread private members", Justification = "Not going to re-add this everytime I need to log something.")]
-    //private readonly IPluginLog log;
 
-    protected BarWindowBase(IClientState _clientState, /*IPluginLog _pluginLog, */Utilities _utilities, Enum.WindowType type, string name) : base(name)
+    protected BarWindowBase(IClientState _clientState, Utilities _utilities, Enum.WindowType type, string name) : base(name)
     {
         SizeCondition = ImGuiCond.FirstUseEver;
         PositionCondition = ImGuiCond.FirstUseEver;
 
         clientState = _clientState;
         utilities = _utilities;
-        //log = _pluginLog;
         WindowType = type;
     }
 

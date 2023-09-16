@@ -71,7 +71,6 @@ public sealed class Plugin : IDalamudPlugin
     private readonly Condition condition;
     private readonly IDataManager dataManager;
     private readonly JobGauges jobGauges;
-    //private readonly IPluginLog log;
 
     public string Name => "Tick Tracker";
     private const string CommandName = "/tick";
@@ -96,8 +95,7 @@ public sealed class Plugin : IDalamudPlugin
         ICommandManager _commandManager,
         Condition _condition,
         IDataManager _dataManager,
-        JobGauges _jobGauges
-        /*IPluginLog _pluginLog*/)
+        JobGauges _jobGauges)
     {
         pluginInterface = _pluginInterface;
         clientState = _clientState;
@@ -107,7 +105,6 @@ public sealed class Plugin : IDalamudPlugin
         condition = _condition;
         dataManager = _dataManager;
         jobGauges = _jobGauges;
-        //log = _pluginLog;
 
         SignatureHelper.Initialise(this);
         if (receiveActionEffectHook is null || receivePrimaryActorUpdateHook is null || receiveSecondaryActorUpdateHook is null)
@@ -118,12 +115,12 @@ public sealed class Plugin : IDalamudPlugin
         receivePrimaryActorUpdateHook.Enable();
         receiveSecondaryActorUpdateHook.Enable();
 
-        utilities = new Utilities(pluginInterface, condition, dataManager, clientState/*, log*/);
+        utilities = new Utilities(pluginInterface, condition, dataManager, clientState);
         config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         ConfigWindow = new ConfigWindow(pluginInterface);
-        HPBarWindow = new HPBar(clientState,/* log,*/ utilities);
-        MPBarWindow = new MPBar(clientState,/* log,*/ utilities);
-        GPBarWindow = new GPBar(clientState,/* log,*/ utilities);
+        HPBarWindow = new HPBar(clientState, utilities);
+        MPBarWindow = new MPBar(clientState, utilities);
+        GPBarWindow = new GPBar(clientState, utilities);
         DebugWindow = new DebugWindow();
         WindowSystem.AddWindow(ConfigWindow);
         WindowSystem.AddWindow(HPBarWindow);

@@ -23,7 +23,6 @@ public class ConfigWindow : Window, IDisposable
     public ConfigWindow(DalamudPluginInterface _pluginInterface) : base("Timer Settings")
     {
         Size = new(320, 420);
-        //SizeCondition = ImGuiCond.None;
         Flags = ImGuiWindowFlags.NoResize;
         pluginInterface = _pluginInterface;
     }
