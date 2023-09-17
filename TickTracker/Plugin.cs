@@ -18,6 +18,7 @@ using Dalamud.Game.ClientState.JobGauge;
 using Dalamud.Game.ClientState.JobGauge.Types;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.Enums;
+using Dalamud.Game.ClientState.Objects.SubKinds;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using TickTracker.Windows;
@@ -76,17 +77,18 @@ public sealed class Plugin : IDalamudPlugin
     public string Name => "Tick Tracker";
     private const string CommandName = "/tick";
     public WindowSystem WindowSystem = new("TickTracker");
-    public static DebugWindow DebugWindow { get; set; } = null!;
-    private ConfigWindow ConfigWindow { get; init; }
-    private HPBar HPBarWindow { get; init; }
-    private MPBar MPBarWindow { get; init; }
-    private GPBar GPBarWindow { get; init; }
-    private bool inCombat, healTriggered, mpGainTriggered;
-    private bool syncAvailable = true, nullSheet = true, finishedLoading = false;
+    private ConfigWindow ConfigWindow { get; init; } = null!;
+    private DebugWindow DebugWindow { get; init; } = null!;
+    private HPBar HPBarWindow { get; init; } = null!;
+    private MPBar MPBarWindow { get; init; } = null!;
+    private GPBar GPBarWindow { get; init; } = null!;
+    private bool inCombat, healTriggered, mpGainTriggered, finishedLoading;
+    private bool syncAvailable = true, nullSheet = true;
     private double syncValue = 1;
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
     private uint lastHPValue = 0, lastMPValue = 0, lastGPValue = 0;
     private uint currentHP = 1, currentMP = 1, currentGP = 1, maxHP = 2, maxMP = 2, maxGP = 2;
+    private Task? loadingTask;
     private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
 
     public Plugin(DalamudPluginInterface _pluginInterface,
@@ -115,14 +117,14 @@ public sealed class Plugin : IDalamudPlugin
         receiveActionEffectHook.Enable();
         receivePrimaryActorUpdateHook.Enable();
         receiveSecondaryActorUpdateHook.Enable();
-
+        
         utilities = new Utilities(pluginInterface, condition, dataManager, clientState);
         config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-        ConfigWindow = new ConfigWindow(pluginInterface);
+        DebugWindow = new DebugWindow();
+        ConfigWindow = new ConfigWindow(pluginInterface, DebugWindow);
         HPBarWindow = new HPBar(clientState, utilities);
         MPBarWindow = new MPBar(clientState, utilities);
         GPBarWindow = new GPBar(clientState, utilities);
-        DebugWindow = new DebugWindow();
         WindowSystem.AddWindow(ConfigWindow);
         WindowSystem.AddWindow(HPBarWindow);
         WindowSystem.AddWindow(MPBarWindow);
@@ -138,6 +140,11 @@ public sealed class Plugin : IDalamudPlugin
         framework.Update += OnFrameworkUpdate;
         clientState.TerritoryChanged += TerritoryChanged;
         _ = Task.Run(InitializeLuminaSheet);
+    }
+
+    private void TerritoryChanged(object? sender, ushort e)
+    {
+        loadingTask = Task.Run(async () => await Loading(1000).ConfigureAwait(false));
     }
 
     private bool PluginEnabled(bool target)
@@ -172,33 +179,16 @@ public sealed class Plugin : IDalamudPlugin
         var jobType = player.ClassJob.GameData?.ClassJobCategory.Row ?? 0;
         var Enemy = player.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
         inCombat = condition[ConditionFlag.InCombat];
-        currentHP = player.CurrentHp;
-        maxHP = player.MaxHp;
-        currentMP = player.CurrentMp;
-        maxMP = player.MaxMp;
-        currentGP = player.CurrentGp;
-        maxGP = player.MaxGp;
         unsafe
         {
             if (!PluginEnabled(Enemy) || !Utilities.IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || utilities.inCustcene())
             {
-                HPBarWindow.IsOpen = false;
-                MPBarWindow.IsOpen = false;
-                GPBarWindow.IsOpen = false;
+                HPBarWindow.IsOpen = MPBarWindow.IsOpen = GPBarWindow.IsOpen = false;
                 return;
             }
         }
-        var shouldShowHPBar = !config.HideOnFullResource ||
-                            (config.AlwaysShowInCombat && inCombat) ||
-                            (config.AlwaysShowWithHostileTarget && Enemy) ||
-                            (config.AlwaysShowInDuties && utilities.InDuty());
-        var shouldShowMPBar = !config.HideOnFullResource ||
-                            (config.AlwaysShowInCombat && inCombat) ||
-                            (config.AlwaysShowWithHostileTarget && Enemy) ||
-                            (config.AlwaysShowInDuties && utilities.InDuty());
-        HPBarWindow.IsOpen = shouldShowHPBar || (currentHP != maxHP);
-        GPBarWindow.IsOpen = (jobType == 32 && (!config.HideOnFullResource || (currentGP != maxGP)) && config.GPVisible) || !config.LockBar;
-        MPBarWindow.IsOpen = (jobType != 32 && (shouldShowMPBar || (currentMP != maxMP))) || !config.GPVisible;
+        UpdateResources(player);
+        UpdateBarState(Enemy, jobType);
         if (syncValue + ActorTickInterval <= now || syncAvailable)
         {
             if (syncAvailable)
@@ -210,6 +200,11 @@ public sealed class Plugin : IDalamudPlugin
             {
                 syncValue += ActorTickInterval;
             }
+        }
+        if (loadingTask is not null && loadingTask.IsCompleted)
+        {
+            finishedLoading = true;
+            loadingTask = null;
         }
         UpdateHPTick(now, HealthRegen, DisabledHPregen);
         UpdateMPTick(now, ManaRegen, DisabledMPregen);
@@ -224,13 +219,12 @@ public sealed class Plugin : IDalamudPlugin
         }
         HPBarWindow.FastTick = (hpRegen && currentHP != maxHP);
 
-        if (currentHP == maxHP)
+        if (currentHP == maxHP || finishedLoading)
         {
             HPBarWindow.LastTick = syncValue;
         }
         else if (lastHPValue != currentHP && !HPBarWindow.FastTick && HPBarWindow.CanUpdate)
         {
-            // CanUpdate is only set on server tick, heal trigger is irrelevant
             HPBarWindow.LastTick = currentTime;
             HPBarWindow.CanUpdate = false;
             if (healTriggered)
@@ -259,11 +253,6 @@ public sealed class Plugin : IDalamudPlugin
                 }
             }
         }
-        else if (finishedLoading)
-        {
-            // The rare case when you teleport without resource full so no assignment of LastTick causes an overflow
-            HPBarWindow.LastTick = syncValue;
-        }
 
         if (!HPBarWindow.FastTick && syncValue < HPBarWindow.LastTick && !healTriggered)
         {
@@ -282,7 +271,7 @@ public sealed class Plugin : IDalamudPlugin
         }
         MPBarWindow.FastTick = (mpRegen && currentMP != maxMP);
 
-        if (currentMP == maxMP)
+        if (currentMP == maxMP || finishedLoading)
         {
             MPBarWindow.LastTick = syncValue;
         }
@@ -316,10 +305,6 @@ public sealed class Plugin : IDalamudPlugin
                 }
             }
         }
-        else if (finishedLoading)
-        {
-            MPBarWindow.LastTick = syncValue;
-        }
 
         if (!MPBarWindow.FastTick && syncValue < MPBarWindow.LastTick && !mpGainTriggered)
         {
@@ -337,7 +322,7 @@ public sealed class Plugin : IDalamudPlugin
         {
             GPBarWindow.LastTick = syncValue;
         }
-        if (currentGP == maxGP)
+        if (currentGP == maxGP || finishedLoading)
         {
             GPBarWindow.LastTick = syncValue;
         }
@@ -353,11 +338,6 @@ public sealed class Plugin : IDalamudPlugin
                 GPBarWindow.LastTick = currentTime;
                 GPBarWindow.DelayedUpdate = false;
             }
-        }
-        else if (finishedLoading)
-        {
-            GPBarWindow.LastTick = syncValue;
-            finishedLoading = false;
         }
 
         GPBarWindow.RegenHalted = regenHalt;
@@ -513,6 +493,7 @@ public sealed class Plugin : IDalamudPlugin
             MPBarWindow.CanUpdate = true;
             GPBarWindow.CanUpdate = true;
             syncAvailable = true;
+            finishedLoading = false;
         }
         catch (Exception e)
         {
@@ -542,6 +523,7 @@ public sealed class Plugin : IDalamudPlugin
             HPBarWindow.DelayedUpdate = true;
             MPBarWindow.DelayedUpdate = true;
             GPBarWindow.DelayedUpdate = true;
+            finishedLoading = false;
         }
         catch (Exception e)
         {
@@ -549,33 +531,47 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
-    private async void Loading(int pollingPeriod)
+    private async Task Loading(int pollingPeriodMiliseconds)
     {
-        var timer = new Stopwatch();
+        var loadingTimer = new Stopwatch();
         var loading = condition[ConditionFlag.BetweenAreas] || condition[ConditionFlag.BetweenAreas51];
-        timer.Start();
+        loadingTimer.Start();
         while (loading)
         {
-            if (timer.ElapsedMilliseconds <= pollingPeriod)
+            if (loadingTimer.ElapsedMilliseconds <= pollingPeriodMiliseconds)
             {
-                var remainingTime = pollingPeriod - (int)timer.ElapsedMilliseconds;
+                var remainingTime = pollingPeriodMiliseconds - (int)loadingTimer.ElapsedMilliseconds;
                 await Task.Delay(remainingTime).ConfigureAwait(false);
-                timer.Restart();
+                loadingTimer.Restart();
             }
             loading = condition[ConditionFlag.BetweenAreas] || condition[ConditionFlag.BetweenAreas51];
-            if (!loading)
-            {
-                timer.Reset();
-                break;
-            }
         }
-        finishedLoading = true;
+        loadingTimer.Reset();
     }
 
-    private void TerritoryChanged(object? sender, ushort e)
+    private void UpdateResources(PlayerCharacter player)
     {
-        finishedLoading = false;
-        _ = Task.Run(() => Loading(1000));
+        currentHP = player.CurrentHp;
+        maxHP = player.MaxHp;
+        currentMP = player.CurrentMp;
+        maxMP = player.MaxMp;
+        currentGP = player.CurrentGp;
+        maxGP = player.MaxGp;
+    }
+
+    private void UpdateBarState(bool Enemy, uint jobType)
+    {
+        var shouldShowHPBar = !config.HideOnFullResource ||
+                            (config.AlwaysShowInCombat && inCombat) ||
+                            (config.AlwaysShowWithHostileTarget && Enemy) ||
+                            (config.AlwaysShowInDuties && utilities.InDuty());
+        var shouldShowMPBar = !config.HideOnFullResource ||
+                            (config.AlwaysShowInCombat && inCombat) ||
+                            (config.AlwaysShowWithHostileTarget && Enemy) ||
+                            (config.AlwaysShowInDuties && utilities.InDuty());
+        HPBarWindow.IsOpen = shouldShowHPBar || (currentHP != maxHP);
+        GPBarWindow.IsOpen = (jobType == 32 && (!config.HideOnFullResource || (currentGP != maxGP)) && config.GPVisible) || !config.LockBar;
+        MPBarWindow.IsOpen = (jobType != 32 && (shouldShowMPBar || (currentMP != maxMP))) || !config.GPVisible;
     }
 
     public void Dispose()

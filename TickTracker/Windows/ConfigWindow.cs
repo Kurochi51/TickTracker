@@ -12,19 +12,20 @@ namespace TickTracker.Windows;
 public class ConfigWindow : Window, IDisposable
 {
     private static Configuration config => Plugin.config;
-    private static DebugWindow debugWindow => Plugin.DebugWindow;
     private readonly DalamudPluginInterface pluginInterface;
+    private readonly DebugWindow debugWindow;
     private readonly Vector4 defaultDarkGrey = new(0.246f, 0.262f, 0.270f, 1f); // Default Color: Dark Grey - #3F4345
     private readonly Vector4 defaultBlack = new(0f, 0f, 0f, 1f); // Default Color: Black - #000000
     private readonly Vector4 defaultPink = new(0.753f, 0.271f, 0.482f, 1f); // #C0457B
     private readonly Vector4 defaultGreen = new(0.276f, 0.8f, 0.24f, 1f); // #46CC3D
     private readonly Vector4 defaultBlue = new(0.169f, 0.747f, 0.892f, 1f); // #2BBEE3FF
 
-    public ConfigWindow(DalamudPluginInterface _pluginInterface) : base("Timer Settings")
+    public ConfigWindow(DalamudPluginInterface _pluginInterface,DebugWindow _debugWindow) : base("Timer Settings")
     {
         Size = new(320, 420);
         Flags = ImGuiWindowFlags.NoResize;
         pluginInterface = _pluginInterface;
+        debugWindow = _debugWindow;
     }
 
     public override void OnClose()

@@ -9,7 +9,7 @@ namespace TickTracker.Windows;
 public class HPBar : BarWindowBase
 {
     private readonly Utilities utilities;
-    public HPBar(IClientState _clientState, Utilities _utilities) : base(_clientState, _utilities, WindowType.HpWindow, "HPBarWindow")
+    public HPBar(IClientState _clientState, Utilities _utilities) : base(_clientState, WindowType.HpWindow, "HPBarWindow")
     {
         Size = config.HPBarSize * ImGuiHelpers.GlobalScale;
         Position = config.HPBarPosition;

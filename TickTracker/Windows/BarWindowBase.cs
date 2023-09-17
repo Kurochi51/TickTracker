@@ -30,15 +30,13 @@ public abstract class BarWindowBase : Window
     public double PreviousProgress { get; set; } = -1;
     public const float ActorTickInterval = 3, FastTickInterval = 1.5f;
     private readonly IClientState clientState;
-    private readonly Utilities utilities;
 
-    protected BarWindowBase(IClientState _clientState, Utilities _utilities, WindowType type, string name) : base(name)
+    protected BarWindowBase(IClientState _clientState, WindowType type, string name) : base(name)
     {
         SizeCondition = ImGuiCond.FirstUseEver;
         PositionCondition = ImGuiCond.FirstUseEver;
 
         clientState = _clientState;
-        utilities = _utilities;
         WindowType = type;
     }
 

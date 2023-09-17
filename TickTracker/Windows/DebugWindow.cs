@@ -47,7 +47,7 @@ public class DebugWindow : Window, IDisposable
 
     public override void Draw()
     {
-        if (HealthRegenDictionary is null || ManaRegenDictionary is null || DisabledHealthRegenDictionary is null || DisabledManaRegenDictionary is null || HealthRegenDictionary.IsEmpty || ManaRegenDictionary.IsEmpty || DisabledHealthRegenDictionary.IsEmpty || DisabledManaRegenDictionary.IsEmpty)
+        if (HealthRegenDictionary.IsEmpty || ManaRegenDictionary.IsEmpty || DisabledHealthRegenDictionary.IsEmpty || DisabledManaRegenDictionary.IsEmpty)
         {
             invalidList = true;
             ImGui.Text("Lists are null or empty!");

@@ -9,7 +9,7 @@ namespace TickTracker.Windows;
 public class GPBar : BarWindowBase
 {
     private readonly Utilities utilities;
-    public GPBar(IClientState _clientState, Utilities _utilities) : base(_clientState, _utilities, WindowType.GpWindow, "GPBarWindow")
+    public GPBar(IClientState _clientState, Utilities _utilities) : base(_clientState, WindowType.GpWindow, "GPBarWindow")
     {
         Size = config.GPBarSize * ImGuiHelpers.GlobalScale;
         Position = config.GPBarPosition;
