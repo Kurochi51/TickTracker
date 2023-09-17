@@ -1,4 +1,4 @@
-name: .NET Staging Build
+name: Staging Build
 
 on:
   workflow_dispatch:
