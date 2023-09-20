@@ -254,11 +254,6 @@ public sealed class Plugin : IDalamudPlugin
             }
         }
 
-        if (!HPBarWindow.FastTick && syncValue < HPBarWindow.LastTick && !healTriggered)
-        {
-            syncValue = HPBarWindow.LastTick;
-        }
-
         HPBarWindow.RegenHalted = regenHalt;
         lastHPValue = currentHP;
     }
@@ -304,11 +299,6 @@ public sealed class Plugin : IDalamudPlugin
                     mpGainTriggered = false;
                 }
             }
-        }
-
-        if (!MPBarWindow.FastTick && syncValue < MPBarWindow.LastTick && !mpGainTriggered)
-        {
-            syncValue = MPBarWindow.LastTick;
         }
 
         MPBarWindow.RegenHalted = regenHalt;
@@ -429,15 +419,13 @@ public sealed class Plugin : IDalamudPlugin
             {
                 return;
             }
-
-            var name = MemoryHelper.ReadStringNullTerminated((nint)sourceCharacter->GameObject.GetName());
             var castTarget = sourceCharacter->GetCastInfo()->CastTargetID;
             var target = sourceCharacter->GetTargetId();
-
             if (target != player.OwnerId && castTarget != player.OwnerId && target != player.ObjectId && castTarget != player.ObjectId)
             {
                 return;
             }
+            var name = MemoryHelper.ReadStringNullTerminated((nint)sourceCharacter->GameObject.GetName());
             var entryCount = effectHeader->TargetCount switch
             {
                 0 => 0,
