@@ -523,10 +523,12 @@ public sealed class Plugin : IDalamudPlugin
                 return;
             }
 #if DEBUG
-            var unk1 = *((uint*)packetData + 1); // HP without buffs?
-            var unk2 = *((ushort*)packetData + 6); // Current resource, MP or GP or CP
-            var unk3 = *((ushort*)packetData + 7); // Seems to be the maximum MP / GP / CP respective to the current job
-            var unk4 = *((uint*)packetData + 2); // Max HP?
+            var unk1 = *((uint*)packetData + 1); // Current HP
+            var unk2 = *((ushort*)packetData + 6); // Current resource MP, GP, or CP respective to the current job
+            var unk3 = *((ushort*)packetData + 7); // Maximum resource MP, GP, or CP respective to the current job
+            var unk4 = *((uint*)packetData + 2); // Max HP
+            var unk5 = packetData[16]; // Shield Value
+            var unk6 = packetData[1]; // Level
 #endif
             if (objectId != player.ObjectId)
             {
