@@ -11,11 +11,8 @@ public class MPBar : BarWindowBase
 {
     private readonly Configuration config;
     private readonly Utilities utilities;
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0052:Remove unread private members", Justification = "Not going to re-add this everytime I need to log something.")]
-    private readonly IPluginLog log;
     public MPBar(IClientState _clientState, IPluginLog _pluginLog, Utilities _utilities, Configuration _config) : base(_clientState, _pluginLog, _utilities, _config, WindowType.MpWindow, "MPBarWindow")
     {
-        log = _pluginLog;
         config = _config;
         utilities = _utilities;
         Size = config.MPBarSize * ImGuiHelpers.GlobalScale;

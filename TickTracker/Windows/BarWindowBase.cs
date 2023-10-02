@@ -20,6 +20,7 @@ public abstract class BarWindowBase : Window
                                                     ImGuiWindowFlags.NoResize |
                                                     ImGuiWindowFlags.NoNav |
                                                     ImGuiWindowFlags.NoInputs;
+    public IPluginLog log { get; }
     public bool FastRegenSwitch { get; set; }
     public bool RegenHalted { get; set; }
     public bool FastTick { get; set; }
@@ -32,8 +33,6 @@ public abstract class BarWindowBase : Window
     private readonly IClientState clientState;
     private readonly Configuration config;
     private readonly Utilities utilities;
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0052:Remove unread private members", Justification = "Not going to re-add this everytime I need to log something.")]
-    private readonly IPluginLog log;
 
     protected BarWindowBase(IClientState _clientState, IPluginLog _pluginLog, Utilities _utilities, Configuration _config, WindowType type, string name) : base(name)
     {
