@@ -6,32 +6,32 @@ using System.Collections.Generic;
 
 using ImGuiNET;
 using Dalamud.Interface.Windowing;
-using Dalamud.Interface.Raii;
+using Dalamud.Interface.Utility.Raii;
 using System.Collections.Concurrent;
 
 namespace TickTracker.Windows;
 
-public class DebugWindow : Window, IDisposable
+public class DebugWindow : Window
 {
     /// <summary>
     /// An <see cref="ConcurrentDictionary{TKey, TValue}" /> of Status IDs and Status Names that trigger HP regen
     /// </summary>
-    public static readonly ConcurrentDictionary<uint, string> HealthRegenDictionary = new();
+    public ConcurrentDictionary<uint, string> HealthRegenDictionary { get; set; } = new();
     /// <summary>
     /// An <see cref="ConcurrentDictionary{TKey, TValue}" /> of Status IDs and Status Names that trigger MP regen
     /// </summary>
-    public static readonly ConcurrentDictionary<uint, string> ManaRegenDictionary = new();
+    public ConcurrentDictionary<uint, string> ManaRegenDictionary { get; set; } = new();
     /// <summary>
     /// An <see cref="ConcurrentDictionary{TKey, TValue}" /> of Status IDs and Status Names that stop HP regen
     /// </summary>
-    public static readonly ConcurrentDictionary<uint, string> DisabledHealthRegenDictionary = new();
+    public ConcurrentDictionary<uint, string> DisabledHealthRegenDictionary { get; set; } = new();
     /// <summary>
     /// An <see cref="ConcurrentDictionary{TKey, TValue}" /> of Status IDs and Status Names that stop MP regen
     /// </summary>
-    public static readonly ConcurrentDictionary<uint, string> DisabledManaRegenDictionary = new();
+    public ConcurrentDictionary<uint, string> DisabledManaRegenDictionary { get; set; } = new();
 
-    private float hpWidth = 0, mpWidth = 0, disabledHPWidth = 0, disabledMPWidth = 0;
-    private bool firstTime = true, invalidList = false;
+    private float hpWidth, mpWidth, disabledHPWidth, disabledMPWidth;
+    private bool invalidList, firstTime = true;
 
     public DebugWindow() : base("DebugWindow")
     {
@@ -61,22 +61,22 @@ public class DebugWindow : Window, IDisposable
         ImGui.Spacing();
         var maxRegenCount = Math.Max(HealthRegenDictionary.Count, ManaRegenDictionary.Count);
         var maxDisabledRegenCount = Math.Max(DisabledHealthRegenDictionary.Count, DisabledManaRegenDictionary.Count);
-        var column1Table1 = " Health Regen Status IDs";
-        var column2Table1 = "Mana Regen Status IDs";
-        var column1Table2 = " Disabled HP Regen Status IDs";
-        var column2Table2 = "Disabled MP Regen Status IDs";
+        var Table1Column1 = " Health Regen Status IDs";
+        var Table1Column2 = "Mana Regen Status IDs";
+        var Table2Column1 = " Disabled HP Regen Status IDs";
+        var Table2Column2 = "Disabled MP Regen Status IDs";
         if (firstTime)
         {
-            DetermineColumnWidth(column1Table1, column2Table1, HealthRegenDictionary, ManaRegenDictionary, ref hpWidth, ref mpWidth);
-            DetermineColumnWidth(column1Table2, column2Table2, DisabledHealthRegenDictionary, DisabledManaRegenDictionary, ref disabledHPWidth, ref disabledMPWidth);
+            DetermineColumnWidth(Table1Column1, Table1Column2, HealthRegenDictionary, ManaRegenDictionary, ref hpWidth, ref mpWidth);
+            DetermineColumnWidth(Table2Column1, Table2Column2, DisabledHealthRegenDictionary, DisabledManaRegenDictionary, ref disabledHPWidth, ref disabledMPWidth);
             firstTime = false;
         }
         using (var scrollArea = ImRaii.Child("ScrollArea", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y - 40f), border: true))
         {
-            DrawTable("DisabledRegenSID", column1Table2, column2Table2, disabledHPWidth, disabledMPWidth, maxDisabledRegenCount, DisabledHealthRegenDictionary, DisabledManaRegenDictionary);
+            DrawTable("DisabledRegenSID", Table2Column1, Table2Column2, disabledHPWidth, disabledMPWidth, maxDisabledRegenCount, DisabledHealthRegenDictionary, DisabledManaRegenDictionary);
             ImGui.Separator();
             ImGui.Spacing();
-            DrawTable("RegenSID", column1Table1, column2Table1, hpWidth, mpWidth, maxRegenCount, HealthRegenDictionary, ManaRegenDictionary);
+            DrawTable("RegenSID", Table1Column1, Table1Column2, hpWidth, mpWidth, maxRegenCount, HealthRegenDictionary, ManaRegenDictionary);
         }
         CopyAndClose();
     }
@@ -190,10 +190,4 @@ public class DebugWindow : Window, IDisposable
             }
         }
     }
-
-    public void Dispose()
-    {
-        GC.SuppressFinalize(this);
-    }
-
 }

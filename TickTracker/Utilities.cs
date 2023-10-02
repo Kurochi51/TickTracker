@@ -3,12 +3,12 @@ using System.Linq;
 using System.Numerics;
 using System.Collections.Generic;
 
-using Lumina.Excel.GeneratedSheets;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.Game.ClientState.Conditions;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using Dalamud.Logging;
+using Lumina.Excel.GeneratedSheets;
+using TickTracker.Enums;
 
 namespace TickTracker;
 
@@ -17,12 +17,10 @@ namespace TickTracker;
 /// </summary>
 public partial class Utilities
 {
-    private static Configuration config => Plugin.config;
-
     /// <summary>
     ///     A set of words that indicate regeneration
     /// </summary>
-    public static readonly IEnumerable<string> RegenKeywords = new string[]
+    public IEnumerable<string> RegenKeywords { get; } = new[]
     {
         "regenerating",
         "restoring",
@@ -33,7 +31,7 @@ public partial class Utilities
     /// <summary>
     ///     A set of words that indicate an effect over time
     /// </summary>
-    public static readonly IEnumerable<string> TimeKeywords = new string[]
+    public IEnumerable<string> TimeKeywords { get; } = new[]
     {
         "gradually",
         "over time",
@@ -42,7 +40,7 @@ public partial class Utilities
     /// <summary>
     ///     A set of words that indicate health
     /// </summary>
-    public static readonly IEnumerable<string> HealthKeywords = new string[]
+    public IEnumerable<string> HealthKeywords { get; } = new[]
     {
         "hp",
         "health",
@@ -51,7 +49,7 @@ public partial class Utilities
     /// <summary>
     ///     A set of words that indicate mana
     /// </summary>
-    public static readonly IEnumerable<string> ManaKeywords = new string[]
+    public IEnumerable<string> ManaKeywords { get; } = new[]
     {
         "mp",
         "mana",
@@ -60,7 +58,7 @@ public partial class Utilities
     /// <summary>
     ///     A set of words that indicate the halt of regen
     /// </summary>
-    public static readonly IEnumerable<string> RegenNullKeywords = new string[]
+    public IEnumerable<string> RegenNullKeywords { get; } = new[]
     {
         "null",
         "nullified",
@@ -69,22 +67,26 @@ public partial class Utilities
     };
 
     private readonly DalamudPluginInterface pluginInterface;
-    private readonly Dalamud.Game.ClientState.Conditions.Condition condition;
+    private readonly ICondition condition;
     private readonly IDataManager dataManager;
     private readonly IClientState clientState;
+    private readonly IPluginLog log;
+    private readonly Configuration config;
 
-    public Utilities(DalamudPluginInterface _pluginInterface, Dalamud.Game.ClientState.Conditions.Condition _condition, IDataManager _dataManager, IClientState _clientState)
+    public Utilities(DalamudPluginInterface _pluginInterface, Configuration _config, ICondition _condition, IDataManager _dataManager, IClientState _clientState, IPluginLog _pluginLog)
     {
         pluginInterface = _pluginInterface;
+        config = _config;
         condition = _condition;
         dataManager = _dataManager;
         clientState = _clientState;
+        log = _pluginLog;
     }
 
     /// <summary>
     ///     Indicates if the <paramref name="window"/> is allowed to be drawn
     /// </summary>
-    public static bool WindowCondition(WindowType window)
+    public bool WindowCondition(WindowType window)
     {
         if (!config.PluginEnabled)
         {
@@ -103,7 +105,7 @@ public partial class Utilities
         }
         catch (Exception e)
         {
-            PluginLog.Error("{error} triggered by {type}.", e.Message, window.ToString());
+            log.Error("{error} triggered by {type}.", e.Message, window.ToString());
             return false;
         }
     }
@@ -180,7 +182,7 @@ public partial class Utilities
     /// <returns><see langword="true"/> if any matching flag is set, otherwise <see langword="false"/>.</returns>
     public bool InDuty()
     {
-        var dutyBound = condition[ConditionFlag.BoundByDuty] || condition[ConditionFlag.BoundByDuty56] || condition[ConditionFlag.BoundByDuty95] || condition[ConditionFlag.BoundToDuty97];
+        var dutyBound = condition[ConditionFlag.BoundByDuty] || condition[ConditionFlag.BoundByDuty56] || condition[ConditionFlag.BoundByDuty95];
         return dutyBound && !InIgnoredInstances();
     }
 
@@ -210,11 +212,20 @@ public partial class Utilities
     ///     Check if the <paramref name="addon"/> can be accessed.
     /// </summary>
     /// <returns><see langword="true"/> if addon is initialized and ready for use, otherwise <see langword="false"/>.</returns>
-    public static unsafe bool IsAddonReady(AtkUnitBase* addon)
+    public unsafe bool IsAddonReady(AtkUnitBase* addon)
     {
-        if (addon is null) return false;
-        if (addon->RootNode is null) return false;
-        if (addon->RootNode->ChildNode is null) return false;
+        if (addon is null)
+        {
+            return false;
+        }
+        if (addon->RootNode is null)
+        {
+            return false;
+        }
+        if (addon->RootNode->ChildNode is null)
+        {
+            return false;
+        }
 
         return true;
     }

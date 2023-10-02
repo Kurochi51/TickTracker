@@ -1,19 +1,25 @@
 using System;
 
 using ImGuiNET;
-using Dalamud.Interface;
+using Dalamud.Interface.Utility;
 using Dalamud.Plugin.Services;
+using TickTracker.Enums;
 
 namespace TickTracker.Windows;
 
 public class GPBar : BarWindowBase
 {
+    private readonly Configuration config;
     private readonly Utilities utilities;
-    public GPBar(IClientState _clientState, Utilities _utilities) : base(_clientState, WindowType.GpWindow, "GPBarWindow")
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0052:Remove unread private members", Justification = "Not going to re-add this everytime I need to log something.")]
+    private readonly IPluginLog log;
+    public GPBar(IClientState _clientState, IPluginLog _pluginLog, Utilities _utilities, Configuration _config) : base(_clientState, _pluginLog, _utilities, _config, WindowType.GpWindow, "GPBarWindow")
     {
+        log = _pluginLog;
+        config = _config;
+        utilities = _utilities;
         Size = config.GPBarSize * ImGuiHelpers.GlobalScale;
         Position = config.GPBarPosition;
-        utilities = _utilities;
     }
 
     public override void Draw()

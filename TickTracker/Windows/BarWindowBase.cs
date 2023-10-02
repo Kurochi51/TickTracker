@@ -4,13 +4,12 @@ using System.Numerics;
 using ImGuiNET;
 using Dalamud.Plugin.Services;
 using Dalamud.Interface.Windowing;
+using TickTracker.Enums;
 
 namespace TickTracker.Windows;
 
 public abstract class BarWindowBase : Window
 {
-    protected static Configuration config => Plugin.config;
-
     protected WindowType WindowType { get; set; }
     protected const ImGuiWindowFlags _defaultFlags = ImGuiWindowFlags.NoScrollbar |
                                               ImGuiWindowFlags.NoTitleBar |
@@ -21,22 +20,30 @@ public abstract class BarWindowBase : Window
                                                     ImGuiWindowFlags.NoResize |
                                                     ImGuiWindowFlags.NoNav |
                                                     ImGuiWindowFlags.NoInputs;
-    public bool RegenHalted { get; set; } = false;
-    public bool FastTick { get; set; } = false;
+    public bool FastRegenSwitch { get; set; }
+    public bool RegenHalted { get; set; }
+    public bool FastTick { get; set; }
     public bool CanUpdate { get; set; } = true;
     public bool DelayedUpdate { get; set; } = true;
-    public bool FastRegenSwitch { get; set; } = false;
     public double LastTick { get; set; } = 1;
     public double PreviousProgress { get; set; } = -1;
-    public const float ActorTickInterval = 3, FastTickInterval = 1.5f;
-    private readonly IClientState clientState;
+    public static readonly float ActorTickInterval = 3, FastTickInterval = 1.5f;
 
-    protected BarWindowBase(IClientState _clientState, WindowType type, string name) : base(name)
+    private readonly IClientState clientState;
+    private readonly Configuration config;
+    private readonly Utilities utilities;
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0052:Remove unread private members", Justification = "Not going to re-add this everytime I need to log something.")]
+    private readonly IPluginLog log;
+
+    protected BarWindowBase(IClientState _clientState, IPluginLog _pluginLog, Utilities _utilities, Configuration _config, WindowType type, string name) : base(name)
     {
         SizeCondition = ImGuiCond.FirstUseEver;
         PositionCondition = ImGuiCond.FirstUseEver;
 
         clientState = _clientState;
+        log = _pluginLog;
+        utilities = _utilities;
+        config = _config;
         WindowType = type;
     }
 
@@ -46,7 +53,7 @@ public abstract class BarWindowBase : Window
         {
             return false;
         }
-        if (!Utilities.WindowCondition(WindowType))
+        if (!utilities.WindowCondition(WindowType))
         {
             return false;
         }

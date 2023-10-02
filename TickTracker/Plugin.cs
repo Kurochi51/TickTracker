@@ -12,7 +12,6 @@ using Dalamud.Plugin.Services;
 using Dalamud.Hooking;
 using Dalamud.Utility.Signatures;
 using Dalamud.Interface.Windowing;
-using Dalamud.Game;
 using Dalamud.Game.Command;
 using Dalamud.Game.ClientState.JobGauge;
 using Dalamud.Game.ClientState.JobGauge.Types;
@@ -22,7 +21,7 @@ using Dalamud.Game.ClientState.Objects.SubKinds;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using TickTracker.Windows;
-using Dalamud.Logging;
+using TickTracker.Enums;
 
 namespace TickTracker;
 
@@ -31,19 +30,15 @@ public sealed class Plugin : IDalamudPlugin
     /// <summary>
     /// A <see cref="HashSet{T}" /> list of Status IDs that trigger HP regen
     /// </summary>
-    private static readonly HashSet<uint> HealthRegenList = new();
+    private readonly HashSet<uint> healthRegenList = new();
     /// <summary>
     /// A <see cref="HashSet{T}" /> list of Status IDs that trigger MP regen
     /// </summary>
-    private static readonly HashSet<uint> ManaRegenList = new();
+    private readonly HashSet<uint> manaRegenList = new();
     /// <summary>
     /// A <see cref="HashSet{T}" /> list of Status IDs that stop HP regen
     /// </summary>
-    private static readonly HashSet<uint> DisabledHealthRegenList = new();
-    /// <summary>
-    ///     A <see cref="Configuration"/> instance to be referenced across the plugin.
-    /// </summary>
-    public static Configuration config { get; set; } = null!;
+    private readonly HashSet<uint> disabledHealthRegenList = new();
 
     // DamageInfo Delegate & Hook
     private unsafe delegate void ReceiveActionEffectDelegate(uint sourceId, Character* sourceCharacter, IntPtr pos, EffectHeader* effectHeader, EffectEntry* effectArray, ulong* effectTail);
@@ -55,6 +50,7 @@ public sealed class Plugin : IDalamudPlugin
     // Seems to trigger when a regen would be active, or there's a CP/GP update
     private unsafe delegate void ReceiveSecondaryActorUpdateDelegate(uint objectId, byte* packetData, byte unkByte);
 
+    [Obsolete("The update delegates aren't affected by stuff like healing, so this has become unnecessary")]
     [Signature("40 55 53 57 41 54 41 55 41 56 41 57 48 8D AC 24 ?? ?? ?? ?? 48 81 EC ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 45 70", DetourName = nameof(ReceiveActionEffect))]
     private readonly Hook<ReceiveActionEffectDelegate>? receiveActionEffectHook = null;
 
@@ -64,41 +60,49 @@ public sealed class Plugin : IDalamudPlugin
     [Signature("48 8B C4 55 57 41 56 48 83 EC 60", DetourName = nameof(SecondaryActorTickUpdate))]
     private readonly Hook<ReceiveSecondaryActorUpdateDelegate>? receiveSecondaryActorUpdateHook = null;
 
-    private readonly Utilities utilities;
     private readonly DalamudPluginInterface pluginInterface;
+    private readonly Configuration config;
+    private readonly Utilities utilities;
     private readonly IClientState clientState;
-    private readonly Framework framework;
+    private readonly IFramework framework;
     private readonly IGameGui gameGui;
     private readonly ICommandManager commandManager;
-    private readonly Condition condition;
+    private readonly ICondition condition;
     private readonly IDataManager dataManager;
-    private readonly JobGauges jobGauges;
+    private readonly IJobGauges jobGauges;
+    private readonly IPluginLog log;
 
-    public string Name => "Tick Tracker";
-    private const string CommandName = "/tick";
-    public WindowSystem WindowSystem = new("TickTracker");
-    private ConfigWindow ConfigWindow { get; init; } = null!;
-    private DebugWindow DebugWindow { get; init; } = null!;
-    private HPBar HPBarWindow { get; init; } = null!;
-    private MPBar MPBarWindow { get; init; } = null!;
-    private GPBar GPBarWindow { get; init; } = null!;
+    private ConfigWindow ConfigWindow { get; init; }
+    private DebugWindow DebugWindow { get; init; }
+    private HPBar HPBarWindow { get; init; }
+    private MPBar MPBarWindow { get; init; }
+    private GPBar GPBarWindow { get; init; }
+#if DEBUG
+    private DevWindow DevWindow { get; init; }
+#endif
+
+    public WindowSystem WindowSystem { get; } = new("TickTracker");
+    private readonly string commandName = "/tick";
+
+    private const float ActorTickInterval = 3;
+    private double syncValue = 1;
     private bool inCombat, healTriggered, mpGainTriggered, finishedLoading;
     private bool syncAvailable = true, nullSheet = true;
-    private double syncValue = 1;
-    private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
-    private uint lastHPValue = 0, lastMPValue = 0, lastGPValue = 0;
+    private uint lastHPValue, lastMPValue, lastGPValue;
     private uint currentHP = 1, currentMP = 1, currentGP = 1, maxHP = 2, maxMP = 2, maxGP = 2;
     private Task? loadingTask;
     private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
 
     public Plugin(DalamudPluginInterface _pluginInterface,
         IClientState _clientState,
-        Framework _framework,
+        IFramework _framework,
         IGameGui _gameGui,
         ICommandManager _commandManager,
-        Condition _condition,
+        ICondition _condition,
         IDataManager _dataManager,
-        JobGauges _jobGauges)
+        IJobGauges _jobGauges,
+        IPluginLog _pluginLog,
+        IGameInteropProvider _interopProvider)
     {
         pluginInterface = _pluginInterface;
         clientState = _clientState;
@@ -108,8 +112,10 @@ public sealed class Plugin : IDalamudPlugin
         condition = _condition;
         dataManager = _dataManager;
         jobGauges = _jobGauges;
+        log = _pluginLog;
 
-        SignatureHelper.Initialise(this);
+        _interopProvider.InitializeFromAttributes(this);
+        
         if (receiveActionEffectHook is null || receivePrimaryActorUpdateHook is null || receiveSecondaryActorUpdateHook is null)
         {
             throw new Exception("Atleast one hook failed, and the plugin is not functional.");
@@ -117,21 +123,25 @@ public sealed class Plugin : IDalamudPlugin
         receiveActionEffectHook.Enable();
         receivePrimaryActorUpdateHook.Enable();
         receiveSecondaryActorUpdateHook.Enable();
-        
-        utilities = new Utilities(pluginInterface, condition, dataManager, clientState);
+
         config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        utilities = new Utilities(pluginInterface, config, condition, dataManager, clientState, log);
         DebugWindow = new DebugWindow();
-        ConfigWindow = new ConfigWindow(pluginInterface, DebugWindow);
-        HPBarWindow = new HPBar(clientState, utilities);
-        MPBarWindow = new MPBar(clientState, utilities);
-        GPBarWindow = new GPBar(clientState, utilities);
+        ConfigWindow = new ConfigWindow(pluginInterface, config, DebugWindow);
+        HPBarWindow = new HPBar(clientState, log, utilities, config);
+        MPBarWindow = new MPBar(clientState, log, utilities, config);
+        GPBarWindow = new GPBar(clientState, log, utilities, config);
+#if DEBUG
+        DevWindow = new DevWindow();
+        WindowSystem.AddWindow(DevWindow);
+#endif
         WindowSystem.AddWindow(ConfigWindow);
         WindowSystem.AddWindow(HPBarWindow);
         WindowSystem.AddWindow(MPBarWindow);
         WindowSystem.AddWindow(GPBarWindow);
         WindowSystem.AddWindow(DebugWindow);
 
-        commandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
+        commandManager.AddHandler(commandName, new CommandInfo(OnCommand)
         {
             HelpMessage = "Open or close Tick Tracker's config window.",
         });
@@ -142,7 +152,7 @@ public sealed class Plugin : IDalamudPlugin
         _ = Task.Run(InitializeLuminaSheet);
     }
 
-    private void TerritoryChanged(object? sender, ushort e)
+    private void TerritoryChanged(ushort e)
     {
         loadingTask = Task.Run(async () => await Loading(1000).ConfigureAwait(false));
     }
@@ -165,15 +175,24 @@ public sealed class Plugin : IDalamudPlugin
         return config.PluginEnabled;
     }
 
-    private void OnFrameworkUpdate(Framework framework)
+    private void OnFrameworkUpdate(IFramework framework)
     {
-        if (clientState is { IsLoggedIn: false } or { IsPvPExcludingDen: true } || nullSheet) return;
-        if (clientState is not { LocalPlayer: { } player }) return;
+        if (clientState is { IsLoggedIn: false } or { IsPvPExcludingDen: true } || nullSheet)
+        {
+            return;
+        }
+        if (clientState is not { LocalPlayer: { } player })
+        {
+            return;
+        }
 
+#if DEBUG
+        DevWindowThings(player);
+#endif
         var now = DateTime.Now.TimeOfDay.TotalSeconds;
-        var HealthRegen = player.StatusList.Any(e => HealthRegenList.Contains(e.StatusId));
-        var DisabledHPregen = player.StatusList.Any(e => DisabledHealthRegenList.Contains(e.StatusId));
-        var ManaRegen = player.StatusList.Any(e => ManaRegenList.Contains(e.StatusId));
+        var HealthRegen = player.StatusList.Any(e => healthRegenList.Contains(e.StatusId));
+        var DisabledHPregen = player.StatusList.Any(e => disabledHealthRegenList.Contains(e.StatusId));
+        var ManaRegen = player.StatusList.Any(e => manaRegenList.Contains(e.StatusId));
         var gauge = player.ClassJob.Id == 25 ? jobGauges.Get<BLMGauge>() : null;
         var DisabledMPregen = gauge is not null && gauge.InAstralFire;
         var jobType = player.ClassJob.GameData?.ClassJobCategory.Row ?? 0;
@@ -181,7 +200,7 @@ public sealed class Plugin : IDalamudPlugin
         inCombat = condition[ConditionFlag.InCombat];
         unsafe
         {
-            if (!PluginEnabled(Enemy) || !Utilities.IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || utilities.inCustcene())
+            if (!PluginEnabled(Enemy) || !utilities.IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || utilities.inCustcene())
             {
                 HPBarWindow.IsOpen = MPBarWindow.IsOpen = GPBarWindow.IsOpen = false;
                 return;
@@ -222,6 +241,7 @@ public sealed class Plugin : IDalamudPlugin
         if (currentHP == maxHP || finishedLoading)
         {
             HPBarWindow.LastTick = syncValue;
+            HPBarWindow.FastRegenSwitch = false;
         }
         else if (lastHPValue != currentHP && !HPBarWindow.FastTick && HPBarWindow.CanUpdate)
         {
@@ -354,32 +374,32 @@ public sealed class Plugin : IDalamudPlugin
             {
                 return;
             }
-            if (Utilities.WholeKeywordMatch(text, Utilities.RegenNullKeywords) && Utilities.WholeKeywordMatch(text, Utilities.HealthKeywords))
+            if (Utilities.WholeKeywordMatch(text, utilities.RegenNullKeywords) && Utilities.WholeKeywordMatch(text, utilities.HealthKeywords))
             {
-                DisabledHealthRegenList.Add(stat.RowId);
+                disabledHealthRegenList.Add(stat.RowId);
                 DebugWindow.DisabledHealthRegenDictionary.TryAdd(stat.RowId, stat.Name);
             }
-            if (Utilities.WholeKeywordMatch(text, Utilities.RegenNullKeywords) && Utilities.WholeKeywordMatch(text, Utilities.ManaKeywords))
+            if (Utilities.WholeKeywordMatch(text, utilities.RegenNullKeywords) && Utilities.WholeKeywordMatch(text, utilities.ManaKeywords))
             {
                 DebugWindow.DisabledManaRegenDictionary.TryAdd(stat.RowId, stat.Name);
             }
-            if (Utilities.KeywordMatch(text, Utilities.RegenKeywords) && Utilities.KeywordMatch(text, Utilities.TimeKeywords))
+            if (Utilities.KeywordMatch(text, utilities.RegenKeywords) && Utilities.KeywordMatch(text, utilities.TimeKeywords))
             {
-                if (Utilities.KeywordMatch(text, Utilities.HealthKeywords))
+                if (Utilities.KeywordMatch(text, utilities.HealthKeywords))
                 {
-                    HealthRegenList.Add(stat.RowId);
+                    healthRegenList.Add(stat.RowId);
                     DebugWindow.HealthRegenDictionary.TryAdd(stat.RowId, stat.Name);
                 }
-                if (Utilities.KeywordMatch(text, Utilities.ManaKeywords))
+                if (Utilities.KeywordMatch(text, utilities.ManaKeywords))
                 {
-                    ManaRegenList.Add(stat.RowId);
+                    manaRegenList.Add(stat.RowId);
                     DebugWindow.ManaRegenDictionary.TryAdd(stat.RowId, stat.Name);
                 }
             }
         });
         nullSheet = false;
-        PluginLog.Debug("HP regen list generated with {HPcount} status effects.", HealthRegenList.Count);
-        PluginLog.Debug("MP regen list generated with {MPcount} status effects.", ManaRegenList.Count);
+        log.Debug("HP regen list generated with {HPcount} status effects.", healthRegenList.Count);
+        log.Debug("MP regen list generated with {MPcount} status effects.", manaRegenList.Count);
     }
 
     private ExcelSheet<Lumina.Excel.GeneratedSheets.Status>? RetrieveSheet()
@@ -390,7 +410,7 @@ public sealed class Plugin : IDalamudPlugin
             if (sheet is null)
             {
                 nullSheet = true;
-                PluginLog.Fatal("Invalid lumina sheet!");
+                log.Fatal("Invalid lumina sheet!");
                 return null;
             }
             return sheet;
@@ -398,8 +418,8 @@ public sealed class Plugin : IDalamudPlugin
         catch (Exception e)
         {
             nullSheet = true;
-            PluginLog.Fatal("Retrieving lumina sheet failed!");
-            PluginLog.Fatal(e.Message);
+            log.Fatal("Retrieving lumina sheet failed!");
+            log.Fatal(e.Message);
             return null;
         }
     }
@@ -426,6 +446,7 @@ public sealed class Plugin : IDalamudPlugin
                 return;
             }
             var name = MemoryHelper.ReadStringNullTerminated((nint)sourceCharacter->GameObject.GetName());
+
             var entryCount = effectHeader->TargetCount switch
             {
                 0 => 0,
@@ -441,16 +462,20 @@ public sealed class Plugin : IDalamudPlugin
                 if (effectArray[i].type == ActionEffectType.Heal)
                 {
                     healTriggered = true;
+                    var logMessage = sourceId == player.ObjectId ? "Self healing" : "Healed by " + name;
+                    log.Verbose(logMessage);
                 }
                 else if (effectArray[i].type == ActionEffectType.MpGain)
                 {
                     mpGainTriggered = true;
+                    var logMessage = sourceId == player.ObjectId ? "Restoring your own mana" : "Mana resotred by " + name;
+                    log.Verbose(logMessage);
                 }
             }
         }
         catch (Exception e)
         {
-            PluginLog.Error(e, "An error has occured with the ReceiveActionEffect detour.");
+            log.Error(e, "An error has occured with the ReceiveActionEffect detour.");
         }
     }
 
@@ -485,7 +510,7 @@ public sealed class Plugin : IDalamudPlugin
         }
         catch (Exception e)
         {
-            PluginLog.Error(e, "An error has occured with the PrimaryActorTickUpdate detour.");
+            log.Error(e, "An error has occured with the PrimaryActorTickUpdate detour.");
         }
     }
 
@@ -515,7 +540,7 @@ public sealed class Plugin : IDalamudPlugin
         }
         catch (Exception e)
         {
-            PluginLog.Error(e, "An error has occured with the SecondaryActorTickUpdate detour.");
+            log.Error(e, "An error has occured with the SecondaryActorTickUpdate detour.");
         }
     }
 
@@ -562,6 +587,17 @@ public sealed class Plugin : IDalamudPlugin
         MPBarWindow.IsOpen = (jobType != 32 && (shouldShowMPBar || (currentMP != maxMP))) || !config.GPVisible;
     }
 
+#if DEBUG
+    private void DevWindowThings(PlayerCharacter player)
+    {
+        DevWindow.IsOpen = true;
+        DevWindow.printLines.Add("FastRegenSwitch: " + HPBarWindow.FastRegenSwitch.ToString());
+        DevWindow.printLines.Add("Regen: " + HPBarWindow.FastTick.ToString());
+        DevWindow.printLines.Add("Current HP: " + player.CurrentHp.ToString());
+        DevWindow.printLines.Add("Max HP: " + player.MaxHp.ToString());
+    }
+#endif
+
     public void Dispose()
     {
         receiveActionEffectHook?.Disable();
@@ -570,14 +606,12 @@ public sealed class Plugin : IDalamudPlugin
         receivePrimaryActorUpdateHook?.Dispose();
         receiveSecondaryActorUpdateHook?.Disable();
         receiveSecondaryActorUpdateHook?.Dispose();
+        commandManager.RemoveHandler(commandName);
         WindowSystem.RemoveAllWindows();
-        ConfigWindow.Dispose();
-        DebugWindow.Dispose();
-        pluginInterface.UiBuilder.Draw -= DrawUI;
-        pluginInterface.UiBuilder.OpenConfigUi -= DrawConfigUI;
-        commandManager.RemoveHandler(CommandName);
         framework.Update -= OnFrameworkUpdate;
+        pluginInterface.UiBuilder.Draw -= DrawUI;
         clientState.TerritoryChanged -= TerritoryChanged;
+        pluginInterface.UiBuilder.OpenConfigUi -= DrawConfigUI;
     }
 
     private void OnCommand(string command, string args)

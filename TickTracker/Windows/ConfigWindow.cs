@@ -1,30 +1,31 @@
-using System;
 using System.Numerics;
 
 using ImGuiNET;
 using Dalamud.Interface.Windowing;
-using Dalamud.Interface.Raii;
+using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin;
 using Dalamud.Interface.Components;
 
 namespace TickTracker.Windows;
 
-public class ConfigWindow : Window, IDisposable
+public class ConfigWindow : Window
 {
-    private static Configuration config => Plugin.config;
-    private readonly DalamudPluginInterface pluginInterface;
-    private readonly DebugWindow debugWindow;
     private readonly Vector4 defaultDarkGrey = new(0.246f, 0.262f, 0.270f, 1f); // Default Color: Dark Grey - #3F4345
     private readonly Vector4 defaultBlack = new(0f, 0f, 0f, 1f); // Default Color: Black - #000000
     private readonly Vector4 defaultPink = new(0.753f, 0.271f, 0.482f, 1f); // #C0457B
     private readonly Vector4 defaultGreen = new(0.276f, 0.8f, 0.24f, 1f); // #46CC3D
     private readonly Vector4 defaultBlue = new(0.169f, 0.747f, 0.892f, 1f); // #2BBEE3FF
 
-    public ConfigWindow(DalamudPluginInterface _pluginInterface,DebugWindow _debugWindow) : base("Timer Settings")
+    private readonly DalamudPluginInterface pluginInterface;
+    private readonly DebugWindow debugWindow;
+    private readonly Configuration config;
+
+    public ConfigWindow(DalamudPluginInterface _pluginInterface, Configuration _config, DebugWindow _debugWindow) : base("Timer Settings")
     {
         Size = new(320, 420);
         Flags = ImGuiWindowFlags.NoResize;
         pluginInterface = _pluginInterface;
+        config = _config;
         debugWindow = _debugWindow;
     }
 
@@ -50,6 +51,76 @@ public class ConfigWindow : Window, IDisposable
         DrawCloseButton();
     }
 
+    private void DrawAppearanceTab()
+    {
+        using var appearanceTab = ImRaii.TabItem("Appearance");
+        if (appearanceTab)
+        {
+            ImGui.Spacing();
+            var lockBar = config.LockBar;
+            if (ImGui.Checkbox("Lock bar size and position", ref lockBar))
+            {
+                config.LockBar = lockBar;
+                config.Save(pluginInterface);
+            }
+            if (!lockBar)
+            {
+                Size = new(320, 560);
+                DrawBarPositions();
+            }
+            DrawColorOptions();
+        }
+    }
+
+    private void DrawBehaviorTab()
+    {
+        using var settingsTab = ImRaii.TabItem("Settings");
+        if (settingsTab)
+        {
+            ImGui.Spacing();
+            DrawBarVisibilityOptions();
+
+            var HideOnFullResource = config.HideOnFullResource;
+            if (ImGui.Checkbox("Hide bar on full resource", ref HideOnFullResource))
+            {
+                config.HideOnFullResource = HideOnFullResource;
+                config.Save(pluginInterface);
+            }
+            ImGui.Indent();
+
+            var AlwaysShowInCombat = config.AlwaysShowInCombat;
+            if (ImGui.Checkbox("Always show in combat", ref AlwaysShowInCombat))
+            {
+                config.AlwaysShowInCombat = AlwaysShowInCombat;
+                config.Save(pluginInterface);
+            }
+            ImGui.Unindent();
+
+            var HideOutOfCombat = config.HideOutOfCombat;
+            if (ImGui.Checkbox("Show only in combat", ref HideOutOfCombat))
+            {
+                config.HideOutOfCombat = HideOutOfCombat;
+                config.Save(pluginInterface);
+            }
+            ImGui.Indent();
+
+            var AlwaysShowInDuties = config.AlwaysShowInDuties;
+            if (ImGui.Checkbox("Always show while in duties", ref AlwaysShowInDuties))
+            {
+                config.AlwaysShowInDuties = AlwaysShowInDuties;
+                config.Save(pluginInterface);
+            }
+
+            var AlwaysShowWithHostileTarget = config.AlwaysShowWithHostileTarget;
+            if (ImGui.Checkbox("Always show with enemy target", ref AlwaysShowWithHostileTarget))
+            {
+                config.AlwaysShowWithHostileTarget = AlwaysShowWithHostileTarget;
+                config.Save(pluginInterface);
+            }
+            ImGui.Unindent();
+        }
+    }
+
     private void DrawCloseButton()
     {
         var originPos = ImGui.GetCursorPos();
@@ -72,147 +143,235 @@ public class ConfigWindow : Window, IDisposable
         ImGui.SetCursorPos(originPos);
     }
 
-    private void DrawAppearanceTab()
-    {
-        using var appearanceTab = ImRaii.TabItem("Appearance");
-        if (appearanceTab)
-        {
-            ImGui.Spacing();
-            var lockBar = config.LockBar;
-            if (ImGui.Checkbox("Lock bar size and position", ref lockBar))
-            {
-                config.LockBar = lockBar;
-                config.Save(pluginInterface);
-            }
-            if (!config.LockBar)
-            {
-                Size = new(320, 560);
-                DrawBarPositions();
-            }
-            DrawColorOptions();
-        }
-    }
-
-    private void DrawBehaviorTab()
-    {
-        using var settingsTab = ImRaii.TabItem("Settings");
-        if (settingsTab)
-        {
-            ImGui.Spacing();
-            var changed = false;
-
-            changed |= ImGui.Checkbox("Show HP Bar", ref config.HPVisible);
-            changed |= ImGui.Checkbox("Show MP Bar", ref config.MPVisible);
-            changed |= ImGui.Checkbox("Show GP Bar", ref config.GPVisible);
-            ImGui.SameLine();
-            ImGuiComponents.HelpMarker("Only shown while a Disciple of Land job is active or bars are unlocked.");
-            changed |= ImGui.Checkbox("Hide bar on full resource", ref config.HideOnFullResource);
-
-            ImGui.Indent();
-            changed |= ImGui.Checkbox("Always show in combat", ref config.AlwaysShowInCombat);
-            ImGui.Unindent();
-
-            changed |= ImGui.Checkbox("Show only in combat", ref config.HideOutOfCombat);
-
-            ImGui.Indent();
-            changed |= ImGui.Checkbox("Always show while in duties", ref config.AlwaysShowInDuties);
-            changed |= ImGui.Checkbox("Always show with enemy target", ref config.AlwaysShowWithHostileTarget);
-            ImGui.Unindent();
-
-            if (changed)
-            {
-                config.Save(pluginInterface);
-            }
-        }
-    }
-
-    private void DrawColorOptions()
-    {
-        var colorModified = false;
-        var flags = ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar;
-
-        colorModified |= ImGui.ColorEdit4("HP Bar Background Color", ref config.HPBarBackgroundColor, flags);
-        ImGui.SameLine();
-        var resetButtonX = ImGui.GetCursorPosX();
-        ResetButton("ResetHPBarBackgroundColor", ref config.HPBarBackgroundColor, defaultBlack);
-        ColorOption(ref colorModified, "HP Bar Fill Color", ref config.HPBarFillColor, flags, resetButtonX, "ResetHPBarFillColor", defaultGreen);
-        ColorOption(ref colorModified, "HP Bar Border Color", ref config.HPBarBorderColor, flags, resetButtonX, "ResetHPBarBorderColor", defaultDarkGrey);
-
-        ImGui.Spacing();
-        ImGui.Separator();
-        ImGui.Spacing();
-
-        colorModified |= ImGui.ColorEdit4("MP Bar Background Color", ref config.MPBarBackgroundColor, flags);
-        ImGui.SameLine();
-        resetButtonX = ImGui.GetCursorPosX();
-        ResetButton("ResetMPBarBackgroundColor", ref config.MPBarBackgroundColor, defaultBlack);
-        ColorOption(ref colorModified, "MP Bar Fill Color", ref config.MPBarFillColor, flags, resetButtonX, "ResetMPBarFillColor", defaultPink);
-        ColorOption(ref colorModified, "MP Bar Border Color", ref config.MPBarBorderColor, flags, resetButtonX, "ResetMPBarBorderColor", defaultDarkGrey);
-
-        ImGui.Spacing();
-        ImGui.Separator();
-        ImGui.Spacing();
-
-        colorModified |= ImGui.ColorEdit4("GP Bar Background Color", ref config.GPBarBackgroundColor, flags);
-        ImGui.SameLine();
-        resetButtonX = ImGui.GetCursorPosX();
-        ResetButton("ResetGPBarBackgroundColor", ref config.GPBarBackgroundColor, defaultBlack);
-        ColorOption(ref colorModified, "GP Bar Fill Color", ref config.GPBarFillColor, flags, resetButtonX, "ResetGPBarFillColor", defaultBlue);
-        ColorOption(ref colorModified, "GP Bar Border Color", ref config.GPBarBorderColor, flags, resetButtonX, "ResetGPBarBorderColor", defaultDarkGrey);
-
-        if (colorModified)
-        {
-            config.Save(pluginInterface);
-        }
-    }
-
-    private void ColorOption(ref bool colorModified, string colorLabel, ref Vector4 color, ImGuiColorEditFlags flags, float cursorPos, string resetLabel, Vector4 resetColor)
-    {
-        colorModified |= ImGui.ColorEdit4(colorLabel, ref color, flags);
-        ImGui.SameLine();
-        ImGui.SetCursorPosX(cursorPos);
-        ResetButton(resetLabel, ref color, resetColor);
-    }
-
     private void DrawBarPositions()
     {
         ImGui.Indent();
         ImGui.Spacing();
-        if (DragInput2(ref config.HPBarPosition, "HPPositionX", "HPPositionY", "HP Bar Position"))
+        var HPBarPosition = config.HPBarPosition;
+        if (DragInput2(ref HPBarPosition, "HPPositionX", "HPPositionY", "HP Bar Position"))
         {
+            config.HPBarPosition = HPBarPosition;
             config.Save(pluginInterface);
         }
-        if (DragInput2Size(ref config.HPBarSize, "HPSizeX", "HPSizeY", "HP Bar Size"))
+        var HPBarSize = config.HPBarSize;
+        if (DragInput2Size(ref HPBarSize, "HPSizeX", "HPSizeY", "HP Bar Size"))
         {
-            config.Save(pluginInterface);
-        }
-
-        ImGui.Spacing();
-
-        if (DragInput2(ref config.MPBarPosition, "MPPositionX", "MPPositionY", "MP Bar Position"))
-        {
-            config.Save(pluginInterface);
-        }
-
-        if (DragInput2Size(ref config.MPBarSize, "MPSizeX", "MPSizeY", "MP Bar Size"))
-        {
+            config.HPBarSize = HPBarSize;
             config.Save(pluginInterface);
         }
 
         ImGui.Spacing();
 
-        if (DragInput2(ref config.GPBarPosition, "GPPositionX", "GPPositionY", "GP Bar Position"))
+        var MPBarPosition = config.MPBarPosition;
+        if (DragInput2(ref MPBarPosition, "MPPositionX", "MPPositionY", "MP Bar Position"))
         {
+            config.MPBarPosition = MPBarPosition;
             config.Save(pluginInterface);
         }
 
-        if (DragInput2Size(ref config.GPBarSize, "GPSizeX", "GPSizeY", "GP Bar Size"))
+        var MPBarSize = config.MPBarSize;
+        if (DragInput2Size(ref MPBarSize, "MPSizeX", "MPSizeY", "MP Bar Size"))
         {
+            config.MPBarSize = MPBarSize;
+            config.Save(pluginInterface);
+        }
+
+        ImGui.Spacing();
+
+        var GPBarPosition = config.GPBarPosition;
+        if (DragInput2(ref GPBarPosition, "GPPositionX", "GPPositionY", "GP Bar Position"))
+        {
+            config.GPBarPosition = GPBarPosition;
+            config.Save(pluginInterface);
+        }
+
+        var GPBarSize = config.GPBarSize;
+        if (DragInput2Size(ref GPBarSize, "GPSizeX", "GPSizeY", "GP Bar Size"))
+        {
+            config.GPBarSize = GPBarSize;
             config.Save(pluginInterface);
         }
         ImGui.Spacing();
         ImGui.Unindent();
     }
+
+    private void DrawColorOptions()
+    {
+        var flags = ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar;
+
+        DrawOptionsHP(flags);
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        DrawOptionsMP(flags);
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        DrawOptionsGP(flags);
+    }
+
+    private void DrawOptionsHP(ImGuiColorEditFlags flags)
+    {
+        var HPBarBackgroundColor = config.HPBarBackgroundColor;
+        if (ImGui.ColorEdit4("HP Bar Background Color", ref HPBarBackgroundColor, flags))
+        {
+            config.HPBarBackgroundColor = HPBarBackgroundColor;
+            config.Save(pluginInterface);
+        }
+        ImGui.SameLine();
+        var resetButtonX = ImGui.GetCursorPosX();
+        if (ImGui.Button("Reset##ResetHPBarBackgroundColor"))
+        {
+            config.HPBarBackgroundColor = defaultBlack;
+            config.Save(pluginInterface);
+        }
+
+        var HPBarFillColor = config.HPBarFillColor;
+        if (ImGui.ColorEdit4("HP Bar Fill Color", ref HPBarFillColor, flags))
+        {
+            config.HPBarFillColor = HPBarFillColor;
+            config.Save(pluginInterface);
+        }
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(resetButtonX);
+        if (ImGui.Button("Reset##ResetHPBarFillColor"))
+        {
+            config.HPBarFillColor = defaultGreen;
+            config.Save(pluginInterface);
+        }
+
+        var HPBarBorderColor = config.HPBarBorderColor;
+        if (ImGui.ColorEdit4("HP Bar Border Color", ref HPBarBorderColor, flags))
+        {
+            config.HPBarBorderColor = HPBarBorderColor;
+            config.Save(pluginInterface);
+        }
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(resetButtonX);
+        if (ImGui.Button("Reset##ResetHPBarBorderColor"))
+        {
+            config.HPBarBorderColor = defaultDarkGrey;
+            config.Save(pluginInterface);
+        }
+    }
+
+    private void DrawOptionsMP(ImGuiColorEditFlags flags)
+    {
+        var MPBarBackgroundColor = config.MPBarBackgroundColor;
+        if (ImGui.ColorEdit4("MP Bar Background Color", ref MPBarBackgroundColor, flags))
+        {
+            config.MPBarBackgroundColor = MPBarBackgroundColor;
+            config.Save(pluginInterface);
+        }
+        ImGui.SameLine();
+        var resetButtonX = ImGui.GetCursorPosX();
+        if (ImGui.Button("Reset##ResetMPBarBackgroundColor"))
+        {
+            config.MPBarBackgroundColor = defaultBlack;
+            config.Save(pluginInterface);
+        }
+
+        var MPBarFillColor = config.MPBarFillColor;
+        if (ImGui.ColorEdit4("MP Bar Fill Color", ref MPBarFillColor, flags))
+        {
+            config.MPBarFillColor = MPBarFillColor;
+            config.Save(pluginInterface);
+        }
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(resetButtonX);
+        if (ImGui.Button("Reset##ResetMPBarFillColor"))
+        {
+            config.MPBarFillColor = defaultPink;
+            config.Save(pluginInterface);
+        }
+
+        var MPBarBorderColor = config.MPBarBorderColor;
+        if (ImGui.ColorEdit4("MP Bar Border Color", ref MPBarBorderColor, flags))
+        {
+            config.MPBarBorderColor = MPBarBorderColor;
+            config.Save(pluginInterface);
+        }
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(resetButtonX);
+        if (ImGui.Button("Reset##ResetMPBarBorderColor"))
+        {
+            config.MPBarBorderColor = defaultDarkGrey;
+            config.Save(pluginInterface);
+        }
+    }
+
+    private void DrawOptionsGP(ImGuiColorEditFlags flags)
+    {
+        var GPBarBackgroundColor = config.GPBarBackgroundColor;
+        if (ImGui.ColorEdit4("GP Bar Background Color", ref GPBarBackgroundColor, flags))
+        {
+            config.GPBarBackgroundColor = GPBarBackgroundColor;
+            config.Save(pluginInterface);
+        }
+        ImGui.SameLine();
+        var resetButtonX = ImGui.GetCursorPosX();
+        if (ImGui.Button("Reset##ResetGPBarBackgroundColor"))
+        {
+            config.GPBarBackgroundColor = defaultBlack;
+            config.Save(pluginInterface);
+        }
+        var GPBarFillColor = config.GPBarFillColor;
+        if (ImGui.ColorEdit4("GP Bar Fill Color", ref GPBarFillColor, flags))
+        {
+            config.GPBarFillColor = GPBarFillColor;
+            config.Save(pluginInterface);
+        }
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(resetButtonX);
+        if (ImGui.Button("Reset##ResetGPBarFillColor"))
+        {
+            config.GPBarFillColor = defaultBlue;
+            config.Save(pluginInterface);
+        }
+
+        var GPBarBorderColor = config.GPBarBorderColor;
+        if (ImGui.ColorEdit4("GP Bar Border Color", ref GPBarBorderColor, flags))
+        {
+            config.GPBarBorderColor = GPBarBorderColor;
+            config.Save(pluginInterface);
+        }
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(resetButtonX);
+        if (ImGui.Button("Reset##ResetGPBarBorderColor"))
+        {
+            config.GPBarBorderColor = defaultDarkGrey;
+            config.Save(pluginInterface);
+        }
+    }
+
+    private void DrawBarVisibilityOptions()
+    {
+        var HPVisible = config.HPVisible;
+        if (ImGui.Checkbox("Show HP Bar", ref HPVisible))
+        {
+            config.HPVisible = HPVisible;
+            config.Save(pluginInterface);
+        }
+        var MPVisible = config.MPVisible;
+        if (ImGui.Checkbox("Show MP Bar", ref MPVisible))
+        {
+            config.MPVisible = MPVisible;
+            config.Save(pluginInterface);
+        }
+        var GPVisible = config.GPVisible;
+        if (ImGui.Checkbox("Show GP Bar", ref GPVisible))
+        {
+            config.GPVisible = GPVisible;
+            config.Save(pluginInterface);
+        }
+        ImGui.SameLine();
+        ImGuiComponents.HelpMarker("Only shown while a Disciple of Land job is active or bars are unlocked.");
+    }
+
     /// <summary>
     ///     The <see cref="ImGui.DragInt2" /> we have at home.
     /// </summary>
@@ -267,19 +426,5 @@ public class ConfigWindow : Window, IDisposable
         ImGui.SameLine();
         ImGui.Text(description);
         return change;
-    }
-
-    private void ResetButton(string label, ref Vector4 color, Vector4 defaultColor)
-    {
-        if (ImGui.Button("Reset##" + label))
-        {
-            color = defaultColor;
-            config.Save(pluginInterface);
-        }
-    }
-
-    public void Dispose()
-    {
-        GC.SuppressFinalize(this);
     }
 }
