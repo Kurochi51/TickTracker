@@ -30,7 +30,7 @@
     <PropertyGroup>
         <!--D:\yes\DalamudV9\bin\Release\-->
         <!--$(appdata)\XIVLauncher\addon\Hooks\dev\-->
-        <DalamudLibPath>D:\yes\DalamudV9\bin\Release\</DalamudLibPath>
+        <DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
         <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     </PropertyGroup>
 
