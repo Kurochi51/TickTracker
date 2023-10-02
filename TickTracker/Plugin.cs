@@ -13,7 +13,6 @@ using Dalamud.Hooking;
 using Dalamud.Utility.Signatures;
 using Dalamud.Interface.Windowing;
 using Dalamud.Game.Command;
-using Dalamud.Game.ClientState.JobGauge;
 using Dalamud.Game.ClientState.JobGauge.Types;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.Enums;

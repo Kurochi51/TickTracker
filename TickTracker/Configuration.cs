@@ -1,6 +1,7 @@
+using System.Numerics;
+
 using Dalamud.Configuration;
 using Dalamud.Plugin;
-using System.Numerics;
 
 namespace TickTracker;
 

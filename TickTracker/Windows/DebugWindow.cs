@@ -3,11 +3,11 @@ using System.Text;
 using System.Linq;
 using System.Numerics;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 
 using ImGuiNET;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Utility.Raii;
-using System.Collections.Concurrent;
 
 namespace TickTracker.Windows;
 
@@ -50,7 +50,7 @@ public class DebugWindow : Window
         if (HealthRegenDictionary.IsEmpty || ManaRegenDictionary.IsEmpty || DisabledHealthRegenDictionary.IsEmpty || DisabledManaRegenDictionary.IsEmpty)
         {
             invalidList = true;
-            ImGui.Text("Lists are null or empty!");
+            ImGui.Text("Lists are empty!");
             CopyAndClose();
             return;
         }
