@@ -199,7 +199,7 @@ public sealed class Plugin : IDalamudPlugin
         inCombat = condition[ConditionFlag.InCombat];
         unsafe
         {
-            if (!PluginEnabled(Enemy) || !utilities.IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || utilities.inCustcene())
+            if (!PluginEnabled(Enemy) || !utilities.IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || utilities.inCustcene() || player.IsDead)
             {
                 HPBarWindow.IsOpen = MPBarWindow.IsOpen = GPBarWindow.IsOpen = false;
                 return;
