@@ -21,6 +21,7 @@ using FFXIVClientStructs.FFXIV.Component.GUI;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using TickTracker.Windows;
 using TickTracker.Enums;
+using TickTracker.Structs;
 using TickTracker.Helpers;
 
 namespace TickTracker;
