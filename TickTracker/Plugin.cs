@@ -27,20 +27,18 @@ namespace TickTracker;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    private readonly ConcurrentSet<uint> test = new();
-
     /// <summary>
-    /// A <see cref="HashSet{T}" /> list of Status IDs that trigger HP regen
+    /// A <see cref="HashSet{T}" /> based list of Status IDs that trigger HP regen
     /// </summary>
-    private readonly HashSet<uint> healthRegenList = new();
+    private readonly ConcurrentSet<uint> healthRegenList = new();
     /// <summary>
-    /// A <see cref="HashSet{T}" /> list of Status IDs that trigger MP regen
+    /// A <see cref="HashSet{T}" /> based list of Status IDs that trigger MP regen
     /// </summary>
-    private readonly HashSet<uint> manaRegenList = new();
+    private readonly ConcurrentSet<uint> manaRegenList = new();
     /// <summary>
-    /// A <see cref="HashSet{T}" /> list of Status IDs that stop HP regen
+    /// A <see cref="HashSet{T}" /> based list of Status IDs that stop HP regen
     /// </summary>
-    private readonly HashSet<uint> disabledHealthRegenList = new();
+    private readonly ConcurrentSet<uint> disabledHealthRegenList = new();
 
     // DamageInfo Delegate & Hook
     private unsafe delegate void ReceiveActionEffectDelegate(uint sourceId, Character* sourceCharacter, IntPtr pos, EffectHeader* effectHeader, EffectEntry* effectArray, ulong* effectTail);
@@ -380,12 +378,10 @@ public sealed class Plugin : IDalamudPlugin
             {
                 disabledHealthRegenList.Add(stat.RowId);
                 DebugWindow.DisabledHealthRegenDictionary.TryAdd(stat.RowId, stat.Name);
-                test.TryAdd(stat.RowId);
             }
             if (Utilities.WholeKeywordMatch(text, utilities.RegenNullKeywords) && Utilities.WholeKeywordMatch(text, utilities.ManaKeywords))
             {
                 DebugWindow.DisabledManaRegenDictionary.TryAdd(stat.RowId, stat.Name);
-                test.TryAdd(stat.RowId);
             }
             if (Utilities.KeywordMatch(text, utilities.RegenKeywords) && Utilities.KeywordMatch(text, utilities.TimeKeywords))
             {
@@ -393,13 +389,11 @@ public sealed class Plugin : IDalamudPlugin
                 {
                     healthRegenList.Add(stat.RowId);
                     DebugWindow.HealthRegenDictionary.TryAdd(stat.RowId, stat.Name);
-                    test.TryAdd(stat.RowId);
                 }
                 if (Utilities.KeywordMatch(text, utilities.ManaKeywords))
                 {
                     manaRegenList.Add(stat.RowId);
                     DebugWindow.ManaRegenDictionary.TryAdd(stat.RowId, stat.Name);
-                    test.TryAdd(stat.RowId);
                 }
             }
         });
@@ -617,7 +611,6 @@ public sealed class Plugin : IDalamudPlugin
         DevWindow.printLines.Add("Regen: " + HPBarWindow.FastTick.ToString());
         DevWindow.printLines.Add("Current HP: " + player.CurrentHp.ToString());
         DevWindow.printLines.Add("Max HP: " + player.MaxHp.ToString());
-        DevWindow.printLines.Add("Test count: " + test.Count.ToString());
     }
 #endif
 

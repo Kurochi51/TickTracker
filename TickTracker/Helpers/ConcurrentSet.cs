@@ -30,12 +30,12 @@ namespace TickTracker.Helpers
         /// Removes the first occurrence of a specific object from the <see cref="ICollection"/>.
         /// </summary>
         /// <returns>
-        /// True if <paramref name="item"/> was successfully removed from the <see cref="ICollection"/>; otherwise, false. This method also returns false if <paramref name="item"/> is not found in the original <see cref="ICollection"/>.
+        /// <see langword="true"/> if <paramref name="item"/> was successfully removed from the <see cref="ICollection"/>; otherwise, <see langword="false"/>. This method also returns <see langword="false"/> if <paramref name="item"/> is not found in the original <see cref="ICollection"/>.
         /// </returns>
         /// <param name="item">the object to remove from the <see cref="ICollection"/>.</param><exception cref="NotSupportedException">the <see cref="ICollection"/> is read-only.</exception>
         public bool Remove(T item)
         {
-            return TryRemove(item);
+            return TryRemoveInternal(item);
         }
 
         /// <summary>
@@ -50,7 +50,7 @@ namespace TickTracker.Helpers
         /// Gets a value indicating whether the <see cref="ICollection"/> is read-only.
         /// </summary>
         /// <returns>
-        /// True if the <see cref="ICollection"/> is read-only; otherwise, false.
+        /// <see langword="true"/> if the <see cref="IsReadOnly"/>; otherwise, <see langword="false"/>.
         /// </returns>
         public bool IsReadOnly { get { return false; } }
 
@@ -80,11 +80,11 @@ namespace TickTracker.Helpers
         /// <summary>
         /// Modifies the current set so that it contains all elements that are present in both the current set and in the specified collection.
         /// </summary>
-        /// <param name="other">the collection to compare to the current set.</param><exception cref="ArgumentNullException"><paramref name="other"/> is null.</exception>
+        /// <param name="other">the collection to compare to the current set.</param><exception cref="ArgumentNullException"><paramref name="other"/> is <see langword="null"/>.</exception>
         public void UnionWith(IEnumerable<T> other)
         {
             foreach (var item in other)
-                TryAdd(item);
+                TryAddInternal(item);
         }
 
         /// <summary>
@@ -97,7 +97,7 @@ namespace TickTracker.Helpers
             foreach (var item in this)
             {
                 if (!enumerable.Contains(item))
-                    TryRemove(item);
+                    TryRemoveInternal(item);
             }
         }
 
@@ -108,7 +108,7 @@ namespace TickTracker.Helpers
         public void ExceptWith(IEnumerable<T> other)
         {
             foreach (var item in other)
-                TryRemove(item);
+                TryRemoveInternal(item);
         }
 
         /// <summary>
@@ -121,10 +121,10 @@ namespace TickTracker.Helpers
         }
 
         /// <summary>
-        /// determines whether a set is a subset of a specified collection.
+        /// Determines whether a set is a subset of a specified collection.
         /// </summary>
         /// <returns>
-        /// true if the current set is a subset of <paramref name="other"/>; otherwise, false.
+        /// <see langword="true"/> if the current set is a subset of <paramref name="other"/>; otherwise, <see langword="false"/>.
         /// </returns>
         /// <param name="other">the collection to compare to the current set.</param><exception cref="ArgumentNullException"><paramref name="other"/> is null.</exception>
         public bool IsSubsetOf(IEnumerable<T> other)
@@ -137,7 +137,7 @@ namespace TickTracker.Helpers
         /// determines whether the current set is a superset of a specified collection.
         /// </summary>
         /// <returns>
-        /// true if the current set is a superset of <paramref name="other"/>; otherwise, false.
+        /// <see langword="true"/> if the current set is a superset of <paramref name="other"/>; otherwise, <see langword="false"/>.
         /// </returns>
         /// <param name="other">the collection to compare to the current set.</param><exception cref="ArgumentNullException"><paramref name="other"/> is null.</exception>
         public bool IsSupersetOf(IEnumerable<T> other)
@@ -149,7 +149,7 @@ namespace TickTracker.Helpers
         /// determines whether the current set is a correct superset of a specified collection.
         /// </summary>
         /// <returns>
-        /// true if the <see cref="t:system.collections.generic.ISet`1"/> object is a correct superset of <paramref name="other"/>; otherwise, false.
+        /// <see langword="true"/> if the <see cref="ISet{T}"/> object is a correct superset of <paramref name="other"/>; otherwise, <see langword="false"/>.
         /// </returns>
         /// <param name="other">the collection to compare to the current set. </param><exception cref="ArgumentNullException"><paramref name="other"/> is null.</exception>
         public bool IsProperSupersetOf(IEnumerable<T> other)
@@ -162,7 +162,7 @@ namespace TickTracker.Helpers
         /// determines whether the current set is a property (strict) subset of a specified collection.
         /// </summary>
         /// <returns>
-        /// true if the current set is a correct subset of <paramref name="other"/>; otherwise, false.
+        /// <see langword="true"/> if the current set is a correct subset of <paramref name="other"/>; otherwise, <see langword="false"/>.
         /// </returns>
         /// <param name="other">the collection to compare to the current set.</param><exception cref="ArgumentNullException"><paramref name="other"/> is null.</exception>
         public bool IsProperSubsetOf(IEnumerable<T> other)
@@ -175,7 +175,7 @@ namespace TickTracker.Helpers
         /// determines whether the current set overlaps with the specified collection.
         /// </summary>
         /// <returns>
-        /// true if the current set and <paramref name="other"/> share at least one common element; otherwise, false.
+        /// <see langword="true"/> if the current set and <paramref name="other"/> share at least one common element; otherwise, <see langword="false"/>.
         /// </returns>
         /// <param name="other">the collection to compare to the current set.</param><exception cref="ArgumentNullException"><paramref name="other"/> is null.</exception>
         public bool Overlaps(IEnumerable<T> other)
@@ -187,7 +187,7 @@ namespace TickTracker.Helpers
         /// determines whether the current set and the specified collection contain the same elements.
         /// </summary>
         /// <returns>
-        /// true if the current set is equal to <paramref name="other"/>; otherwise, false.
+        /// <see langword="true"/> if the current set is equal to <paramref name="other"/>; otherwise, <see langword="false"/>.
         /// </returns>
         /// <param name="other">the collection to compare to the current set.</param><exception cref="ArgumentNullException"><paramref name="other"/> is null.</exception>
         public bool SetEquals(IEnumerable<T> other)
@@ -197,15 +197,15 @@ namespace TickTracker.Helpers
         }
 
         /// <summary>
-        /// adds an element to the current set and returns a value to indicate if the element was successfully added. 
+        /// Adds an element to the current set and returns a value to indicate if the element was successfully added. 
         /// </summary>
         /// <returns>
-        /// true if the element is added to the set; false if the element is already in the set.
+        /// <see langword="true"/> if the element is added to the set; <see langword="false"/> if the element is already in the set.
         /// </returns>
         /// <param name="item">the element to add to the set.</param>
         public bool Add(T item)
         {
-            return TryAdd(item);
+            return TryAddInternal(item);
         }
 
         public void Clear()
@@ -221,23 +221,23 @@ namespace TickTracker.Helpers
         /// <summary>
         /// copies the elements of the <see cref="ICollection"/> to an <see cref="t:system.array"/>, starting at a particular <see cref="t:system.array"/> index.
         /// </summary>
-        /// <param name="array">the one-dimensional <see cref="t:system.array"/> that is the destination of the elements copied from <see cref="ICollection"/>. the <see cref="t:system.array"/> must have zero-based indexing.</param><param name="arrayIndex">the zero-based index in <paramref name="array"/> at which copying begins.</param><exception cref="ArgumentNullException"><paramref name="array"/> is null.</exception><exception cref="t:system.argumentoutofrangeexception"><paramref name="arrayIndex"/> is less than 0.</exception><exception cref="t:system.argumentexception"><paramref name="array"/> is multidimensional.-or-the number of elements in the source <see cref="ICollection"/> is greater than the available space from <paramref name="arrayIndex"/> to the end of the destination <paramref name="array"/>.-or-type <paramref name="t"/> cannot be cast automatically to the type of the destination <paramref name="array"/>.</exception>
+        /// <param name="array">The one-dimensional <see cref="Array"/> that is the destination of the elements copied from <see cref="ICollection"/>. the <see cref="Array"/> must have zero-based indexing.</param><param name="arrayIndex">the zero-based index in <paramref name="array"/> at which copying begins.</param><exception cref="ArgumentNullException"><paramref name="array"/> is null.</exception><exception cref="ArgumentOutOfRangeException"><paramref name="arrayIndex"/> is less than 0.</exception><exception cref="ArgumentException"><paramref name="array"/> is multidimensional.-or-the number of elements in the source <see cref="ICollection"/> is greater than the available space from <paramref name="arrayIndex"/> to the end of the destination <paramref name="array"/>.-or-type <paramref name="t"/> cannot be cast automatically to the type of the destination <paramref name="array"/>.</exception>
         public void CopyTo(T[] array, int arrayIndex)
         {
             values.CopyTo(array, arrayIndex);
         }
 
-        public T[] toarray()
+        public T[] ToArray()
         {
             return dictionary.Keys.ToArray();
         }
 
-        public bool TryAdd(T item)
+        private bool TryAddInternal(T item)
         {
             return dictionary.TryAdd(item, default);
         }
 
-        public bool TryRemove(T item)
+        private bool TryRemoveInternal(T item)
         {
             return dictionary.TryRemove(item, out _);
         }
