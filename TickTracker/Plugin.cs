@@ -512,9 +512,11 @@ public sealed class Plugin : IDalamudPlugin
             {
                 return;
             }
+#if DEBUG
             log.Debug("Primary tick triggered");
             log.Debug("NetworkHP: {nhp}, vs localHP: {lhp}", networkHP, lastHPValue);
             DevWindow.persistentLine1 = "Primary network hp: " + networkHP.ToString(System.Globalization.CultureInfo.InvariantCulture) + " vs player hp: " + player.CurrentHp;
+#endif
             HPBarWindow.CanUpdate = true;
             MPBarWindow.CanUpdate = true;
             GPBarWindow.CanUpdate = true;
@@ -548,9 +550,11 @@ public sealed class Plugin : IDalamudPlugin
             {
                 return;
             }
+#if DEBUG
             log.Debug("Secondary tick triggered");
             log.Debug("NetworkHP: {nhp}, vs localHP: {lhp}", unk1, lastHPValue);
             DevWindow.persistentLine2 = "Secondary network hp: " + unk1 + " vs player hp: " + player.CurrentHp;
+#endif
             HPBarWindow.DelayedUpdate = true;
             MPBarWindow.DelayedUpdate = true;
             GPBarWindow.DelayedUpdate = true;
