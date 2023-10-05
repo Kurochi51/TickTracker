@@ -21,11 +21,14 @@ using FFXIVClientStructs.FFXIV.Component.GUI;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using TickTracker.Windows;
 using TickTracker.Enums;
+using TickTracker.Helpers;
 
 namespace TickTracker;
 
 public sealed class Plugin : IDalamudPlugin
 {
+    private readonly ConcurrentSet<uint> test = new();
+
     /// <summary>
     /// A <see cref="HashSet{T}" /> list of Status IDs that trigger HP regen
     /// </summary>
@@ -377,10 +380,12 @@ public sealed class Plugin : IDalamudPlugin
             {
                 disabledHealthRegenList.Add(stat.RowId);
                 DebugWindow.DisabledHealthRegenDictionary.TryAdd(stat.RowId, stat.Name);
+                test.TryAdd(stat.RowId);
             }
             if (Utilities.WholeKeywordMatch(text, utilities.RegenNullKeywords) && Utilities.WholeKeywordMatch(text, utilities.ManaKeywords))
             {
                 DebugWindow.DisabledManaRegenDictionary.TryAdd(stat.RowId, stat.Name);
+                test.TryAdd(stat.RowId);
             }
             if (Utilities.KeywordMatch(text, utilities.RegenKeywords) && Utilities.KeywordMatch(text, utilities.TimeKeywords))
             {
@@ -388,11 +393,13 @@ public sealed class Plugin : IDalamudPlugin
                 {
                     healthRegenList.Add(stat.RowId);
                     DebugWindow.HealthRegenDictionary.TryAdd(stat.RowId, stat.Name);
+                    test.TryAdd(stat.RowId);
                 }
                 if (Utilities.KeywordMatch(text, utilities.ManaKeywords))
                 {
                     manaRegenList.Add(stat.RowId);
                     DebugWindow.ManaRegenDictionary.TryAdd(stat.RowId, stat.Name);
+                    test.TryAdd(stat.RowId);
                 }
             }
         });
@@ -458,6 +465,10 @@ public sealed class Plugin : IDalamudPlugin
             };
             for (var i = 0; i < entryCount; i++)
             {
+                if (effectArray[i].type != ActionEffectType.Nothing && effectArray[i].type != ActionEffectType.Miss)
+                {
+                    //log.Debug("{effect} is happening from {source} to {player}", effectArray[i].type, name, player.Name);
+                }
                 if (effectArray[i].type == ActionEffectType.Heal)
                 {
                     healTriggered = true;
@@ -501,6 +512,9 @@ public sealed class Plugin : IDalamudPlugin
             {
                 return;
             }
+            log.Debug("Primary tick triggered");
+            log.Debug("NetworkHP: {nhp}, vs localHP: {lhp}", networkHP, lastHPValue);
+            DevWindow.persistentLine1 = "Primary network hp: " + networkHP.ToString(System.Globalization.CultureInfo.InvariantCulture) + " vs player hp: " + player.CurrentHp;
             HPBarWindow.CanUpdate = true;
             MPBarWindow.CanUpdate = true;
             GPBarWindow.CanUpdate = true;
@@ -534,6 +548,9 @@ public sealed class Plugin : IDalamudPlugin
             {
                 return;
             }
+            log.Debug("Secondary tick triggered");
+            log.Debug("NetworkHP: {nhp}, vs localHP: {lhp}", unk1, lastHPValue);
+            DevWindow.persistentLine2 = "Secondary network hp: " + unk1 + " vs player hp: " + player.CurrentHp;
             HPBarWindow.DelayedUpdate = true;
             MPBarWindow.DelayedUpdate = true;
             GPBarWindow.DelayedUpdate = true;
@@ -596,6 +613,7 @@ public sealed class Plugin : IDalamudPlugin
         DevWindow.printLines.Add("Regen: " + HPBarWindow.FastTick.ToString());
         DevWindow.printLines.Add("Current HP: " + player.CurrentHp.ToString());
         DevWindow.printLines.Add("Max HP: " + player.MaxHp.ToString());
+        DevWindow.printLines.Add("Test count: " + test.Count.ToString());
     }
 #endif
 
