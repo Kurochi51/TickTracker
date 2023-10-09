@@ -1,8 +1,8 @@
 using System;
+using System.Linq;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace TickTracker.Helpers
 {
@@ -134,7 +134,7 @@ namespace TickTracker.Helpers
         }
 
         /// <summary>
-        /// determines whether the current set is a superset of a specified collection.
+        /// Determines whether the current set is a superset of a specified collection.
         /// </summary>
         /// <returns>
         /// <see langword="true"/> if the current set is a superset of <paramref name="other"/>; otherwise, <see langword="false"/>.
@@ -146,7 +146,7 @@ namespace TickTracker.Helpers
         }
 
         /// <summary>
-        /// determines whether the current set is a correct superset of a specified collection.
+        /// Determines whether the current set is a correct superset of a specified collection.
         /// </summary>
         /// <returns>
         /// <see langword="true"/> if the <see cref="ISet{T}"/> object is a correct superset of <paramref name="other"/>; otherwise, <see langword="false"/>.
@@ -159,7 +159,7 @@ namespace TickTracker.Helpers
         }
 
         /// <summary>
-        /// determines whether the current set is a property (strict) subset of a specified collection.
+        /// Determines whether the current set is a property (strict) subset of a specified collection.
         /// </summary>
         /// <returns>
         /// <see langword="true"/> if the current set is a correct subset of <paramref name="other"/>; otherwise, <see langword="false"/>.
@@ -172,7 +172,7 @@ namespace TickTracker.Helpers
         }
 
         /// <summary>
-        /// determines whether the current set overlaps with the specified collection.
+        /// Determines whether the current set overlaps with the specified collection.
         /// </summary>
         /// <returns>
         /// <see langword="true"/> if the current set and <paramref name="other"/> share at least one common element; otherwise, <see langword="false"/>.
@@ -184,7 +184,7 @@ namespace TickTracker.Helpers
         }
 
         /// <summary>
-        /// determines whether the current set and the specified collection contain the same elements.
+        /// Determines whether the current set and the specified collection contain the same elements.
         /// </summary>
         /// <returns>
         /// <see langword="true"/> if the current set is equal to <paramref name="other"/>; otherwise, <see langword="false"/>.
@@ -219,7 +219,7 @@ namespace TickTracker.Helpers
         }
 
         /// <summary>
-        /// copies the elements of the <see cref="ICollection"/> to an <see cref="t:system.array"/>, starting at a particular <see cref="t:system.array"/> index.
+        /// Copies the elements of the <see cref="ICollection"/> to an <see cref="Array"/>, starting at a particular <see cref="Array"/> index.
         /// </summary>
         /// <param name="array">The one-dimensional <see cref="Array"/> that is the destination of the elements copied from <see cref="ICollection"/>. the <see cref="Array"/> must have zero-based indexing.</param><param name="arrayIndex">the zero-based index in <paramref name="array"/> at which copying begins.</param><exception cref="ArgumentNullException"><paramref name="array"/> is null.</exception><exception cref="ArgumentOutOfRangeException"><paramref name="arrayIndex"/> is less than 0.</exception><exception cref="ArgumentException"><paramref name="array"/> is multidimensional.-or-the number of elements in the source <see cref="ICollection"/> is greater than the available space from <paramref name="arrayIndex"/> to the end of the destination <paramref name="array"/>.-or-type <paramref name="t"/> cannot be cast automatically to the type of the destination <paramref name="array"/>.</exception>
         public void CopyTo(T[] array, int arrayIndex)

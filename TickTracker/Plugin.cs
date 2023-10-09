@@ -87,10 +87,9 @@ public sealed class Plugin : IDalamudPlugin
 
     private const float ActorTickInterval = 3;
     private double syncValue = 1;
-    private bool inCombat, healTriggered, mpGainTriggered, finishedLoading;
+    private bool finishedLoading, primaryTickTriggered, secondaryTickTriggered;
     private bool syncAvailable = true, nullSheet = true;
     private uint lastHPValue, lastMPValue, lastGPValue;
-    private uint currentHP = 1, currentMP = 1, currentGP = 1, maxHP = 2, maxMP = 2, maxGP = 2;
     private Task? loadingTask;
     private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
 
@@ -158,8 +157,11 @@ public sealed class Plugin : IDalamudPlugin
         loadingTask = Task.Run(async () => await Loading(1000).ConfigureAwait(false));
     }
 
-    private bool PluginEnabled(bool target)
+    private bool PluginEnabled(PlayerCharacter player)
     {
+        var target = player.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
+        var inCombat = condition[ConditionFlag.InCombat];
+
         if (condition[ConditionFlag.InDuelingArea])
         {
             return false;
@@ -190,56 +192,47 @@ public sealed class Plugin : IDalamudPlugin
 #if DEBUG
         DevWindowThings(player);
 #endif
-        var now = DateTime.Now.TimeOfDay.TotalSeconds;
-        var HealthRegen = player.StatusList.Any(e => healthRegenList.Contains(e.StatusId));
-        var DisabledHPregen = player.StatusList.Any(e => disabledHealthRegenList.Contains(e.StatusId));
-        var ManaRegen = player.StatusList.Any(e => manaRegenList.Contains(e.StatusId));
-        var gauge = player.ClassJob.Id == 25 ? jobGauges.Get<BLMGauge>() : null;
-        var DisabledMPregen = gauge is not null && gauge.InAstralFire;
-        var jobType = player.ClassJob.GameData?.ClassJobCategory.Row ?? 0;
-        var Enemy = player.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
-        inCombat = condition[ConditionFlag.InCombat];
         unsafe
         {
-            if (!PluginEnabled(Enemy) || !utilities.IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || utilities.inCustcene() || player.IsDead)
+            if (!PluginEnabled(player) || !utilities.IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || utilities.inCustcene() || player.IsDead)
             {
                 HPBarWindow.IsOpen = MPBarWindow.IsOpen = GPBarWindow.IsOpen = false;
                 return;
             }
         }
-        UpdateResources(player);
-        UpdateBarState(Enemy, jobType);
-        if (syncValue + ActorTickInterval <= now || syncAvailable)
+        UpdateBarState(player);
+        var now = DateTime.Now.TimeOfDay.TotalSeconds;
+        if (syncAvailable)
         {
-            if (syncAvailable)
-            {
-                syncValue = now;
-                syncAvailable = false;
-            }
-            else
-            {
-                syncValue += ActorTickInterval;
-            }
+            syncValue = now;
+            syncAvailable = false;
+        }
+        else if (syncValue + ActorTickInterval <= now)
+        {
+            syncValue += ActorTickInterval;
         }
         if (loadingTask is not null && loadingTask.IsCompleted)
         {
             finishedLoading = true;
             loadingTask = null;
         }
-        UpdateHPTick(now, HealthRegen, DisabledHPregen);
-        UpdateMPTick(now, ManaRegen, DisabledMPregen);
-        UpdateGPTick(now);
+        UpdateHPTick(now, player);
+        UpdateMPTick(now, player);
+        UpdateGPTick(now, player);
     }
 
-    private void UpdateHPTick(double currentTime, bool hpRegen, bool regenHalt)
+    private void UpdateHPTick(double currentTime, PlayerCharacter player)
     {
-        if (hpRegen && currentHP != maxHP && !HPBarWindow.FastTick)
+        var hpRegen = player.StatusList.Any(e => healthRegenList.Contains(e.StatusId));
+        var regenHalt = player.StatusList.Any(e => disabledHealthRegenList.Contains(e.StatusId));
+        var currentHP = player.CurrentHp;
+        if (hpRegen && !HPBarWindow.FastTick)
         {
             HPBarWindow.FastRegenSwitch = true;
         }
-        HPBarWindow.FastTick = (hpRegen && currentHP != maxHP);
+        HPBarWindow.FastTick = hpRegen;
 
-        if (currentHP == maxHP || finishedLoading)
+        if ((currentHP == player.MaxHp || finishedLoading) && !HPBarWindow.FastTick)
         {
             HPBarWindow.LastTick = syncValue;
             HPBarWindow.FastRegenSwitch = false;
@@ -248,30 +241,18 @@ public sealed class Plugin : IDalamudPlugin
         {
             HPBarWindow.LastTick = currentTime;
             HPBarWindow.CanUpdate = false;
-            if (healTriggered)
-            {
-                healTriggered = false;
-            }
         }
-        else if (lastHPValue != currentHP && HPBarWindow.FastTick)
+        else if (HPBarWindow.FastTick)
         {
             if (HPBarWindow.CanUpdate)
             {
                 HPBarWindow.LastTick = currentTime;
                 HPBarWindow.CanUpdate = false;
-                if (healTriggered)
-                {
-                    healTriggered = false;
-                }
             }
             else if (HPBarWindow.DelayedUpdate)
             {
                 HPBarWindow.LastTick = currentTime;
                 HPBarWindow.DelayedUpdate = false;
-                if (healTriggered)
-                {
-                    healTriggered = false;
-                }
             }
         }
 
@@ -279,46 +260,39 @@ public sealed class Plugin : IDalamudPlugin
         lastHPValue = currentHP;
     }
 
-    private void UpdateMPTick(double currentTime, bool mpRegen, bool regenHalt)
+    private void UpdateMPTick(double currentTime, PlayerCharacter player)
     {
-        if (mpRegen && currentMP != maxMP && !MPBarWindow.FastTick)
+        var mpRegen = player.StatusList.Any(e => manaRegenList.Contains(e.StatusId));
+        var blmGauge = player.ClassJob.Id == 25 ? jobGauges.Get<BLMGauge>() : null;
+        var regenHalt = blmGauge is not null && blmGauge.InAstralFire;
+        var currentMP = player.CurrentMp;
+        if (mpRegen && !MPBarWindow.FastTick)
         {
             MPBarWindow.FastRegenSwitch = true;
         }
-        MPBarWindow.FastTick = (mpRegen && currentMP != maxMP);
+        MPBarWindow.FastTick = mpRegen;
 
-        if (currentMP == maxMP || finishedLoading)
+        if ((currentMP == player.MaxMp || finishedLoading) && !MPBarWindow.FastTick)
         {
             MPBarWindow.LastTick = syncValue;
+            MPBarWindow.FastRegenSwitch = false;
         }
         else if (lastMPValue != currentMP && !MPBarWindow.FastTick && MPBarWindow.CanUpdate)
         {
             MPBarWindow.LastTick = currentTime;
             MPBarWindow.CanUpdate = false;
-            if (mpGainTriggered)
-            {
-                mpGainTriggered = false;
-            }
         }
-        else if (lastMPValue != currentMP && MPBarWindow.FastTick)
+        else if (MPBarWindow.FastTick)
         {
             if (MPBarWindow.CanUpdate)
             {
                 MPBarWindow.LastTick = currentTime;
                 MPBarWindow.CanUpdate = false;
-                if (mpGainTriggered)
-                {
-                    mpGainTriggered = false;
-                }
             }
             else if (MPBarWindow.DelayedUpdate)
             {
                 MPBarWindow.LastTick = currentTime;
                 MPBarWindow.DelayedUpdate = false;
-                if (mpGainTriggered)
-                {
-                    mpGainTriggered = false;
-                }
             }
         }
 
@@ -326,14 +300,15 @@ public sealed class Plugin : IDalamudPlugin
         lastMPValue = currentMP;
     }
 
-    private void UpdateGPTick(double currentTime)
+    private void UpdateGPTick(double currentTime, PlayerCharacter player)
     {
         var regenHalt = condition[ConditionFlag.Gathering];
+        var currentGP = player.CurrentGp;
         if (!regenHalt && GPBarWindow.RegenHalted)
         {
             GPBarWindow.LastTick = syncValue;
         }
-        if (currentGP == maxGP || finishedLoading)
+        if (currentGP == player.MaxGp || finishedLoading)
         {
             GPBarWindow.LastTick = syncValue;
         }
@@ -366,7 +341,7 @@ public sealed class Plugin : IDalamudPlugin
         var filteredSheet = statusSheet.Where(s => !bannedStatus.Exists(rowId => rowId == s.RowId));
         var parallelOptions = new ParallelOptions
         {
-            MaxDegreeOfParallelism = Environment.ProcessorCount / 2,
+            MaxDegreeOfParallelism = Environment.ProcessorCount / 2, // Surely no one will cause an access issue by using an 128 core CPU hahaha
         };
         Parallel.ForEach(filteredSheet, parallelOptions, stat =>
         {
@@ -460,19 +435,13 @@ public sealed class Plugin : IDalamudPlugin
             };
             for (var i = 0; i < entryCount; i++)
             {
-                if (effectArray[i].type != ActionEffectType.Nothing && effectArray[i].type != ActionEffectType.Miss)
-                {
-                    //log.Debug("{effect} is happening from {source} to {player}", effectArray[i].type, name, player.Name);
-                }
                 if (effectArray[i].type == ActionEffectType.Heal)
                 {
-                    healTriggered = true;
                     var logMessage = sourceId == player.ObjectId ? "Self healing" : "Healed by " + name;
                     log.Verbose(logMessage);
                 }
                 else if (effectArray[i].type == ActionEffectType.MpGain)
                 {
-                    mpGainTriggered = true;
                     var logMessage = sourceId == player.ObjectId ? "Restoring your own mana" : "Mana resotred by " + name;
                     log.Verbose(logMessage);
                 }
@@ -517,6 +486,12 @@ public sealed class Plugin : IDalamudPlugin
             GPBarWindow.CanUpdate = true;
             syncAvailable = true;
             finishedLoading = false;
+            if (secondaryTickTriggered)
+            {
+                log.Debug("PrimaryActorTick triggered after SecondaryActorTick.");
+            }
+            primaryTickTriggered = true;
+            secondaryTickTriggered = false;
         }
         catch (Exception e)
         {
@@ -550,10 +525,21 @@ public sealed class Plugin : IDalamudPlugin
             log.Debug("NetworkHP: {nhp}, vs localHP: {lhp}", unk1, lastHPValue);
             DevWindow.persistentLine2 = "Secondary network hp: " + unk1 + " vs player hp: " + player.CurrentHp;
 #endif
-            HPBarWindow.DelayedUpdate = true;
-            MPBarWindow.DelayedUpdate = true;
-            GPBarWindow.DelayedUpdate = true;
+            // Should block multiple triggers in quick succession in-between primary ticks from resetting the bar
+            if (primaryTickTriggered)
+            {
+                log.Debug("SecondaryActorTick triggered after PrimaryActorTick.");
+                HPBarWindow.DelayedUpdate = true;
+                MPBarWindow.DelayedUpdate = true;
+                GPBarWindow.DelayedUpdate = true;
+            }
+            else
+            {
+                log.Warning("SecondaryActorTick repeated in quick succesion, without PrimaryActorTick in-between.");
+            }
             finishedLoading = false;
+            primaryTickTriggered = false;
+            secondaryTickTriggered = true;
         }
         catch (Exception e)
         {
@@ -579,18 +565,11 @@ public sealed class Plugin : IDalamudPlugin
         loadingTimer.Reset();
     }
 
-    private void UpdateResources(PlayerCharacter player)
+    private void UpdateBarState(PlayerCharacter player)
     {
-        currentHP = player.CurrentHp;
-        maxHP = player.MaxHp;
-        currentMP = player.CurrentMp;
-        maxMP = player.MaxMp;
-        currentGP = player.CurrentGp;
-        maxGP = player.MaxGp;
-    }
-
-    private void UpdateBarState(bool Enemy, uint jobType)
-    {
+        var jobType = player.ClassJob.GameData?.ClassJobCategory.Row ?? 0;
+        var Enemy = player.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
+        var inCombat = condition[ConditionFlag.InCombat];
         var shouldShowHPBar = !config.HideOnFullResource ||
                             (config.AlwaysShowInCombat && inCombat) ||
                             (config.AlwaysShowWithHostileTarget && Enemy) ||
@@ -599,13 +578,13 @@ public sealed class Plugin : IDalamudPlugin
                             (config.AlwaysShowInCombat && inCombat) ||
                             (config.AlwaysShowWithHostileTarget && Enemy) ||
                             (config.AlwaysShowInDuties && utilities.InDuty());
-        HPBarWindow.IsOpen = shouldShowHPBar || (currentHP != maxHP);
-        GPBarWindow.IsOpen = (jobType == 32 && (!config.HideOnFullResource || (currentGP != maxGP)) && config.GPVisible) || !config.LockBar;
-        MPBarWindow.IsOpen = (jobType != 32 && (shouldShowMPBar || (currentMP != maxMP))) || !config.GPVisible;
+        HPBarWindow.IsOpen = shouldShowHPBar || (player.CurrentHp != player.MaxHp);
+        GPBarWindow.IsOpen = (jobType == 32 && (!config.HideOnFullResource || (player.CurrentGp != player.MaxGp)) && config.GPVisible) || !config.LockBar;
+        MPBarWindow.IsOpen = (jobType != 32 && (shouldShowMPBar || (player.CurrentMp != player.MaxMp))) || !config.GPVisible;
     }
 
 #if DEBUG
-    private void DevWindowThings(PlayerCharacter player)
+    private unsafe void DevWindowThings(PlayerCharacter player)
     {
         DevWindow.IsOpen = true;
         DevWindow.printLines.Add("FastRegenSwitch: " + HPBarWindow.FastRegenSwitch.ToString());

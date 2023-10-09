@@ -30,6 +30,11 @@ public class DebugWindow : Window
     /// </summary>
     public ConcurrentDictionary<uint, string> DisabledManaRegenDictionary { get; set; } = new();
 
+    private readonly List<string> healthRegenList = new();
+    private readonly List<string> manaRegenList = new();
+    private readonly List<string> disabledHealthRegenList = new();
+    private readonly List<string> disabledManaRegenList = new();
+
     private float hpWidth, mpWidth, disabledHPWidth, disabledMPWidth;
     private bool invalidList, firstTime = true;
 
@@ -54,29 +59,30 @@ public class DebugWindow : Window
             CopyAndClose();
             return;
         }
-        ImGui.Text($"HP regen list generated with {HealthRegenDictionary.Count} status effects.");
-        ImGui.Text($"MP regen list generated with {ManaRegenDictionary.Count} status effects.");
-        ImGui.Text($"HP regen disabled list generated with {DisabledHealthRegenDictionary.Count} status effects.");
-        ImGui.Text($"MP regen disabled list generated with {DisabledManaRegenDictionary.Count} status effects.");
-        ImGui.Spacing();
-        var maxRegenCount = Math.Max(HealthRegenDictionary.Count, ManaRegenDictionary.Count);
-        var maxDisabledRegenCount = Math.Max(DisabledHealthRegenDictionary.Count, DisabledManaRegenDictionary.Count);
+        ImGui.Text($"HP regen list generated with {healthRegenList.Count} status effects.");
+        ImGui.Text($"MP regen list generated with {manaRegenList.Count} status effects.");
+        ImGui.Text($"HP regen disabled list generated with {disabledHealthRegenList.Count} status effects.");
+        ImGui.Text($"MP regen disabled list generated with {disabledManaRegenList.Count} status effects.");
         var Table1Column1 = " Health Regen Status IDs";
         var Table1Column2 = "Mana Regen Status IDs";
         var Table2Column1 = " Disabled HP Regen Status IDs";
         var Table2Column2 = "Disabled MP Regen Status IDs";
         if (firstTime)
         {
-            DetermineColumnWidth(Table1Column1, Table1Column2, HealthRegenDictionary, ManaRegenDictionary, ref hpWidth, ref mpWidth);
-            DetermineColumnWidth(Table2Column1, Table2Column2, DisabledHealthRegenDictionary, DisabledManaRegenDictionary, ref disabledHPWidth, ref disabledMPWidth);
+            ProcessDictionaries();
+            DetermineColumnWidth(Table1Column1, Table1Column2, healthRegenList, manaRegenList, ref hpWidth, ref mpWidth);
+            DetermineColumnWidth(Table2Column1, Table2Column2, disabledHealthRegenList, disabledManaRegenList, ref disabledHPWidth, ref disabledMPWidth);
             firstTime = false;
         }
+        ImGui.Spacing();
+        var maxRegenCount = Math.Max(healthRegenList.Count, manaRegenList.Count);
+        var maxDisabledRegenCount = Math.Max(disabledHealthRegenList.Count, disabledManaRegenList.Count);
         using (var scrollArea = ImRaii.Child("ScrollArea", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y - 40f), border: true))
         {
-            DrawTable("DisabledRegenSID", Table2Column1, Table2Column2, disabledHPWidth, disabledMPWidth, maxDisabledRegenCount, DisabledHealthRegenDictionary, DisabledManaRegenDictionary);
+            DrawTable("DisabledRegenSID", Table2Column1, Table2Column2, disabledHPWidth, disabledMPWidth, maxDisabledRegenCount, disabledHealthRegenList, disabledManaRegenList);
             ImGui.Separator();
             ImGui.Spacing();
-            DrawTable("RegenSID", Table1Column1, Table1Column2, hpWidth, mpWidth, maxRegenCount, HealthRegenDictionary, ManaRegenDictionary);
+            DrawTable("RegenSID", Table1Column1, Table1Column2, hpWidth, mpWidth, maxRegenCount, healthRegenList, manaRegenList);
         }
         CopyAndClose();
     }
@@ -92,14 +98,14 @@ public class DebugWindow : Window
             if (ImGui.Button("Copy top table"))
             {
                 var topTable = new StringBuilder();
-                GetTableContentAsText(ref topTable, "Disabled Health Regen Status IDs", "Disabled Mana Regen Status IDs", DisabledHealthRegenDictionary, DisabledManaRegenDictionary);
+                GetTableContentAsText(ref topTable, "Disabled Health Regen Status IDs", "Disabled Mana Regen Status IDs", disabledHealthRegenList, disabledManaRegenList);
                 ImGui.SetClipboardText(topTable.ToString());
             }
             ImGui.SameLine();
             if (ImGui.Button("Copy bottom table"))
             {
                 var bottomTable = new StringBuilder();
-                GetTableContentAsText(ref bottomTable, "Health Regen Status IDs", "Mana Regen Status IDs", HealthRegenDictionary, ManaRegenDictionary);
+                GetTableContentAsText(ref bottomTable, "Health Regen Status IDs", "Mana Regen Status IDs", healthRegenList, manaRegenList);
                 ImGui.SetClipboardText(bottomTable.ToString());
             }
             ImGui.SetCursorPos(originPos);
@@ -114,32 +120,30 @@ public class DebugWindow : Window
         ImGui.SetCursorPos(originPos);
     }
 
-    private static void GetTableContentAsText(ref StringBuilder text, string column1Name, string column2Name, IDictionary<uint, string> dictionary1, IDictionary<uint, string> dictionary2)
+    private static void GetTableContentAsText(ref StringBuilder text, string column1Name, string column2Name, List<string> list1, List<string> list2)
     {
         text.Append(column1Name);
-        for (var i = 0; i < dictionary1.Count; i++)
+        for (var i = 0; i < list1.Count; i++)
         {
             text.AppendLine();
-            var kvp = dictionary1.ElementAt(i);
-            text.Append($"{kvp.Key}: {kvp.Value}");
+            text.Append(list1[i].Trim());
         }
         text.AppendLine();
         text.AppendLine();
         text.Append(column2Name);
-        for (var i = 0; i < dictionary2.Count; i++)
+        for (var i = 0; i < list2.Count; i++)
         {
             text.AppendLine();
-            var kvp = dictionary2.ElementAt(i);
-            text.Append($"{kvp.Key}: {kvp.Value}");
+            text.Append(list2[i].Trim());
         }
     }
 
-    private static void DetermineColumnWidth(string column1, string column2, IDictionary<uint, string> dictionary1, IDictionary<uint, string> dictionary2, ref float column1Width, ref float column2Width)
+    private static void DetermineColumnWidth(string column1, string column2, List<string> list1, List<string> list2, ref float column1Width, ref float column2Width)
     {
         column1Width = ImGui.CalcTextSize(column1).X;
-        foreach (var item in dictionary1)
+        foreach (var item in list1)
         {
-            var textWidth = ImGui.CalcTextSize(item.Value) + ImGui.CalcTextSize(": ") + ImGui.CalcTextSize(item.Key.ToString());
+            var textWidth = ImGui.CalcTextSize(item);
             if (textWidth.X > column1Width)
             {
                 column1Width = textWidth.X;
@@ -147,9 +151,9 @@ public class DebugWindow : Window
         }
 
         column2Width = ImGui.CalcTextSize(column2).X;
-        foreach (var item in dictionary2)
+        foreach (var item in list2)
         {
-            var textWidth = ImGui.CalcTextSize(item.Value) + ImGui.CalcTextSize(": ") + ImGui.CalcTextSize(item.Key.ToString());
+            var textWidth = ImGui.CalcTextSize(item);
             if (textWidth.X > column2Width)
             {
                 column2Width = textWidth.X;
@@ -157,37 +161,73 @@ public class DebugWindow : Window
         }
     }
 
-    private static void DrawTable(string id, string column1, string column2, float column1Width, float column2Width, int maxItemCount, IDictionary<uint, string> dictionary1, IDictionary<uint, string> dictionary2)
+    private static unsafe void DrawTable(string id, string column1, string column2, float column1Width, float column2Width, int maxItemCount, List<string> list1, List<string> list2)
     {
         using var table = ImRaii.Table(id, 2, ImGuiTableFlags.None);
+        if (!table)
+        {
+            return;
+        }
+        var clipper = new ImGuiListClipperPtr(ImGuiNative.ImGuiListClipper_ImGuiListClipper());
+        clipper.Begin(maxItemCount, ImGui.GetTextLineHeightWithSpacing());
 
         ImGui.TableSetupColumn(column1, ImGuiTableColumnFlags.WidthFixed, column1Width);
         ImGui.TableSetupColumn(column2, ImGuiTableColumnFlags.WidthFixed, column2Width);
         ImGui.TableHeadersRow();
-        ImGui.TableNextRow();
 
-        for (var i = 0; i < maxItemCount; i++)
+        while (clipper.Step())
         {
-            // Health Regen column
-            ImGui.TableSetColumnIndex(0);
-            if (i < dictionary1.Count)
+            for (var i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
             {
-                var kvp = dictionary1.ElementAt(i);
-                ImGui.Text($" {kvp.Key}: {kvp.Value}");
-            }
-
-            // Mana Regen column
-            ImGui.TableSetColumnIndex(1);
-            if (i < dictionary2.Count)
-            {
-                var kvp = dictionary2.ElementAt(i);
-                ImGui.Text($"{kvp.Key}: {kvp.Value}");
-            }
-
-            if (i + 1 < maxItemCount)
-            {
+                if (i >= maxItemCount)
+                {
+                    return;
+                }
                 ImGui.TableNextRow();
+                // Health Regen column
+                ImGui.TableSetColumnIndex(0);
+                if (i < list1.Count)
+                {
+                    ImGui.Text($"{list1[i]}");
+                }
+
+                // Mana Regen column
+                ImGui.TableSetColumnIndex(1);
+                if (i < list2.Count)
+                {
+                    ImGui.Text($"{list2[i]}");
+                }
             }
+        }
+        clipper.End();
+        clipper.Destroy();
+    }
+
+    private void ProcessDictionaries()
+    {
+        var sortedHR = HealthRegenDictionary.OrderBy(x => x.Key);
+        var sortedMR = ManaRegenDictionary.OrderBy(x => x.Key);
+        var sortedDHR = DisabledHealthRegenDictionary.OrderBy(x => x.Key);
+        var sortedDMR = DisabledManaRegenDictionary.OrderBy(x => x.Key);
+        foreach (var kvp in sortedHR)
+        {
+            var entry = " " + kvp.Key + ": " + kvp.Value;
+            healthRegenList.Add(entry);
+        }
+        foreach (var kvp in sortedMR)
+        {
+            var entry = kvp.Key + ": " + kvp.Value;
+            manaRegenList.Add(entry);
+        }
+        foreach (var kvp in sortedDHR)
+        {
+            var entry = " " + kvp.Key + ": " + kvp.Value;
+            disabledHealthRegenList.Add(entry);
+        }
+        foreach (var kvp in sortedDMR)
+        {
+            var entry = kvp.Key + ": " + kvp.Value;
+            disabledManaRegenList.Add(entry);
         }
     }
 }
