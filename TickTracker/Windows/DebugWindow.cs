@@ -35,6 +35,7 @@ public class DebugWindow : Window
     private readonly List<string> disabledHealthRegenList = new();
     private readonly List<string> disabledManaRegenList = new();
 
+    private string table1Column1, table1Column2, table2Column1, table2Column2;
     private float hpWidth, mpWidth, disabledHPWidth, disabledMPWidth;
     private bool invalidList, firstTime = true;
 
@@ -43,6 +44,7 @@ public class DebugWindow : Window
         Size = new(400, 500);
         SizeCondition = ImGuiCond.Appearing;
         Flags = ImGuiWindowFlags.NoResize;
+        table1Column1 = table1Column2 = table2Column1 = table2Column2 = string.Empty;
     }
 
     public override void OnClose()
@@ -57,13 +59,13 @@ public class DebugWindow : Window
         }
         if (firstTime && !invalidList)
         {
-            var Table1Column1 = " Health Regen Status IDs";
-            var Table1Column2 = "Mana Regen Status IDs";
-            var Table2Column1 = " Disabled HP Regen Status IDs";
-            var Table2Column2 = "Disabled MP Regen Status IDs";
+            table1Column1 = " Health Regen Status IDs";
+            table1Column2 = "Mana Regen Status IDs";
+            table2Column1 = " Disabled HP Regen Status IDs";
+            table2Column2 = "Disabled MP Regen Status IDs";
             ProcessDictionaries();
-            DetermineColumnWidth(Table1Column1, Table1Column2, healthRegenList, manaRegenList, ref hpWidth, ref mpWidth);
-            DetermineColumnWidth(Table2Column1, Table2Column2, disabledHealthRegenList, disabledManaRegenList, ref disabledHPWidth, ref disabledMPWidth);
+            DetermineColumnWidth(table1Column1, table1Column2, healthRegenList, manaRegenList, ref hpWidth, ref mpWidth);
+            DetermineColumnWidth(table2Column1, table2Column2, disabledHealthRegenList, disabledManaRegenList, ref disabledHPWidth, ref disabledMPWidth);
             firstTime = false;
         }
     }
@@ -71,27 +73,23 @@ public class DebugWindow : Window
     {
         if (invalidList)
         {
-            ImGui.Text("Lists are empty!");
+            ImGui.TextUnformatted("Lists are empty!");
             CopyAndClose();
             return;
         }
-        var Table1Column1 = " Health Regen Status IDs";
-        var Table1Column2 = "Mana Regen Status IDs";
-        var Table2Column1 = " Disabled HP Regen Status IDs";
-        var Table2Column2 = "Disabled MP Regen Status IDs";
-        ImGui.Text($"HP regen list generated with {healthRegenList.Count} status effects.");
-        ImGui.Text($"MP regen list generated with {manaRegenList.Count} status effects.");
-        ImGui.Text($"HP regen disabled list generated with {disabledHealthRegenList.Count} status effects.");
-        ImGui.Text($"MP regen disabled list generated with {disabledManaRegenList.Count} status effects.");
+        ImGui.TextUnformatted($"HP regen list generated with {healthRegenList.Count} status effects.");
+        ImGui.TextUnformatted($"MP regen list generated with {manaRegenList.Count} status effects.");
+        ImGui.TextUnformatted($"HP regen disabled list generated with {disabledHealthRegenList.Count} status effects.");
+        ImGui.TextUnformatted($"MP regen disabled list generated with {disabledManaRegenList.Count} status effects.");
         ImGui.Spacing();
         var maxRegenCount = Math.Max(healthRegenList.Count, manaRegenList.Count);
         var maxDisabledRegenCount = Math.Max(disabledHealthRegenList.Count, disabledManaRegenList.Count);
         using (var scrollArea = ImRaii.Child("ScrollArea", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y - 40f), border: true))
         {
-            DrawTable("DisabledRegenSID", Table2Column1, Table2Column2, disabledHPWidth, disabledMPWidth, maxDisabledRegenCount, disabledHealthRegenList, disabledManaRegenList);
+            DrawTable("DisabledRegenSID", table2Column1, table2Column2, disabledHPWidth, disabledMPWidth, maxDisabledRegenCount, disabledHealthRegenList, disabledManaRegenList);
             ImGui.Separator();
             ImGui.Spacing();
-            DrawTable("RegenSID", Table1Column1, Table1Column2, hpWidth, mpWidth, maxRegenCount, healthRegenList, manaRegenList);
+            DrawTable("RegenSID", table1Column1, table1Column2, hpWidth, mpWidth, maxRegenCount, healthRegenList, manaRegenList);
         }
         CopyAndClose();
     }
@@ -198,14 +196,14 @@ public class DebugWindow : Window
                 ImGui.TableSetColumnIndex(0);
                 if (i < list1.Count)
                 {
-                    ImGui.Text($"{list1[i]}");
+                    ImGui.TextUnformatted($"{list1[i]}");
                 }
 
                 // Mana Regen column
                 ImGui.TableSetColumnIndex(1);
                 if (i < list2.Count)
                 {
-                    ImGui.Text($"{list2[i]}");
+                    ImGui.TextUnformatted($"{list2[i]}");
                 }
             }
         }

@@ -396,7 +396,7 @@ public class ConfigWindow : Window
         }
         ImGui.PopItemWidth();
         ImGui.SameLine();
-        ImGui.Text(description);
+        ImGui.TextUnformatted(description);
         return change;
     }
     /// <summary>
@@ -424,7 +424,7 @@ public class ConfigWindow : Window
         }
         ImGui.PopItemWidth();
         ImGui.SameLine();
-        ImGui.Text(description);
+        ImGui.TextUnformatted(description);
         return change;
     }
 }
