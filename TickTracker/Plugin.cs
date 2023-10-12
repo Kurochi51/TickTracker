@@ -3,6 +3,7 @@ using System.Linq;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 using Lumina.Excel;
 using Dalamud.Memory;
@@ -85,7 +86,7 @@ public sealed class Plugin : IDalamudPlugin
     public WindowSystem WindowSystem { get; } = new("TickTracker");
     private readonly string commandName = "/tick";
 
-    private const float ActorTickInterval = 3;
+    private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
     private double syncValue = 1;
     private bool finishedLoading, primaryTickTriggered, secondaryTickTriggered;
     private bool syncAvailable = true, nullSheet = true;
@@ -115,7 +116,7 @@ public sealed class Plugin : IDalamudPlugin
         log = _pluginLog;
 
         _interopProvider.InitializeFromAttributes(this);
-        
+
         if (receiveActionEffectHook is null || receivePrimaryActorUpdateHook is null || receiveSecondaryActorUpdateHook is null)
         {
             throw new Exception("Atleast one hook failed, and the plugin is not functional.");
@@ -226,6 +227,7 @@ public sealed class Plugin : IDalamudPlugin
         var hpRegen = player.StatusList.Any(e => healthRegenList.Contains(e.StatusId));
         var regenHalt = player.StatusList.Any(e => disabledHealthRegenList.Contains(e.StatusId));
         var currentHP = player.CurrentHp;
+
         if (hpRegen && !HPBarWindow.FastTick)
         {
             HPBarWindow.FastRegenSwitch = true;
@@ -256,6 +258,7 @@ public sealed class Plugin : IDalamudPlugin
             }
         }
 
+        HPBarWindow.Progress = (currentTime - HPBarWindow.LastTick) / (HPBarWindow.FastTick ? FastTickInterval : ActorTickInterval);
         HPBarWindow.RegenHalted = regenHalt;
         lastHPValue = currentHP;
     }
@@ -296,6 +299,7 @@ public sealed class Plugin : IDalamudPlugin
             }
         }
 
+        MPBarWindow.Progress = (currentTime - MPBarWindow.LastTick) / (MPBarWindow.FastTick ? FastTickInterval : ActorTickInterval);
         MPBarWindow.RegenHalted = regenHalt;
         lastMPValue = currentMP;
     }
@@ -325,7 +329,7 @@ public sealed class Plugin : IDalamudPlugin
                 GPBarWindow.DelayedUpdate = false;
             }
         }
-
+        GPBarWindow.Progress = (currentTime - GPBarWindow.LastTick) / ActorTickInterval;
         GPBarWindow.RegenHalted = regenHalt;
         lastGPValue = currentGP;
     }
@@ -415,12 +419,11 @@ public sealed class Plugin : IDalamudPlugin
             {
                 return;
             }
-            var castTarget = sourceCharacter->GetCastInfo()->CastTargetID;
-            var target = sourceCharacter->GetTargetId();
-            if (target != player.OwnerId && castTarget != player.OwnerId && target != player.ObjectId && castTarget != player.ObjectId)
+            if (!IsTarget(player, sourceCharacter))
             {
                 return;
             }
+
             var name = MemoryHelper.ReadStringNullTerminated((nint)sourceCharacter->GameObject.GetName());
 
             var entryCount = effectHeader->TargetCount switch
@@ -443,6 +446,11 @@ public sealed class Plugin : IDalamudPlugin
                 else if (effectArray[i].type == ActionEffectType.MpGain)
                 {
                     var logMessage = sourceId == player.ObjectId ? "Restoring your own mana" : "Mana resotred by " + name;
+                    log.Verbose(logMessage);
+                }
+                else if (effectArray[i].type != ActionEffectType.Nothing && effectArray[i].type != ActionEffectType.Damage)
+                {
+                    var logMessage = "Received action type: " + effectArray[i].type + " from " + name;
                     log.Verbose(logMessage);
                 }
             }
@@ -581,6 +589,21 @@ public sealed class Plugin : IDalamudPlugin
         HPBarWindow.IsOpen = shouldShowHPBar || (player.CurrentHp != player.MaxHp);
         GPBarWindow.IsOpen = (jobType == 32 && (!config.HideOnFullResource || (player.CurrentGp != player.MaxGp)) && config.GPVisible) || !config.LockBar;
         MPBarWindow.IsOpen = (jobType != 32 && (shouldShowMPBar || (player.CurrentMp != player.MaxMp))) || !config.GPVisible;
+    }
+
+    private unsafe bool IsTarget(PlayerCharacter targetCharacter, Character* sourceCharacter)
+    {
+        ITuple sourceTarget = (sourceCharacter->GetCastInfo()->CastTargetID, sourceCharacter->GetSoftTargetId().ObjectID, sourceCharacter->GetTargetId(), sourceCharacter->LookTargetId.ObjectID);
+        var targetID = (object)targetCharacter.ObjectId;
+        for (var i = 0; i < sourceTarget.Length; i++)
+        {
+            var sourceTargetID = sourceTarget[i]; // 3758096384 which is E000000 means that the target isn't set
+            if (sourceTargetID is not null && sourceTargetID.Equals(targetID))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
 #if DEBUG

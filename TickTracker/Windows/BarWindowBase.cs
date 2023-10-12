@@ -28,6 +28,7 @@ public abstract class BarWindowBase : Window
     public bool DelayedUpdate { get; set; } = true;
     public double LastTick { get; set; } = 1;
     public double PreviousProgress { get; set; } = -1;
+    public double Progress { get; set; } = -1;
     public const float ActorTickInterval = 3, FastTickInterval = 1.5f;
 
     private readonly IClientState clientState;

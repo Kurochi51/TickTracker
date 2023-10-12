@@ -21,15 +21,15 @@ public class GPBar : BarWindowBase
 
     public override void Draw()
     {
-        var now = DateTime.Now.TimeOfDay.TotalSeconds;
         UpdateWindow();
-        var progress = (now - LastTick) / ActorTickInterval;
+        //var now = DateTime.Now.TimeOfDay.TotalSeconds;
+        //var progress = (now - LastTick) / ActorTickInterval;
         if (RegenHalted)
         {
-            progress = PreviousProgress;
+            Progress = PreviousProgress;
         }
-        DrawProgress(progress, config.GPBarBackgroundColor, config.GPBarFillColor, config.GPBarBorderColor);
-        PreviousProgress = progress;
+        DrawProgress(Progress, config.GPBarBackgroundColor, config.GPBarFillColor, config.GPBarBorderColor);
+        PreviousProgress = Progress;
     }
 
     private void UpdateWindow()

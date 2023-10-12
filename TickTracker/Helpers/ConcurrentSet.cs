@@ -74,7 +74,7 @@ namespace TickTracker.Helpers
         void ICollection<T>.Add(T item)
         {
             if (!Add(item))
-                throw new ArgumentException("item already exists in set.",nameof(item));
+                throw new ArgumentException("item already exists in set.", nameof(item));
         }
 
         /// <summary>

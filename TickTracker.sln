@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.6.33815.320
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{F5ACA56F-4245-4F6C-AF4B-3F27C77C3BCC}") = "TickTracker", "TickTracker\TickTracker.csproj", "{1521D0D6-E1C2-4805-8677-BE749CA16034}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TickTracker", "TickTracker\TickTracker.csproj", "{1521D0D6-E1C2-4805-8677-BE749CA16034}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
