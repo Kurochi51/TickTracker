@@ -22,13 +22,15 @@ public abstract class BarWindowBase : Window
                                                     ImGuiWindowFlags.NoInputs;
     public IPluginLog log { get; }
     public bool FastRegenSwitch { get; set; }
-    public bool RegenHalted { get; set; }
-    public bool FastTick { get; set; }
-    public bool CanUpdate { get; set; } = true;
-    public bool DelayedUpdate { get; set; } = true;
-    public double LastTick { get; set; } = 1;
-    public double PreviousProgress { get; set; } = -1;
-    public double Progress { get; set; } = -1;
+    public bool ProgressHalted { get; set; }
+    public bool RegenProgressActive { get; set; }
+    public bool RegenUpdate { get; set; }
+    public bool NormalUpdate { get; set; }
+    public float NormalTick { get; set; }
+    public float RegenTick { get; set; }
+    public float PreviousProgress { get; set; }
+    public float Progress { get; set; }
+    public float RegenProgress { get; set; }
     public const float ActorTickInterval = 3, FastTickInterval = 1.5f;
 
     private readonly IClientState clientState;
@@ -76,8 +78,9 @@ public abstract class BarWindowBase : Window
         ImGui.PopStyleVar();
     }
 
-    public static void DrawProgress(double progress, Vector4 backgroundColor, Vector4 fillColor, Vector4 borderColor)
+    public static void DrawProgress(float progress, Vector4 backgroundColor, Vector4 fillColor, Vector4 borderColor)
     {
+        //var floatProgress = (float)progress;
         var cornerRounding = 4f; // Maybe make it user configurable?
         var borderThickness = 1.35f; // Maybe make it user configurable?
         var barFillPosOffset = new Vector2(1, 1);
@@ -88,7 +91,7 @@ public abstract class BarWindowBase : Window
 
         // Calculate progress bar dimensions
         var barWidth = bottomRight.X - topLeft.X;
-        var filledWidth = new Vector2((barWidth * (float)Math.Max(progress, 0.0001f)) + topLeft.X, bottomRight.Y);
+        var filledWidth = new Vector2((barWidth * Math.Max(progress, 0.0001f)) + topLeft.X, bottomRight.Y);
         filledWidth = (progress <= 0) ? filledWidth - barFillSizeOffset : filledWidth;
 
         // Draw main bar

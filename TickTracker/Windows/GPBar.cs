@@ -22,9 +22,7 @@ public class GPBar : BarWindowBase
     public override void Draw()
     {
         UpdateWindow();
-        //var now = DateTime.Now.TimeOfDay.TotalSeconds;
-        //var progress = (now - LastTick) / ActorTickInterval;
-        if (RegenHalted)
+        if (ProgressHalted)
         {
             Progress = PreviousProgress;
         }

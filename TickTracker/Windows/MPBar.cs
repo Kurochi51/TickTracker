@@ -22,17 +22,15 @@ public class MPBar : BarWindowBase
     public override void Draw()
     {
         UpdateWindow();
-        //var now = DateTime.Now.TimeOfDay.TotalSeconds;
-        //var progress = (now - LastTick) / (FastTick ? FastTickInterval : ActorTickInterval);
         if (FastRegenSwitch && Progress > 1)
         {
             Progress /= 2;
-            if (CanUpdate)
+            if (NormalUpdate)
             {
                 FastRegenSwitch = false;
             }
         }
-        if (RegenHalted)
+        if (ProgressHalted)
         {
             Progress = PreviousProgress;
         }

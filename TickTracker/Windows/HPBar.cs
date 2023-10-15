@@ -22,22 +22,14 @@ public class HPBar : BarWindowBase
     public override void Draw()
     {
         UpdateWindow();
-        //var now = DateTime.Now.TimeOfDay.TotalSeconds;
-        //var progress = (now - LastTick) / (FastTick ? FastTickInterval : ActorTickInterval);
-        if (FastRegenSwitch && Progress > 1)
+        //var progress = (float)(RegenProgressActive ? RegenProgress : Progress);
+        var progress = Progress;
+        if (ProgressHalted)
         {
-            Progress /= 2;
-            if (CanUpdate)
-            {
-                FastRegenSwitch = false;
-            }
+            progress = PreviousProgress;
         }
-        if (RegenHalted)
-        {
-            Progress = PreviousProgress;
-        }
-        DrawProgress(Progress, config.HPBarBackgroundColor, config.HPBarFillColor, config.HPBarBorderColor);
-        PreviousProgress = Progress;
+        DrawProgress(progress, config.HPBarBackgroundColor, config.HPBarFillColor, config.HPBarBorderColor);
+        PreviousProgress = progress;
     }
 
     private void UpdateWindow()

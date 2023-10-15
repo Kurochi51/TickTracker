@@ -20,7 +20,7 @@ public enum ActionEffectType : byte
     ApplyStatusEffectTarget = 15,
     ApplyStatusEffectSource = 16,
     StatusNoEffect = 20,
-    Casting = 27,
+    CastFinished = 27,
     Unknown1 = 28,
     Knockback = 33,
     Mount = 40,

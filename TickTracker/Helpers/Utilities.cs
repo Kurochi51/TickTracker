@@ -2,11 +2,14 @@ using System;
 using System.Linq;
 using System.Numerics;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Game.ClientState.Objects.SubKinds;
 using FFXIVClientStructs.FFXIV.Component.GUI;
+using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using Lumina.Excel.GeneratedSheets;
 using TickTracker.Enums;
 
@@ -228,6 +231,23 @@ public partial class Utilities
         }
 
         return true;
+    }
+    /// <summary>
+    ///     Check if <paramref name="sourceCharacter"/> is currently targetting <paramref name="targetCharacter"/>, whether it's manually set, or the result of using an action.
+    /// </summary>
+    public unsafe bool IsTarget(PlayerCharacter targetCharacter, Character* sourceCharacter)
+    {
+        ITuple sourceTarget = (sourceCharacter->GetCastInfo()->CastTargetID, sourceCharacter->GetSoftTargetId().ObjectID, sourceCharacter->GetTargetId(), sourceCharacter->LookTargetId.ObjectID);
+        var targetID = (object)targetCharacter.ObjectId;
+        for (var i = 0; i < sourceTarget.Length; i++)
+        {
+            var sourceTargetID = sourceTarget[i]; // 3758096384 which is E000000 means that the target isn't set
+            if (sourceTargetID is not null && sourceTargetID.Equals(targetID))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     [System.Text.RegularExpressions.GeneratedRegex("\\W+", System.Text.RegularExpressions.RegexOptions.Compiled, 500)]

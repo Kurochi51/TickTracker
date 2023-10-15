@@ -1,9 +1,9 @@
 using System;
 using System.Linq;
 using System.Diagnostics;
+using System.Globalization;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 
 using Lumina.Excel;
 using Dalamud.Memory;
@@ -87,8 +87,8 @@ public sealed class Plugin : IDalamudPlugin
     private readonly string commandName = "/tick";
 
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
-    private double syncValue = 1;
-    private bool finishedLoading, primaryTickTriggered, secondaryTickTriggered;
+    private float syncValue;
+    private bool finishedLoading;
     private bool syncAvailable = true, nullSheet = true;
     private uint lastHPValue, lastMPValue, lastGPValue;
     private Task? loadingTask;
@@ -191,7 +191,7 @@ public sealed class Plugin : IDalamudPlugin
         }
 
 #if DEBUG
-        DevWindowThings(player);
+        DevWindowThings(player, (float)DateTime.Now.TimeOfDay.TotalSeconds);
 #endif
         unsafe
         {
@@ -202,7 +202,7 @@ public sealed class Plugin : IDalamudPlugin
             }
         }
         UpdateBarState(player);
-        var now = DateTime.Now.TimeOfDay.TotalSeconds;
+        var now = (float)DateTime.Now.TimeOfDay.TotalSeconds;
         if (syncAvailable)
         {
             syncValue = now;
@@ -222,115 +222,137 @@ public sealed class Plugin : IDalamudPlugin
         UpdateGPTick(now, player);
     }
 
-    private void UpdateHPTick(double currentTime, PlayerCharacter player)
+    private void UpdateHPTick(float currentTime, PlayerCharacter player)
     {
         var hpRegen = player.StatusList.Any(e => healthRegenList.Contains(e.StatusId));
-        var regenHalt = player.StatusList.Any(e => disabledHealthRegenList.Contains(e.StatusId));
+        var progressHalt = player.StatusList.Any(e => disabledHealthRegenList.Contains(e.StatusId));
         var currentHP = player.CurrentHp;
-
-        if (hpRegen && !HPBarWindow.FastTick)
+        if (!HPBarWindow.RegenProgressActive && hpRegen)
         {
             HPBarWindow.FastRegenSwitch = true;
+            HPBarWindow.RegenTick = syncValue;
         }
-        HPBarWindow.FastTick = hpRegen;
+        HPBarWindow.RegenProgressActive = hpRegen;
+        HPBarWindow.ProgressHalted = progressHalt;
 
-        if ((currentHP == player.MaxHp || finishedLoading) && !HPBarWindow.FastTick)
+        if (HPBarWindow.RegenProgressActive)
         {
-            HPBarWindow.LastTick = syncValue;
-            HPBarWindow.FastRegenSwitch = false;
-        }
-        else if (lastHPValue != currentHP && !HPBarWindow.FastTick && HPBarWindow.CanUpdate)
-        {
-            HPBarWindow.LastTick = currentTime;
-            HPBarWindow.CanUpdate = false;
-        }
-        else if (HPBarWindow.FastTick)
-        {
-            if (HPBarWindow.CanUpdate)
+            if (currentHP == player.MaxHp && HPBarWindow.RegenUpdate)
             {
-                HPBarWindow.LastTick = currentTime;
-                HPBarWindow.CanUpdate = false;
+                HPBarWindow.RegenTick = currentTime;
+                log.Warning("RegenTick reset by currentHP == player.MaxHp && HPBarWindow.RegenUpdate");
+                HPBarWindow.RegenUpdate = HPBarWindow.FastRegenSwitch = false;
             }
-            else if (HPBarWindow.DelayedUpdate)
+            else if (lastHPValue != currentHP)
             {
-                HPBarWindow.LastTick = currentTime;
-                HPBarWindow.DelayedUpdate = false;
+                if (HPBarWindow.RegenUpdate)
+                {
+                    HPBarWindow.RegenTick = currentTime;
+                    log.Warning("RegenTick reset by lastHPValue != currentHP && HPBarWindow.RegenUpdate");
+                    HPBarWindow.RegenUpdate = false;
+                }
+                else if (HPBarWindow.NormalUpdate)
+                {
+                    HPBarWindow.RegenTick = currentTime;
+                    log.Warning("RegenTick reset by lastHPValue != currentHP && HPBarWindow.NormalUpdate");
+                    HPBarWindow.NormalUpdate = false;
+                }
             }
+            HPBarWindow.NormalTick = syncValue; // Fixes Progress from going over 1 when hpRegen ends while under max hp
+            HPBarWindow.Progress = (currentTime - HPBarWindow.RegenTick) / ((currentHP == player.MaxHp  && !HPBarWindow.FastRegenSwitch) ? ActorTickInterval : FastTickInterval);
+        }
+        else
+        {
+            if (HPBarWindow.RegenUpdate)
+            {
+                HPBarWindow.RegenUpdate = false;
+            }
+            if (currentHP == player.MaxHp || finishedLoading)
+            {
+                HPBarWindow.NormalTick = syncValue;
+
+            }
+            else if (lastHPValue != currentHP && HPBarWindow.NormalUpdate)
+            {
+                HPBarWindow.NormalTick = currentTime;
+                log.Warning("NormalTick reset by lastHPValue != currentHP && HPBarWindow.NormalUpdate");
+
+                HPBarWindow.NormalUpdate = false;
+            }
+            HPBarWindow.Progress = (currentTime - HPBarWindow.NormalTick) / ActorTickInterval;
         }
 
-        HPBarWindow.Progress = (currentTime - HPBarWindow.LastTick) / (HPBarWindow.FastTick ? FastTickInterval : ActorTickInterval);
-        HPBarWindow.RegenHalted = regenHalt;
         lastHPValue = currentHP;
     }
 
-    private void UpdateMPTick(double currentTime, PlayerCharacter player)
+    private void UpdateMPTick(float currentTime, PlayerCharacter player)
     {
         var mpRegen = player.StatusList.Any(e => manaRegenList.Contains(e.StatusId));
         var blmGauge = player.ClassJob.Id == 25 ? jobGauges.Get<BLMGauge>() : null;
         var regenHalt = blmGauge is not null && blmGauge.InAstralFire;
         var currentMP = player.CurrentMp;
-        if (mpRegen && !MPBarWindow.FastTick)
+        if (mpRegen && !MPBarWindow.RegenProgressActive)
         {
             MPBarWindow.FastRegenSwitch = true;
         }
-        MPBarWindow.FastTick = mpRegen;
+        MPBarWindow.RegenProgressActive = mpRegen;
 
-        if ((currentMP == player.MaxMp || finishedLoading) && !MPBarWindow.FastTick)
+        if ((currentMP == player.MaxMp || finishedLoading) && !MPBarWindow.RegenProgressActive)
         {
-            MPBarWindow.LastTick = syncValue;
+            MPBarWindow.NormalTick = syncValue;
             MPBarWindow.FastRegenSwitch = false;
         }
-        else if (lastMPValue != currentMP && !MPBarWindow.FastTick && MPBarWindow.CanUpdate)
+        else if (lastMPValue != currentMP && !MPBarWindow.RegenProgressActive && MPBarWindow.NormalUpdate)
         {
-            MPBarWindow.LastTick = currentTime;
-            MPBarWindow.CanUpdate = false;
+            MPBarWindow.NormalTick = currentTime;
+            MPBarWindow.NormalUpdate = false;
         }
-        else if (MPBarWindow.FastTick)
+        else if (MPBarWindow.RegenProgressActive)
         {
-            if (MPBarWindow.CanUpdate)
+            if (MPBarWindow.NormalUpdate)
             {
-                MPBarWindow.LastTick = currentTime;
-                MPBarWindow.CanUpdate = false;
+                MPBarWindow.NormalTick = currentTime;
+                MPBarWindow.NormalUpdate = false;
             }
-            else if (MPBarWindow.DelayedUpdate)
+            else if (MPBarWindow.RegenUpdate)
             {
-                MPBarWindow.LastTick = currentTime;
-                MPBarWindow.DelayedUpdate = false;
+                MPBarWindow.NormalTick = currentTime;
+                MPBarWindow.RegenUpdate = false;
             }
         }
 
-        MPBarWindow.Progress = (currentTime - MPBarWindow.LastTick) / (MPBarWindow.FastTick ? FastTickInterval : ActorTickInterval);
-        MPBarWindow.RegenHalted = regenHalt;
+        MPBarWindow.Progress = (currentTime - MPBarWindow.NormalTick) / (MPBarWindow.RegenProgressActive ? FastTickInterval : ActorTickInterval);
+        MPBarWindow.ProgressHalted = regenHalt;
         lastMPValue = currentMP;
     }
 
-    private void UpdateGPTick(double currentTime, PlayerCharacter player)
+    private void UpdateGPTick(float currentTime, PlayerCharacter player)
     {
         var regenHalt = condition[ConditionFlag.Gathering];
         var currentGP = player.CurrentGp;
-        if (!regenHalt && GPBarWindow.RegenHalted)
+        if (!regenHalt && GPBarWindow.ProgressHalted)
         {
-            GPBarWindow.LastTick = syncValue;
+            GPBarWindow.NormalTick = syncValue;
         }
         if (currentGP == player.MaxGp || finishedLoading)
         {
-            GPBarWindow.LastTick = syncValue;
+            GPBarWindow.NormalTick = syncValue;
         }
         else if (lastGPValue != currentGP)
         {
-            if (GPBarWindow.CanUpdate)
+            if (GPBarWindow.NormalUpdate)
             {
-                GPBarWindow.LastTick = currentTime;
-                GPBarWindow.CanUpdate = false;
+                GPBarWindow.NormalTick = currentTime;
+                GPBarWindow.NormalUpdate = false;
             }
-            else if (GPBarWindow.DelayedUpdate)
+            else if (GPBarWindow.RegenUpdate)
             {
-                GPBarWindow.LastTick = currentTime;
-                GPBarWindow.DelayedUpdate = false;
+                GPBarWindow.NormalTick = currentTime;
+                GPBarWindow.RegenUpdate = false;
             }
         }
-        GPBarWindow.Progress = (currentTime - GPBarWindow.LastTick) / ActorTickInterval;
-        GPBarWindow.RegenHalted = regenHalt;
+        GPBarWindow.Progress = (currentTime - GPBarWindow.NormalTick) / ActorTickInterval;
+        GPBarWindow.ProgressHalted = regenHalt;
         lastGPValue = currentGP;
     }
 
@@ -419,7 +441,7 @@ public sealed class Plugin : IDalamudPlugin
             {
                 return;
             }
-            if (!IsTarget(player, sourceCharacter))
+            if (!utilities.IsTarget(player, sourceCharacter))
             {
                 return;
             }
@@ -441,17 +463,17 @@ public sealed class Plugin : IDalamudPlugin
                 if (effectArray[i].type == ActionEffectType.Heal)
                 {
                     var logMessage = sourceId == player.ObjectId ? "Self healing" : "Healed by " + name;
-                    log.Verbose(logMessage);
+                    log.Debug(logMessage);
                 }
                 else if (effectArray[i].type == ActionEffectType.MpGain)
                 {
                     var logMessage = sourceId == player.ObjectId ? "Restoring your own mana" : "Mana resotred by " + name;
-                    log.Verbose(logMessage);
+                    log.Debug(logMessage);
                 }
                 else if (effectArray[i].type != ActionEffectType.Nothing && effectArray[i].type != ActionEffectType.Damage)
                 {
                     var logMessage = "Received action type: " + effectArray[i].type + " from " + name;
-                    log.Verbose(logMessage);
+                    log.Debug(logMessage);
                 }
             }
         }
@@ -485,21 +507,14 @@ public sealed class Plugin : IDalamudPlugin
                 return;
             }
 #if DEBUG
-            log.Debug("Primary tick triggered");
-            log.Debug("NetworkHP: {nhp}, vs localHP: {lhp}", networkHP, lastHPValue);
-            DevWindow.persistentLine1 = "Primary network hp: " + networkHP.ToString(System.Globalization.CultureInfo.InvariantCulture) + " vs player hp: " + player.CurrentHp;
+            //log.Debug("Primary tick triggered");
+            //log.Debug("NetworkHP: {nhp}, vs localHP: {lhp}", networkHP, lastHPValue);
 #endif
-            HPBarWindow.CanUpdate = true;
-            MPBarWindow.CanUpdate = true;
-            GPBarWindow.CanUpdate = true;
+            HPBarWindow.NormalUpdate = player.CurrentHp != player.MaxHp;
+            MPBarWindow.NormalUpdate = player.CurrentMp != player.MaxMp;
+            GPBarWindow.NormalUpdate = true;
             syncAvailable = true;
             finishedLoading = false;
-            if (secondaryTickTriggered)
-            {
-                log.Debug("PrimaryActorTick triggered after SecondaryActorTick.");
-            }
-            primaryTickTriggered = true;
-            secondaryTickTriggered = false;
         }
         catch (Exception e)
         {
@@ -530,24 +545,11 @@ public sealed class Plugin : IDalamudPlugin
             }
 #if DEBUG
             log.Debug("Secondary tick triggered");
-            log.Debug("NetworkHP: {nhp}, vs localHP: {lhp}", unk1, lastHPValue);
-            DevWindow.persistentLine2 = "Secondary network hp: " + unk1 + " vs player hp: " + player.CurrentHp;
 #endif
-            // Should block multiple triggers in quick succession in-between primary ticks from resetting the bar
-            if (primaryTickTriggered)
-            {
-                log.Debug("SecondaryActorTick triggered after PrimaryActorTick.");
-                HPBarWindow.DelayedUpdate = true;
-                MPBarWindow.DelayedUpdate = true;
-                GPBarWindow.DelayedUpdate = true;
-            }
-            else
-            {
-                log.Warning("SecondaryActorTick repeated in quick succesion, without PrimaryActorTick in-between.");
-            }
+            HPBarWindow.RegenUpdate = true;
+            MPBarWindow.RegenUpdate = true;
+            GPBarWindow.RegenUpdate = true;
             finishedLoading = false;
-            primaryTickTriggered = false;
-            secondaryTickTriggered = true;
         }
         catch (Exception e)
         {
@@ -591,29 +593,23 @@ public sealed class Plugin : IDalamudPlugin
         MPBarWindow.IsOpen = (jobType != 32 && (shouldShowMPBar || (player.CurrentMp != player.MaxMp))) || !config.GPVisible;
     }
 
-    private unsafe bool IsTarget(PlayerCharacter targetCharacter, Character* sourceCharacter)
-    {
-        ITuple sourceTarget = (sourceCharacter->GetCastInfo()->CastTargetID, sourceCharacter->GetSoftTargetId().ObjectID, sourceCharacter->GetTargetId(), sourceCharacter->LookTargetId.ObjectID);
-        var targetID = (object)targetCharacter.ObjectId;
-        for (var i = 0; i < sourceTarget.Length; i++)
-        {
-            var sourceTargetID = sourceTarget[i]; // 3758096384 which is E000000 means that the target isn't set
-            if (sourceTargetID is not null && sourceTargetID.Equals(targetID))
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
 #if DEBUG
-    private unsafe void DevWindowThings(PlayerCharacter player)
+    private unsafe void DevWindowThings(PlayerCharacter player, float currentTime)
     {
+        // TODO: Switch over to altNow, observe progress in DrawProgress pre and post conversion
+        //var altNow = (DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds;
         DevWindow.IsOpen = true;
+        DevWindow.printLines.Add("HP: " + player.CurrentHp.ToString() + " / " + player.MaxHp.ToString());
+        DevWindow.printLines.Add("Current Time: " + currentTime.ToString(CultureInfo.InvariantCulture));
+        DevWindow.printLines.Add("RegenProgressActive: " + HPBarWindow.RegenProgressActive.ToString());
         DevWindow.printLines.Add("FastRegenSwitch: " + HPBarWindow.FastRegenSwitch.ToString());
-        DevWindow.printLines.Add("Regen: " + HPBarWindow.FastTick.ToString());
-        DevWindow.printLines.Add("Current HP: " + player.CurrentHp.ToString());
-        DevWindow.printLines.Add("Max HP: " + player.MaxHp.ToString());
+        //DevWindow.printLines.Add("RegenProgress: " + HPBarWindow.RegenProgress.ToString(CultureInfo.InvariantCulture));
+        DevWindow.printLines.Add("RegenTick: " + HPBarWindow.RegenTick.ToString(CultureInfo.InvariantCulture));
+        DevWindow.printLines.Add("RegenUpdate: " + HPBarWindow.RegenUpdate.ToString());
+        DevWindow.printLines.Add("Progress: " + HPBarWindow.Progress.ToString(CultureInfo.InvariantCulture));
+        DevWindow.printLines.Add("NormalTick: " + HPBarWindow.NormalTick.ToString(CultureInfo.InvariantCulture));
+        DevWindow.printLines.Add("NormalUpdate: " + HPBarWindow.NormalUpdate.ToString());
+        DevWindow.printLines.Add("Sync Value: " + syncValue.ToString(CultureInfo.InvariantCulture));
     }
 #endif
 

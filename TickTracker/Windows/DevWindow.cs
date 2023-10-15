@@ -9,14 +9,12 @@ namespace TickTracker.Windows;
 public class DevWindow : Window
 {
     public IList<string> printLines { get; set; } = new List<string>();
-    public string persistentLine1 { get; set; } = string.Empty;
-    public string persistentLine2 { get; set; } = string.Empty;
     public DevWindow() : base("DevWindow")
     {
         var resolution = ImGui.GetMainViewport().Size;
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(200, 300),
+            MinimumSize = new Vector2(200, 200),
             MaximumSize = resolution,
         };
     }
@@ -28,7 +26,5 @@ public class DevWindow : Window
             ImGui.TextUnformatted(line);
         }
         printLines.Clear();
-        ImGui.TextUnformatted(persistentLine1);
-        ImGui.TextUnformatted(persistentLine2);
     }
 }
