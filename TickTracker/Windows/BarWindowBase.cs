@@ -31,6 +31,8 @@ public abstract class BarWindowBase : Window
     public float PreviousProgress { get; set; }
     public float Progress { get; set; }
     public float RegenProgress { get; set; }
+    public Vector2 WindowCoords { get; set; }
+    public Vector2 WindowSize { get; set; }
     public const float ActorTickInterval = 3, FastTickInterval = 1.5f;
 
     private readonly IClientState clientState;

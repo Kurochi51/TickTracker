@@ -32,12 +32,14 @@ public class GPBar : BarWindowBase
 
     private void UpdateWindow()
     {
-        if (config.LockBar)
-        {
-            return;
-        }
         var windowPos = ImGui.GetWindowPos();
         var windowSize = ImGui.GetWindowSize();
+        if (config.LockBar)
+        {
+            WindowCoords = windowPos;
+            WindowSize = windowSize;
+            return;
+        }
         if (IsFocused)
         {
             utilities.UpdateWindowConfig(windowPos, windowSize, WindowType);
@@ -53,5 +55,7 @@ public class GPBar : BarWindowBase
                 ImGui.SetWindowSize(config.GPBarSize);
             }
         }
+        WindowCoords = windowPos;
+        WindowSize = windowSize;
     }
 }

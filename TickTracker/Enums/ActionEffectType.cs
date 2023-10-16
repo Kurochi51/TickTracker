@@ -22,6 +22,7 @@ public enum ActionEffectType : byte
     StatusNoEffect = 20,
     CastFinished = 27,
     Unknown1 = 28,
+    Unknown2 = 32,
     Knockback = 33,
     Mount = 40,
     VFX = 59,

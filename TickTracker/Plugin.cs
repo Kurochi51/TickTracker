@@ -1,6 +1,5 @@
 using System;
 using System.Linq;
-using System.Diagnostics;
 using System.Globalization;
 using System.Threading.Tasks;
 using System.Collections.Generic;
@@ -87,12 +86,15 @@ public sealed class Plugin : IDalamudPlugin
     private readonly string commandName = "/tick";
 
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
-    private float syncValue;
+    private float syncValue, regenValue;
     private bool finishedLoading;
     private bool syncAvailable = true, nullSheet = true;
     private uint lastHPValue, lastMPValue, lastGPValue;
     private Task? loadingTask;
     private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
+    private unsafe AtkUnitBase* TalkAddon => (AtkUnitBase*)gameGui.GetAddonByName("Talk");
+    private unsafe AtkUnitBase* ActionDetailAddon => (AtkUnitBase*)gameGui.GetAddonByName("ActionDetail");
+    private unsafe AtkUnitBase* ItemDetailAddon => (AtkUnitBase*)gameGui.GetAddonByName("ItemDetail");
 
     public Plugin(DalamudPluginInterface _pluginInterface,
         IClientState _clientState,
@@ -155,7 +157,7 @@ public sealed class Plugin : IDalamudPlugin
 
     private void TerritoryChanged(ushort e)
     {
-        loadingTask = Task.Run(async () => await Loading(1000).ConfigureAwait(false));
+        loadingTask = Task.Run(async () => await utilities.Loading(1000).ConfigureAwait(false));
     }
 
     private bool PluginEnabled(PlayerCharacter player)
@@ -191,11 +193,16 @@ public sealed class Plugin : IDalamudPlugin
         }
 
 #if DEBUG
-        DevWindowThings(player, (float)DateTime.Now.TimeOfDay.TotalSeconds);
+        //DevWindowThings(player, (float)DateTime.Now.TimeOfDay.TotalSeconds);
 #endif
         unsafe
         {
-            if (!PluginEnabled(player) || !utilities.IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible || utilities.inCustcene() || player.IsDead)
+            if (!PluginEnabled(player) || !utilities.IsAddonReady(NameplateAddon) || !utilities.IsAddonReady(TalkAddon) || !utilities.IsAddonReady(ActionDetailAddon) || !utilities.IsAddonReady(ItemDetailAddon))
+            {
+                HPBarWindow.IsOpen = MPBarWindow.IsOpen = GPBarWindow.IsOpen = false;
+                return;
+            }
+            if (!NameplateAddon->IsVisible || TalkAddon->IsVisible || utilities.inCustcene() || player.IsDead)
             {
                 HPBarWindow.IsOpen = MPBarWindow.IsOpen = GPBarWindow.IsOpen = false;
                 return;
@@ -206,11 +213,16 @@ public sealed class Plugin : IDalamudPlugin
         if (syncAvailable)
         {
             syncValue = now;
+            regenValue = syncValue + FastTickInterval;
             syncAvailable = false;
         }
         else if (syncValue + ActorTickInterval <= now)
         {
             syncValue += ActorTickInterval;
+        }
+        if (regenValue + ActorTickInterval <= now)
+        {
+            regenValue += ActorTickInterval;
         }
         if (loadingTask is not null && loadingTask.IsCompleted)
         {
@@ -230,7 +242,7 @@ public sealed class Plugin : IDalamudPlugin
         if (!HPBarWindow.RegenProgressActive && hpRegen)
         {
             HPBarWindow.FastRegenSwitch = true;
-            HPBarWindow.RegenTick = syncValue;
+            HPBarWindow.RegenTick = regenValue;
         }
         HPBarWindow.RegenProgressActive = hpRegen;
         HPBarWindow.ProgressHalted = progressHalt;
@@ -239,7 +251,7 @@ public sealed class Plugin : IDalamudPlugin
         {
             if (currentHP == player.MaxHp && HPBarWindow.RegenUpdate)
             {
-                HPBarWindow.RegenTick = currentTime;
+                HPBarWindow.RegenTick = regenValue;
                 log.Warning("RegenTick reset by currentHP == player.MaxHp && HPBarWindow.RegenUpdate");
                 HPBarWindow.RegenUpdate = HPBarWindow.FastRegenSwitch = false;
             }
@@ -247,7 +259,7 @@ public sealed class Plugin : IDalamudPlugin
             {
                 if (HPBarWindow.RegenUpdate)
                 {
-                    HPBarWindow.RegenTick = currentTime;
+                    HPBarWindow.RegenTick = regenValue;
                     log.Warning("RegenTick reset by lastHPValue != currentHP && HPBarWindow.RegenUpdate");
                     HPBarWindow.RegenUpdate = false;
                 }
@@ -270,13 +282,11 @@ public sealed class Plugin : IDalamudPlugin
             if (currentHP == player.MaxHp || finishedLoading)
             {
                 HPBarWindow.NormalTick = syncValue;
-
             }
             else if (lastHPValue != currentHP && HPBarWindow.NormalUpdate)
             {
                 HPBarWindow.NormalTick = currentTime;
                 log.Warning("NormalTick reset by lastHPValue != currentHP && HPBarWindow.NormalUpdate");
-
                 HPBarWindow.NormalUpdate = false;
             }
             HPBarWindow.Progress = (currentTime - HPBarWindow.NormalTick) / ActorTickInterval;
@@ -557,25 +567,7 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
-    private async Task Loading(int pollingPeriodMiliseconds)
-    {
-        var loadingTimer = new Stopwatch();
-        var loading = condition[ConditionFlag.BetweenAreas] || condition[ConditionFlag.BetweenAreas51];
-        loadingTimer.Start();
-        while (loading)
-        {
-            if (loadingTimer.ElapsedMilliseconds <= pollingPeriodMiliseconds)
-            {
-                var remainingTime = pollingPeriodMiliseconds - (int)loadingTimer.ElapsedMilliseconds;
-                await Task.Delay(remainingTime).ConfigureAwait(false);
-                loadingTimer.Restart();
-            }
-            loading = condition[ConditionFlag.BetweenAreas] || condition[ConditionFlag.BetweenAreas51];
-        }
-        loadingTimer.Reset();
-    }
-
-    private void UpdateBarState(PlayerCharacter player)
+    private unsafe void UpdateBarState(PlayerCharacter player)
     {
         var jobType = player.ClassJob.GameData?.ClassJobCategory.Row ?? 0;
         var Enemy = player.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
@@ -589,8 +581,24 @@ public sealed class Plugin : IDalamudPlugin
                             (config.AlwaysShowWithHostileTarget && Enemy) ||
                             (config.AlwaysShowInDuties && utilities.InDuty());
         HPBarWindow.IsOpen = shouldShowHPBar || (player.CurrentHp != player.MaxHp);
-        GPBarWindow.IsOpen = (jobType == 32 && (!config.HideOnFullResource || (player.CurrentGp != player.MaxGp)) && config.GPVisible) || !config.LockBar;
         MPBarWindow.IsOpen = (jobType != 32 && (shouldShowMPBar || (player.CurrentMp != player.MaxMp))) || !config.GPVisible;
+        GPBarWindow.IsOpen = (jobType == 32 && (!config.HideOnFullResource || (player.CurrentGp != player.MaxGp)) && config.GPVisible) || !config.LockBar;
+        if ((!ActionDetailAddon->IsVisible && !ItemDetailAddon->IsVisible) || !config.CollisionDetection || (config.CollisionDetectionInCombat && inCombat))
+        {
+            return;
+        }
+        if ((ActionDetailAddon->IsVisible && utilities.AddonOverlap(ActionDetailAddon, HPBarWindow)) || (ItemDetailAddon->IsVisible && utilities.AddonOverlap(ItemDetailAddon, HPBarWindow)))
+        {
+            HPBarWindow.IsOpen = false;
+        }
+        if ((ActionDetailAddon->IsVisible && utilities.AddonOverlap(ActionDetailAddon, MPBarWindow)) || (ItemDetailAddon->IsVisible && utilities.AddonOverlap(ItemDetailAddon, MPBarWindow)))
+        {
+            MPBarWindow.IsOpen = false;
+        }
+        if ((ActionDetailAddon->IsVisible && utilities.AddonOverlap(ActionDetailAddon, GPBarWindow)) || (ItemDetailAddon->IsVisible && utilities.AddonOverlap(ItemDetailAddon, GPBarWindow)))
+        {
+            GPBarWindow.IsOpen = false;
+        }
     }
 
 #if DEBUG
@@ -610,6 +618,7 @@ public sealed class Plugin : IDalamudPlugin
         DevWindow.printLines.Add("NormalTick: " + HPBarWindow.NormalTick.ToString(CultureInfo.InvariantCulture));
         DevWindow.printLines.Add("NormalUpdate: " + HPBarWindow.NormalUpdate.ToString());
         DevWindow.printLines.Add("Sync Value: " + syncValue.ToString(CultureInfo.InvariantCulture));
+        DevWindow.printLines.Add("Regen Value: " + regenValue.ToString(CultureInfo.InvariantCulture));
     }
 #endif
 

@@ -34,12 +34,14 @@ public class HPBar : BarWindowBase
 
     private void UpdateWindow()
     {
-        if (config.LockBar)
-        {
-            return;
-        }
         var windowPos = ImGui.GetWindowPos();
         var windowSize = ImGui.GetWindowSize();
+        if (config.LockBar)
+        {
+            WindowCoords = windowPos;
+            WindowSize = windowSize;
+            return;
+        }
         if (IsFocused)
         {
             utilities.UpdateWindowConfig(windowPos, windowSize, WindowType);
@@ -55,5 +57,7 @@ public class HPBar : BarWindowBase
                 ImGui.SetWindowSize(config.HPBarSize);
             }
         }
+        WindowCoords = windowPos;
+        WindowSize = windowSize;
     }
 }

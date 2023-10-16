@@ -117,6 +117,12 @@ public class ConfigWindow : Window
                 config.AlwaysShowWithHostileTarget = AlwaysShowWithHostileTarget;
                 config.Save(pluginInterface);
             }
+            var CollisionDetectionInCombat = config.CollisionDetectionInCombat;
+            if (ImGui.Checkbox("Ignore collision detection in combat", ref CollisionDetectionInCombat))
+            {
+                config.CollisionDetectionInCombat = CollisionDetectionInCombat;
+                config.Save(pluginInterface);
+            }
             ImGui.Unindent();
         }
     }
@@ -370,6 +376,14 @@ public class ConfigWindow : Window
         }
         ImGui.SameLine();
         ImGuiComponents.HelpMarker("Only shown while a Disciple of Land job is active or bars are unlocked.");
+        var CollisionDetection = config.CollisionDetection;
+        if (ImGui.Checkbox("Hide bar on collision with native ui", ref CollisionDetection))
+        {
+            config.CollisionDetection = CollisionDetection;
+            config.Save(pluginInterface);
+        }
+        ImGui.SameLine();
+        ImGuiComponents.HelpMarker("This only affects the description of abilities and items");
     }
 
     /// <summary>

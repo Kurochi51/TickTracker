@@ -40,12 +40,14 @@ public class MPBar : BarWindowBase
 
     private void UpdateWindow()
     {
-        if (config.LockBar)
-        {
-            return;
-        }
         var windowPos = ImGui.GetWindowPos();
         var windowSize = ImGui.GetWindowSize();
+        if (config.LockBar)
+        {
+            WindowCoords = windowPos;
+            WindowSize = windowSize;
+            return;
+        }
         if (IsFocused)
         {
             utilities.UpdateWindowConfig(windowPos, windowSize, WindowType);
@@ -61,5 +63,7 @@ public class MPBar : BarWindowBase
                 ImGui.SetWindowSize(config.MPBarSize);
             }
         }
+        WindowCoords = windowPos;
+        WindowSize = windowSize;
     }
 }

@@ -1,6 +1,8 @@
 using System;
 using System.Linq;
 using System.Numerics;
+using System.Diagnostics;
+using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
@@ -12,6 +14,7 @@ using FFXIVClientStructs.FFXIV.Component.GUI;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using Lumina.Excel.GeneratedSheets;
 using TickTracker.Enums;
+using TickTracker.Windows;
 
 namespace TickTracker;
 
@@ -248,6 +251,59 @@ public partial class Utilities
             }
         }
         return false;
+    }
+
+    /// <summary>
+    ///     Check if <paramref name="window"/> is overlapping <paramref name="addon"/>
+    /// </summary>
+    public unsafe bool AddonOverlap(AtkUnitBase* addon, BarWindowBase window)
+    {
+        var addonPos = (X: addon->X, Y: addon->Y);
+        var addonSize = (width: addon->GetScaledWidth(true), height: addon->GetScaledHeight(true));
+
+        var topLeft = (window.WindowCoords.X, window.WindowCoords.Y);
+        var topRight = (X: window.WindowCoords.X + window.WindowSize.X, window.WindowCoords.Y);
+        var bottomLeft = (window.WindowCoords.X, Y: window.WindowCoords.Y + window.WindowSize.Y);
+        var bottomRight = (X: window.WindowCoords.X + window.WindowSize.X, Y: window.WindowCoords.Y + window.WindowSize.Y);
+
+        var addonTopLeft = (addonPos.X, addonPos.Y);
+        var addonTopRight = (X: addonPos.X + addonSize.width, addonPos.Y);
+        var addonBottomLeft = (addonPos.X, Y: addonPos.Y + addonSize.height);
+        var addonBottomRight = (X: addonPos.X + addonSize.width, Y: addonPos.Y + addonSize.height);
+
+        var topLeftCollision = topLeft.X >= addonTopLeft.X && topLeft.X <= addonTopRight.X && topLeft.Y >= addonTopLeft.Y && topLeft.Y <= addonBottomLeft.Y;
+        var topRightCollision = topRight.X <= addonTopRight.X && topRight.X >= addonTopLeft.X && topRight.Y >= addonTopRight.Y && topRight.Y <= addonBottomRight.Y;
+        var bottomLeftCollision = bottomLeft.X >= addonBottomLeft.X && bottomLeft.X <= addonBottomRight.X && bottomLeft.Y <= addonBottomLeft.Y && bottomLeft.Y >= addonTopLeft.Y;
+        var bottomRightCollision = bottomRight.X <= addonBottomRight.X && bottomRight.X >= addonBottomLeft.X && bottomRight.Y <= addonBottomRight.Y && bottomRight.Y >= addonTopRight.Y;
+
+        if (topLeftCollision || topRightCollision || bottomLeftCollision || bottomRightCollision)
+        {
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    ///     Spawn a <see cref="Task"/> that checks if the <see cref="ConditionFlag"/> for loading is present every polling period.
+    /// </summary>
+    /// <param name="pollingPeriodMiliseconds"></param>
+    /// <returns></returns>
+    public async Task Loading(long pollingPeriodMiliseconds)
+    {
+        var loadingTimer = new Stopwatch();
+        var loading = condition[ConditionFlag.BetweenAreas] || condition[ConditionFlag.BetweenAreas51];
+        loadingTimer.Start();
+        while (loading)
+        {
+            if (loadingTimer.ElapsedMilliseconds <= pollingPeriodMiliseconds)
+            {
+                var remainingTime = pollingPeriodMiliseconds - loadingTimer.ElapsedMilliseconds;
+                await Task.Delay((int)remainingTime).ConfigureAwait(false);
+                loadingTimer.Restart();
+            }
+            loading = condition[ConditionFlag.BetweenAreas] || condition[ConditionFlag.BetweenAreas51];
+        }
+        loadingTimer.Reset();
     }
 
     [System.Text.RegularExpressions.GeneratedRegex("\\W+", System.Text.RegularExpressions.RegexOptions.Compiled, 500)]
