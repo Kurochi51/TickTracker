@@ -38,7 +38,7 @@ public class HPBar : BarWindowBase
         var windowSize = ImGui.GetWindowSize();
         if (config.LockBar)
         {
-            WindowCoords = windowPos;
+            WindowPosition = windowPos;
             WindowSize = windowSize;
             return;
         }
@@ -57,7 +57,7 @@ public class HPBar : BarWindowBase
                 ImGui.SetWindowSize(config.HPBarSize);
             }
         }
-        WindowCoords = windowPos;
+        WindowPosition = windowPos;
         WindowSize = windowSize;
     }
 }

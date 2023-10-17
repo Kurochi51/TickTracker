@@ -84,6 +84,7 @@ public sealed class Plugin : IDalamudPlugin
 
     public WindowSystem WindowSystem { get; } = new("TickTracker");
     private readonly string commandName = "/tick";
+    private readonly List<BarWindowBase> windowList = new();
 
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
     private float syncValue, regenValue;
@@ -92,9 +93,6 @@ public sealed class Plugin : IDalamudPlugin
     private uint lastHPValue, lastMPValue, lastGPValue;
     private Task? loadingTask;
     private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
-    private unsafe AtkUnitBase* TalkAddon => (AtkUnitBase*)gameGui.GetAddonByName("Talk");
-    private unsafe AtkUnitBase* ActionDetailAddon => (AtkUnitBase*)gameGui.GetAddonByName("ActionDetail");
-    private unsafe AtkUnitBase* ItemDetailAddon => (AtkUnitBase*)gameGui.GetAddonByName("ItemDetail");
 
     public Plugin(DalamudPluginInterface _pluginInterface,
         IClientState _clientState,
@@ -134,6 +132,9 @@ public sealed class Plugin : IDalamudPlugin
         HPBarWindow = new HPBar(clientState, log, utilities, config);
         MPBarWindow = new MPBar(clientState, log, utilities, config);
         GPBarWindow = new GPBar(clientState, log, utilities, config);
+        windowList.Add(HPBarWindow);
+        windowList.Add(MPBarWindow);
+        windowList.Add(GPBarWindow);
 #if DEBUG
         DevWindow = new DevWindow();
         WindowSystem.AddWindow(DevWindow);
@@ -193,16 +194,16 @@ public sealed class Plugin : IDalamudPlugin
         }
 
 #if DEBUG
-        //DevWindowThings(player, (float)DateTime.Now.TimeOfDay.TotalSeconds);
+        DevWindowThings(player, (float)DateTime.Now.TimeOfDay.TotalSeconds);
 #endif
         unsafe
         {
-            if (!PluginEnabled(player) || !utilities.IsAddonReady(NameplateAddon) || !utilities.IsAddonReady(TalkAddon) || !utilities.IsAddonReady(ActionDetailAddon) || !utilities.IsAddonReady(ItemDetailAddon))
+            if (!PluginEnabled(player) || !utilities.IsAddonReady(NameplateAddon))
             {
                 HPBarWindow.IsOpen = MPBarWindow.IsOpen = GPBarWindow.IsOpen = false;
                 return;
             }
-            if (!NameplateAddon->IsVisible || TalkAddon->IsVisible || utilities.inCustcene() || player.IsDead)
+            if (!NameplateAddon->IsVisible || utilities.inCustcene() || player.IsDead)
             {
                 HPBarWindow.IsOpen = MPBarWindow.IsOpen = GPBarWindow.IsOpen = false;
                 return;
@@ -583,21 +584,33 @@ public sealed class Plugin : IDalamudPlugin
         HPBarWindow.IsOpen = shouldShowHPBar || (player.CurrentHp != player.MaxHp);
         MPBarWindow.IsOpen = (jobType != 32 && (shouldShowMPBar || (player.CurrentMp != player.MaxMp))) || !config.GPVisible;
         GPBarWindow.IsOpen = (jobType == 32 && (!config.HideOnFullResource || (player.CurrentGp != player.MaxGp)) && config.GPVisible) || !config.LockBar;
-        if ((!ActionDetailAddon->IsVisible && !ItemDetailAddon->IsVisible) || !config.CollisionDetection || (config.CollisionDetectionInCombat && inCombat))
+        if (!config.CollisionDetection || (config.DisableCollisionInCombat && inCombat))
         {
             return;
         }
-        if ((ActionDetailAddon->IsVisible && utilities.AddonOverlap(ActionDetailAddon, HPBarWindow)) || (ItemDetailAddon->IsVisible && utilities.AddonOverlap(ItemDetailAddon, HPBarWindow)))
+        var AddonList = new List<nint>
         {
-            HPBarWindow.IsOpen = false;
-        }
-        if ((ActionDetailAddon->IsVisible && utilities.AddonOverlap(ActionDetailAddon, MPBarWindow)) || (ItemDetailAddon->IsVisible && utilities.AddonOverlap(ItemDetailAddon, MPBarWindow)))
+            gameGui.GetAddonByName("Talk"),
+            gameGui.GetAddonByName("ActionDetail"),
+            gameGui.GetAddonByName("ItemDetail"),
+            gameGui.GetAddonByName("Inventory"),
+            gameGui.GetAddonByName("Character"),
+        };
+        foreach (var addon in AddonList)
         {
-            MPBarWindow.IsOpen = false;
-        }
-        if ((ActionDetailAddon->IsVisible && utilities.AddonOverlap(ActionDetailAddon, GPBarWindow)) || (ItemDetailAddon->IsVisible && utilities.AddonOverlap(ItemDetailAddon, GPBarWindow)))
-        {
-            GPBarWindow.IsOpen = false;
+            var currentAddon = (AtkUnitBase*)addon;
+            if (!utilities.IsAddonReady(currentAddon))
+            {
+                continue;
+            }
+            if (currentAddon->IsVisible)
+            {
+                var scaled = currentAddon->Scale != 100;
+                foreach (var window in windowList.Where(w => utilities.AddonOverlap(currentAddon, w, scaled)))
+                {
+                    window.IsOpen = false;
+                }
+            }
         }
     }
 

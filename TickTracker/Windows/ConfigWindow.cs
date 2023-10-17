@@ -117,10 +117,10 @@ public class ConfigWindow : Window
                 config.AlwaysShowWithHostileTarget = AlwaysShowWithHostileTarget;
                 config.Save(pluginInterface);
             }
-            var CollisionDetectionInCombat = config.CollisionDetectionInCombat;
-            if (ImGui.Checkbox("Ignore collision detection in combat", ref CollisionDetectionInCombat))
+            var DisableCollisionInCombat = config.DisableCollisionInCombat;
+            if (ImGui.Checkbox("Disable collision detection while in combat", ref DisableCollisionInCombat))
             {
-                config.CollisionDetectionInCombat = CollisionDetectionInCombat;
+                config.DisableCollisionInCombat = DisableCollisionInCombat;
                 config.Save(pluginInterface);
             }
             ImGui.Unindent();

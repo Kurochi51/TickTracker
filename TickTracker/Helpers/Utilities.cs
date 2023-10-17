@@ -256,25 +256,27 @@ public partial class Utilities
     /// <summary>
     ///     Check if <paramref name="window"/> is overlapping <paramref name="addon"/>
     /// </summary>
-    public unsafe bool AddonOverlap(AtkUnitBase* addon, BarWindowBase window)
+    public unsafe bool AddonOverlap(AtkUnitBase* addon, BarWindowBase window, bool scaledAddon)
     {
+        var offsetY = 25f;
+        var offsetX = 10f;
         var addonPos = (X: addon->X, Y: addon->Y);
-        var addonSize = (width: addon->GetScaledWidth(true), height: addon->GetScaledHeight(true));
+        var addonSize = (width: addon->GetScaledWidth(scaledAddon) - offsetX, height: addon->GetScaledHeight(scaledAddon) - offsetY);
 
-        var topLeft = (window.WindowCoords.X, window.WindowCoords.Y);
-        var topRight = (X: window.WindowCoords.X + window.WindowSize.X, window.WindowCoords.Y);
-        var bottomLeft = (window.WindowCoords.X, Y: window.WindowCoords.Y + window.WindowSize.Y);
-        var bottomRight = (X: window.WindowCoords.X + window.WindowSize.X, Y: window.WindowCoords.Y + window.WindowSize.Y);
+        var topLeft = (window.WindowPosition.X, window.WindowPosition.Y);
+        var topRight = (X: window.WindowPosition.X + window.WindowSize.X, window.WindowPosition.Y);
+        var bottomLeft = (window.WindowPosition.X, Y: window.WindowPosition.Y + window.WindowSize.Y);
+        var bottomRight = (X: window.WindowPosition.X + window.WindowSize.X, Y: window.WindowPosition.Y + window.WindowSize.Y);
 
         var addonTopLeft = (addonPos.X, addonPos.Y);
         var addonTopRight = (X: addonPos.X + addonSize.width, addonPos.Y);
         var addonBottomLeft = (addonPos.X, Y: addonPos.Y + addonSize.height);
         var addonBottomRight = (X: addonPos.X + addonSize.width, Y: addonPos.Y + addonSize.height);
 
-        var topLeftCollision = topLeft.X >= addonTopLeft.X && topLeft.X <= addonTopRight.X && topLeft.Y >= addonTopLeft.Y && topLeft.Y <= addonBottomLeft.Y;
-        var topRightCollision = topRight.X <= addonTopRight.X && topRight.X >= addonTopLeft.X && topRight.Y >= addonTopRight.Y && topRight.Y <= addonBottomRight.Y;
-        var bottomLeftCollision = bottomLeft.X >= addonBottomLeft.X && bottomLeft.X <= addonBottomRight.X && bottomLeft.Y <= addonBottomLeft.Y && bottomLeft.Y >= addonTopLeft.Y;
-        var bottomRightCollision = bottomRight.X <= addonBottomRight.X && bottomRight.X >= addonBottomLeft.X && bottomRight.Y <= addonBottomRight.Y && bottomRight.Y >= addonTopRight.Y;
+        var topLeftCollision = topLeft.X > addonTopLeft.X && topLeft.X < addonTopRight.X && topLeft.Y > addonTopLeft.Y && topLeft.Y < addonBottomLeft.Y;
+        var topRightCollision = topRight.X < addonTopRight.X && topRight.X > addonTopLeft.X && topRight.Y > addonTopRight.Y && topRight.Y < addonBottomRight.Y;
+        var bottomLeftCollision = bottomLeft.X > addonBottomLeft.X && bottomLeft.X < addonBottomRight.X && bottomLeft.Y < addonBottomLeft.Y && bottomLeft.Y > addonTopLeft.Y;
+        var bottomRightCollision = bottomRight.X < addonBottomRight.X && bottomRight.X > addonBottomLeft.X && bottomRight.Y < addonBottomRight.Y && bottomRight.Y > addonTopRight.Y;
 
         if (topLeftCollision || topRightCollision || bottomLeftCollision || bottomRightCollision)
         {
