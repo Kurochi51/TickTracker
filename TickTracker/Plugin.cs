@@ -272,7 +272,7 @@ public sealed class Plugin : IDalamudPlugin
                 }
             }
             HPBarWindow.NormalTick = syncValue; // Fixes Progress from going over 1 when hpRegen ends while under max hp
-            HPBarWindow.Progress = (currentTime - HPBarWindow.RegenTick) / ((currentHP == player.MaxHp  && !HPBarWindow.FastRegenSwitch) ? ActorTickInterval : FastTickInterval);
+            HPBarWindow.Progress = (currentTime - HPBarWindow.RegenTick) / ((currentHP == player.MaxHp && !HPBarWindow.FastRegenSwitch) ? ActorTickInterval : FastTickInterval);
         }
         else
         {
