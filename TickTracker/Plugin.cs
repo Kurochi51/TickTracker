@@ -59,20 +59,12 @@ public sealed class Plugin : IDalamudPlugin
     // Function that triggers when client receives a network packet with an update for nearby actors
     private unsafe delegate void ReceivePrimaryActorUpdateDelegate(uint objectId, uint* packetData, byte unkByte);
 
-    // Different Function that triggers when client receives a network packet with an update for nearby actors
-    // Seems to trigger when a regen would be active, or there's a CP/GP update
-    private unsafe delegate void ReceiveSecondaryActorUpdateDelegate(uint objectId, byte* packetData, byte unkByte);
-
     [Obsolete("The update delegates aren't affected by stuff like healing, so this has become unnecessary")]
     [Signature("40 55 53 57 41 54 41 55 41 56 41 57 48 8D AC 24 ?? ?? ?? ?? 48 81 EC ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 45 70", DetourName = nameof(ReceiveActionEffect))]
     private readonly Hook<ReceiveActionEffectDelegate>? receiveActionEffectHook = null;
 
     [Signature("48 89 5C 24 ?? 48 89 6C 24 ?? 56 48 83 EC 20 83 3D ?? ?? ?? ?? ?? 41 0F B6 E8 48 8B DA 8B F1 0F 84 ?? ?? ?? ?? 48 89 7C 24 ??", DetourName = nameof(PrimaryActorTickUpdate))]
     private readonly Hook<ReceivePrimaryActorUpdateDelegate>? receivePrimaryActorUpdateHook = null;
-
-    [Obsolete("This proved unreliable as it's triggered everytime a regen ability is used, regardless of resource changes")]
-    [Signature("48 8B C4 55 57 41 56 48 83 EC 60", DetourName = nameof(SecondaryActorTickUpdate))]
-    private readonly Hook<ReceiveSecondaryActorUpdateDelegate>? receiveSecondaryActorUpdateHook = null;
 
     private readonly DalamudPluginInterface pluginInterface;
     private readonly Configuration config;
@@ -130,13 +122,12 @@ public sealed class Plugin : IDalamudPlugin
 
         _interopProvider.InitializeFromAttributes(this);
 
-        if (receiveActionEffectHook is null || receivePrimaryActorUpdateHook is null || receiveSecondaryActorUpdateHook is null)
+        if (receiveActionEffectHook is null || receivePrimaryActorUpdateHook is null)
         {
             throw new Exception("Atleast one hook failed, and the plugin is not functional.");
         }
         receiveActionEffectHook.Enable();
         receivePrimaryActorUpdateHook.Enable();
-        receiveSecondaryActorUpdateHook.Enable();
 
         config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         utilities = new Utilities(pluginInterface, config, condition, dataManager, clientState, log);
@@ -207,7 +198,7 @@ public sealed class Plugin : IDalamudPlugin
         }
 
 #if DEBUG
-        DevWindowThings(player, (DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds);
+        DevWindowThings(player, (DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds, GPBarWindow);
 #endif
         unsafe
         {
@@ -249,7 +240,7 @@ public sealed class Plugin : IDalamudPlugin
         }
         ProcessTicks(now, player);
     }
-    
+
     private void ProcessTicks(double currentTime, PlayerCharacter player)
     {
         // HP section
@@ -272,7 +263,6 @@ public sealed class Plugin : IDalamudPlugin
 
         UpdateTick(HPBarWindow, currentTime, currentHP, fullHP, lastHPValue);
         UpdateTick(MPBarWindow, currentTime, currentMP, fullMP, lastMPValue);
-        // In need of investigation against the abstraction
         UpdateTick(GPBarWindow, currentTime, currentGP, fullGP, lastGPValue);
 
         lastHPValue = currentHP;
@@ -286,51 +276,19 @@ public sealed class Plugin : IDalamudPlugin
         {
             window.Tick = fullResource ? regenValue : fastValue;
             window.Progress = (currentTime - window.Tick) / (fullResource ? ActorTickInterval : FastTickInterval);
+            return;
         }
-        else
+        if (fullResource || finishedLoading || window.ProgressHalted)
         {
-            if (fullResource || finishedLoading)
-            {
-                window.Tick = syncValue;
-            }
-            else if (lastResource != currentResource && window.NormalUpdate)
-            {
-                window.Tick = currentTime;
-                window.NormalUpdate = false;
-            }
-            window.Progress = (currentTime - window.Tick) / ActorTickInterval;
+            window.Tick = syncValue;
         }
+        else if (lastResource != currentResource && window.TickUpdate)
+        {
+            window.Tick = currentTime;
+            window.TickUpdate = false;
+        }
+        window.Progress = (currentTime - window.Tick) / ActorTickInterval;
     }
-    
-    /*private void UpdateGPTick(float currentTime, PlayerCharacter player)
-    {
-        var regenHalt = condition[ConditionFlag.Gathering];
-        var currentGP = player.CurrentGp;
-        if (!regenHalt && GPBarWindow.ProgressHalted)
-        {
-            GPBarWindow.Tick = syncValue;
-        }
-        if (currentGP == player.MaxGp || finishedLoading)
-        {
-            GPBarWindow.Tick = syncValue;
-        }
-        else if (lastGPValue != currentGP)
-        {
-            if (GPBarWindow.NormalUpdate)
-            {
-                GPBarWindow.Tick = currentTime;
-                GPBarWindow.NormalUpdate = false;
-            }
-            else if (GPBarWindow.RegenUpdate)
-            {
-                GPBarWindow.Tick = currentTime;
-                GPBarWindow.RegenUpdate = false;
-            }
-        }
-        GPBarWindow.Progress = (currentTime - GPBarWindow.Tick) / ActorTickInterval;
-        GPBarWindow.ProgressHalted = regenHalt;
-        lastGPValue = currentGP;
-    }*/
 
     private void InitializeLuminaSheet()
     {
@@ -462,7 +420,7 @@ public sealed class Plugin : IDalamudPlugin
     /// <summary>
     /// This detour function is triggered every time the client receives
     /// a network packet containing an update for the nearby actors
-    /// with hp, mana, gp
+    /// with HP, MP, GP
     /// </summary>
     private unsafe void PrimaryActorTickUpdate(uint objectId, uint* packetData, byte unkByte)
     {
@@ -482,50 +440,15 @@ public sealed class Plugin : IDalamudPlugin
             {
                 return;
             }
-            HPBarWindow.NormalUpdate = player.CurrentHp != player.MaxHp;
-            MPBarWindow.NormalUpdate = player.CurrentMp != player.MaxMp;
-            GPBarWindow.NormalUpdate = true;
+            HPBarWindow.TickUpdate = player.CurrentHp != player.MaxHp;
+            MPBarWindow.TickUpdate = player.CurrentMp != player.MaxMp;
+            GPBarWindow.TickUpdate = true;
             syncAvailable = true;
             finishedLoading = false;
         }
         catch (Exception e)
         {
             log.Error(e, "An error has occured with the PrimaryActorTickUpdate detour.");
-        }
-    }
-
-    private unsafe void SecondaryActorTickUpdate(uint objectId, byte* packetData, byte unkByte)
-    {
-        receiveSecondaryActorUpdateHook!.Original(objectId, packetData, unkByte);
-        try
-        {
-            if (clientState is not { LocalPlayer: { } player })
-            {
-                return;
-            }
-#if DEBUG
-            var unk1 = *((uint*)packetData + 1); // Current HP
-            var unk2 = *((ushort*)packetData + 6); // Current resource MP, GP, or CP respective to the current job
-            var unk3 = *((ushort*)packetData + 7); // Maximum resource MP, GP, or CP respective to the current job
-            var unk4 = *((uint*)packetData + 2); // Max HP
-            var unk5 = packetData[16]; // Shield Value
-            var unk6 = packetData[1]; // Level
-#endif
-            if (objectId != player.ObjectId)
-            {
-                return;
-            }
-#if DEBUG
-            log.Debug("Secondary tick triggered");
-#endif
-            HPBarWindow.RegenUpdate = true;
-            MPBarWindow.RegenUpdate = true;
-            GPBarWindow.RegenUpdate = true;
-            finishedLoading = false;
-        }
-        catch (Exception e)
-        {
-            log.Error(e, "An error has occured with the SecondaryActorTickUpdate detour.");
         }
     }
 
@@ -577,16 +500,15 @@ public sealed class Plugin : IDalamudPlugin
     }
 
 #if DEBUG
-    private unsafe void DevWindowThings(PlayerCharacter player, double currentTime)
+    private unsafe void DevWindowThings(PlayerCharacter player, double currentTime, BarWindowBase window)
     {
         DevWindow.IsOpen = true;
         DevWindow.printLines.Add("HP: " + player.CurrentHp.ToString() + " / " + player.MaxHp.ToString());
         DevWindow.printLines.Add("Current Time: " + currentTime.ToString(CultureInfo.InvariantCulture));
-        DevWindow.printLines.Add("RegenProgressActive: " + HPBarWindow.RegenProgressActive.ToString());
-        DevWindow.printLines.Add("RegenUpdate: " + HPBarWindow.RegenUpdate.ToString());
-        DevWindow.printLines.Add("Progress: " + HPBarWindow.Progress.ToString(CultureInfo.InvariantCulture));
-        DevWindow.printLines.Add("NormalTick: " + HPBarWindow.Tick.ToString(CultureInfo.InvariantCulture));
-        DevWindow.printLines.Add("NormalUpdate: " + HPBarWindow.NormalUpdate.ToString());
+        DevWindow.printLines.Add("RegenProgressActive: " + window.RegenProgressActive.ToString());
+        DevWindow.printLines.Add("Progress: " + window.Progress.ToString(CultureInfo.InvariantCulture));
+        DevWindow.printLines.Add("NormalTick: " + window.Tick.ToString(CultureInfo.InvariantCulture));
+        DevWindow.printLines.Add("NormalUpdate: " + window.TickUpdate.ToString());
         DevWindow.printLines.Add("Sync Value: " + syncValue.ToString(CultureInfo.InvariantCulture));
         DevWindow.printLines.Add("Regen Value: " + regenValue.ToString(CultureInfo.InvariantCulture));
         DevWindow.printLines.Add("Fast Value: " + fastValue.ToString(CultureInfo.InvariantCulture));
@@ -599,8 +521,6 @@ public sealed class Plugin : IDalamudPlugin
         receiveActionEffectHook?.Dispose();
         receivePrimaryActorUpdateHook?.Disable();
         receivePrimaryActorUpdateHook?.Dispose();
-        receiveSecondaryActorUpdateHook?.Disable();
-        receiveSecondaryActorUpdateHook?.Dispose();
         commandManager.RemoveHandler(commandName);
         WindowSystem.RemoveAllWindows();
         framework.Update -= OnFrameworkUpdate;

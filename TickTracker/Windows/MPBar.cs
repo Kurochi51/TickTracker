@@ -22,13 +22,12 @@ public class MPBar : BarWindowBase
     public override void Draw()
     {
         UpdateWindow();
-        var progress = Progress;
         if (ProgressHalted)
         {
-            progress = PreviousProgress;
+            Progress = PreviousProgress;
         }
-        DrawProgress(progress, config.MPBarBackgroundColor, config.MPBarFillColor, config.MPBarBorderColor);
-        PreviousProgress = progress;
+        DrawProgress(Progress, config.MPBarBackgroundColor, config.MPBarFillColor, config.MPBarBorderColor);
+        PreviousProgress = Progress;
     }
 
     private void UpdateWindow()

@@ -23,8 +23,7 @@ public abstract class BarWindowBase : Window
     public IPluginLog log { get; }
     public bool ProgressHalted { get; set; }
     public bool RegenProgressActive { get; set; }
-    public bool RegenUpdate { get; set; }
-    public bool NormalUpdate { get; set; }
+    public bool TickUpdate { get; set; }
     public double Tick { get; set; }
     public double PreviousProgress { get; set; }
     public double Progress { get; set; }
