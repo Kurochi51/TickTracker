@@ -6,13 +6,15 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
+using Lumina.Excel;
+using Lumina.Excel.GeneratedSheets;
+using FFXIVClientStructs.FFXIV.Component.GUI;
+using FFXIVClientStructs.FFXIV.Client.Game.Character;
+using Dalamud;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.SubKinds;
-using FFXIVClientStructs.FFXIV.Component.GUI;
-using FFXIVClientStructs.FFXIV.Client.Game.Character;
-using Lumina.Excel.GeneratedSheets;
 using TickTracker.Enums;
 using TickTracker.Windows;
 
@@ -289,7 +291,6 @@ public partial class Utilities
     ///     Spawn a <see cref="Task"/> that checks if the <see cref="ConditionFlag"/> for loading is present every polling period.
     /// </summary>
     /// <param name="pollingPeriodMiliseconds"></param>
-    /// <returns></returns>
     public async Task Loading(long pollingPeriodMiliseconds)
     {
         var loadingTimer = new Stopwatch();
@@ -306,6 +307,31 @@ public partial class Utilities
             loading = condition[ConditionFlag.BetweenAreas] || condition[ConditionFlag.BetweenAreas51];
         }
         loadingTimer.Reset();
+    }
+
+    /// <summary>
+    ///     Attempt to retrieve an <see cref="ExcelSheet{T}"/>, optionally in a specific <paramref name="language"/>.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="language"></param>
+    /// <returns><see cref="ExcelSheet{T}"/> or <see langword="null"/> if <see cref="Lumina"/> is in a broken state.</returns>
+    public ExcelSheet<T>? RetrieveSheet<T>(ClientLanguage language = ClientLanguage.English) where T : ExcelRow
+    {
+        try
+        {
+            var sheet = dataManager.GetExcelSheet<T>(language);
+            if (sheet is null)
+            {
+                log.Fatal("Invalid lumina sheet!");
+            }
+            return sheet;
+        }
+        catch (Exception e)
+        {
+            log.Fatal("Retrieving lumina sheet failed!");
+            log.Fatal(e.Message);
+            return null;
+        }
     }
 
     [System.Text.RegularExpressions.GeneratedRegex("\\W+", System.Text.RegularExpressions.RegexOptions.Compiled, 500)]

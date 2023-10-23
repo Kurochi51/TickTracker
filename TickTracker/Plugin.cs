@@ -1,10 +1,8 @@
 using System;
 using System.Linq;
-using System.Globalization;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 
-using Lumina.Excel;
 using Dalamud.Memory;
 using Dalamud.Utility;
 using Dalamud.Plugin;
@@ -74,7 +72,6 @@ public sealed class Plugin : IDalamudPlugin
     private readonly IGameGui gameGui;
     private readonly ICommandManager commandManager;
     private readonly ICondition condition;
-    private readonly IDataManager dataManager;
     private readonly IJobGauges jobGauges;
     private readonly IPluginLog log;
 
@@ -116,7 +113,6 @@ public sealed class Plugin : IDalamudPlugin
         gameGui = _gameGui;
         commandManager = _commandManager;
         condition = _condition;
-        dataManager = _dataManager;
         jobGauges = _jobGauges;
         log = _pluginLog;
 
@@ -124,13 +120,13 @@ public sealed class Plugin : IDalamudPlugin
 
         if (receiveActionEffectHook is null || receivePrimaryActorUpdateHook is null)
         {
-            throw new Exception("Atleast one hook failed, and the plugin is not functional.");
+            throw new Exception("At least one hook failed, and the plugin is not functional.");
         }
         receiveActionEffectHook.Enable();
         receivePrimaryActorUpdateHook.Enable();
 
         config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-        utilities = new Utilities(pluginInterface, config, condition, dataManager, clientState, log);
+        utilities = new Utilities(pluginInterface, config, condition, _dataManager, clientState, log);
         DebugWindow = new DebugWindow();
         ConfigWindow = new ConfigWindow(pluginInterface, config, DebugWindow);
         HPBarWindow = new HPBar(clientState, log, utilities, config);
@@ -292,7 +288,7 @@ public sealed class Plugin : IDalamudPlugin
 
     private void InitializeLuminaSheet()
     {
-        var statusSheet = RetrieveSheet();
+        var statusSheet = utilities.RetrieveSheet<Lumina.Excel.GeneratedSheets.Status>();
         if (statusSheet is null)
         {
             return;
@@ -336,28 +332,6 @@ public sealed class Plugin : IDalamudPlugin
         nullSheet = false;
         log.Debug("HP regen list generated with {HPcount} status effects.", healthRegenList.Count);
         log.Debug("MP regen list generated with {MPcount} status effects.", manaRegenList.Count);
-    }
-
-    private ExcelSheet<Lumina.Excel.GeneratedSheets.Status>? RetrieveSheet()
-    {
-        try
-        {
-            var sheet = dataManager.GetExcelSheet<Lumina.Excel.GeneratedSheets.Status>(Dalamud.ClientLanguage.English);
-            if (sheet is null)
-            {
-                nullSheet = true;
-                log.Fatal("Invalid lumina sheet!");
-                return null;
-            }
-            return sheet;
-        }
-        catch (Exception e)
-        {
-            nullSheet = true;
-            log.Fatal("Retrieving lumina sheet failed!");
-            log.Fatal(e.Message);
-            return null;
-        }
     }
 
     // DamageInfo stripped function
@@ -504,14 +478,14 @@ public sealed class Plugin : IDalamudPlugin
     {
         DevWindow.IsOpen = true;
         DevWindow.printLines.Add("HP: " + player.CurrentHp.ToString() + " / " + player.MaxHp.ToString());
-        DevWindow.printLines.Add("Current Time: " + currentTime.ToString(CultureInfo.InvariantCulture));
+        DevWindow.printLines.Add("Current Time: " + currentTime.ToString(System.Globalization.CultureInfo.InvariantCulture));
         DevWindow.printLines.Add("RegenProgressActive: " + window.RegenProgressActive.ToString());
-        DevWindow.printLines.Add("Progress: " + window.Progress.ToString(CultureInfo.InvariantCulture));
-        DevWindow.printLines.Add("NormalTick: " + window.Tick.ToString(CultureInfo.InvariantCulture));
+        DevWindow.printLines.Add("Progress: " + window.Progress.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        DevWindow.printLines.Add("NormalTick: " + window.Tick.ToString(System.Globalization.CultureInfo.InvariantCulture));
         DevWindow.printLines.Add("NormalUpdate: " + window.TickUpdate.ToString());
-        DevWindow.printLines.Add("Sync Value: " + syncValue.ToString(CultureInfo.InvariantCulture));
-        DevWindow.printLines.Add("Regen Value: " + regenValue.ToString(CultureInfo.InvariantCulture));
-        DevWindow.printLines.Add("Fast Value: " + fastValue.ToString(CultureInfo.InvariantCulture));
+        DevWindow.printLines.Add("Sync Value: " + syncValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        DevWindow.printLines.Add("Regen Value: " + regenValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        DevWindow.printLines.Add("Fast Value: " + fastValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 #endif
 
