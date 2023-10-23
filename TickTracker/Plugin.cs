@@ -17,8 +17,8 @@ using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
-using TickTracker.Windows;
 using TickTracker.Enums;
+using TickTracker.Windows;
 using TickTracker.Structs;
 using TickTracker.Helpers;
 
@@ -37,7 +37,6 @@ public sealed class Plugin : IDalamudPlugin
         "Inventory",
         "Character",
     };
-
     /// <summary>
     /// A <see cref="HashSet{T}" /> based list of Status IDs that trigger HP regen
     /// </summary>
