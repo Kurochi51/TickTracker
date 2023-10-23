@@ -21,16 +21,13 @@ public abstract class BarWindowBase : Window
                                                     ImGuiWindowFlags.NoNav |
                                                     ImGuiWindowFlags.NoInputs;
     public IPluginLog log { get; }
-    public bool FastRegenSwitch { get; set; }
     public bool ProgressHalted { get; set; }
     public bool RegenProgressActive { get; set; }
     public bool RegenUpdate { get; set; }
     public bool NormalUpdate { get; set; }
-    public float NormalTick { get; set; }
-    public float RegenTick { get; set; }
-    public float PreviousProgress { get; set; }
-    public float Progress { get; set; }
-    public float RegenProgress { get; set; }
+    public double Tick { get; set; }
+    public double PreviousProgress { get; set; }
+    public double Progress { get; set; }
     public Vector2 WindowPosition { get; set; }
     public Vector2 WindowSize { get; set; }
     public const float ActorTickInterval = 3, FastTickInterval = 1.5f;
@@ -80,21 +77,21 @@ public abstract class BarWindowBase : Window
         ImGui.PopStyleVar();
     }
 
-    public static void DrawProgress(float progress, Vector4 backgroundColor, Vector4 fillColor, Vector4 borderColor)
+    public static void DrawProgress(double progress, Vector4 backgroundColor, Vector4 fillColor, Vector4 borderColor)
     {
-        //var floatProgress = (float)progress;
+        var floatProgress = (float)progress;
         var cornerRounding = 4f; // Maybe make it user configurable?
         var borderThickness = 1.35f; // Maybe make it user configurable?
         var barFillPosOffset = new Vector2(1, 1);
         var barFillSizeOffset = new Vector2(-1, 0);
         var topLeft = ImGui.GetWindowContentRegionMin() + ImGui.GetWindowPos();
         var bottomRight = ImGui.GetWindowContentRegionMax() + ImGui.GetWindowPos();
-        bottomRight = (progress <= 0) ? bottomRight - barFillSizeOffset : bottomRight;
+        bottomRight = (floatProgress <= 0) ? bottomRight - barFillSizeOffset : bottomRight;
 
-        // Calculate progress bar dimensions
+        // Calculate floatProgress bar dimensions
         var barWidth = bottomRight.X - topLeft.X;
-        var filledWidth = new Vector2((barWidth * Math.Max(progress, 0.0001f)) + topLeft.X, bottomRight.Y);
-        filledWidth = (progress <= 0) ? filledWidth - barFillSizeOffset : filledWidth;
+        var filledWidth = new Vector2((barWidth * Math.Max(floatProgress, 0.0001f)) + topLeft.X, bottomRight.Y);
+        filledWidth = (floatProgress <= 0) ? filledWidth - barFillSizeOffset : filledWidth;
 
         // Draw main bar
         var drawList = ImGui.GetWindowDrawList();

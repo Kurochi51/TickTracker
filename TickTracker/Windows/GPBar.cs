@@ -22,12 +22,13 @@ public class GPBar : BarWindowBase
     public override void Draw()
     {
         UpdateWindow();
+        var progress = Progress;
         if (ProgressHalted)
         {
-            Progress = PreviousProgress;
+            progress = PreviousProgress;
         }
-        DrawProgress(Progress, config.GPBarBackgroundColor, config.GPBarFillColor, config.GPBarBorderColor);
-        PreviousProgress = Progress;
+        DrawProgress(progress, config.GPBarBackgroundColor, config.GPBarFillColor, config.GPBarBorderColor);
+        PreviousProgress = progress;
     }
 
     private void UpdateWindow()

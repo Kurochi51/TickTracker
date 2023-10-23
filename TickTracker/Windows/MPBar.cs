@@ -22,20 +22,13 @@ public class MPBar : BarWindowBase
     public override void Draw()
     {
         UpdateWindow();
-        if (FastRegenSwitch && Progress > 1)
-        {
-            Progress /= 2;
-            if (NormalUpdate)
-            {
-                FastRegenSwitch = false;
-            }
-        }
+        var progress = Progress;
         if (ProgressHalted)
         {
-            Progress = PreviousProgress;
+            progress = PreviousProgress;
         }
-        DrawProgress(Progress, config.MPBarBackgroundColor, config.MPBarFillColor, config.MPBarBorderColor);
-        PreviousProgress = Progress;
+        DrawProgress(progress, config.MPBarBackgroundColor, config.MPBarFillColor, config.MPBarBorderColor);
+        PreviousProgress = progress;
     }
 
     private void UpdateWindow()

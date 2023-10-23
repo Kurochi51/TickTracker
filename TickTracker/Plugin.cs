@@ -29,6 +29,18 @@ namespace TickTracker;
 public sealed class Plugin : IDalamudPlugin
 {
     /// <summary>
+    /// A <see cref="List{T}"/> of addons to fetch for collision checks.
+    /// </summary>
+    private readonly List<string> addonsLookup = new()
+    {
+        "Talk",
+        "ActionDetail",
+        "ItemDetail",
+        "Inventory",
+        "Character",
+    };
+
+    /// <summary>
     /// A <see cref="HashSet{T}" /> based list of Status IDs that trigger HP regen
     /// </summary>
     private readonly ConcurrentSet<uint> healthRegenList = new();
@@ -58,6 +70,7 @@ public sealed class Plugin : IDalamudPlugin
     [Signature("48 89 5C 24 ?? 48 89 6C 24 ?? 56 48 83 EC 20 83 3D ?? ?? ?? ?? ?? 41 0F B6 E8 48 8B DA 8B F1 0F 84 ?? ?? ?? ?? 48 89 7C 24 ??", DetourName = nameof(PrimaryActorTickUpdate))]
     private readonly Hook<ReceivePrimaryActorUpdateDelegate>? receivePrimaryActorUpdateHook = null;
 
+    [Obsolete("This proved unreliable as it's triggered everytime a regen ability is used, regardless of resource changes")]
     [Signature("48 8B C4 55 57 41 56 48 83 EC 60", DetourName = nameof(SecondaryActorTickUpdate))]
     private readonly Hook<ReceiveSecondaryActorUpdateDelegate>? receiveSecondaryActorUpdateHook = null;
 
@@ -79,7 +92,7 @@ public sealed class Plugin : IDalamudPlugin
     private MPBar MPBarWindow { get; init; }
     private GPBar GPBarWindow { get; init; }
 #if DEBUG
-    private DevWindow DevWindow { get; init; }
+    public static DevWindow DevWindow { get; set; } = null!;
 #endif
 
     public WindowSystem WindowSystem { get; } = new("TickTracker");
@@ -87,7 +100,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly List<BarWindowBase> windowList = new();
 
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
-    private float syncValue, regenValue;
+    private double syncValue, regenValue, fastValue;
     private bool finishedLoading;
     private bool syncAvailable = true, nullSheet = true;
     private uint lastHPValue, lastMPValue, lastGPValue;
@@ -194,7 +207,7 @@ public sealed class Plugin : IDalamudPlugin
         }
 
 #if DEBUG
-        DevWindowThings(player, (float)DateTime.Now.TimeOfDay.TotalSeconds);
+        DevWindowThings(player, (DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds);
 #endif
         unsafe
         {
@@ -210,16 +223,20 @@ public sealed class Plugin : IDalamudPlugin
             }
         }
         UpdateBarState(player);
-        var now = (float)DateTime.Now.TimeOfDay.TotalSeconds;
+        var now = (DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds;
         if (syncAvailable)
         {
             syncValue = now;
-            regenValue = syncValue + FastTickInterval;
+            regenValue = fastValue = syncValue - FastTickInterval;
             syncAvailable = false;
         }
         else if (syncValue + ActorTickInterval <= now)
         {
             syncValue += ActorTickInterval;
+        }
+        if (fastValue + FastTickInterval <= now)
+        {
+            fastValue += FastTickInterval;
         }
         if (regenValue + ActorTickInterval <= now)
         {
@@ -230,142 +247,90 @@ public sealed class Plugin : IDalamudPlugin
             finishedLoading = true;
             loadingTask = null;
         }
-        UpdateHPTick(now, player);
-        UpdateMPTick(now, player);
-        UpdateGPTick(now, player);
+        ProcessTicks(now, player);
+    }
+    
+    private void ProcessTicks(double currentTime, PlayerCharacter player)
+    {
+        // HP section
+        HPBarWindow.RegenProgressActive = player.StatusList.Any(e => healthRegenList.Contains(e.StatusId));
+        HPBarWindow.ProgressHalted = player.StatusList.Any(e => disabledHealthRegenList.Contains(e.StatusId));
+        var currentHP = player.CurrentHp;
+        var fullHP = currentHP == player.MaxHp;
+
+        // MP Section
+        MPBarWindow.RegenProgressActive = player.StatusList.Any(e => manaRegenList.Contains(e.StatusId));
+        var blmGauge = player.ClassJob.Id == 25 ? jobGauges.Get<BLMGauge>() : null;
+        MPBarWindow.ProgressHalted = blmGauge is not null && blmGauge.InAstralFire;
+        var currentMP = player.CurrentMp;
+        var fullMP = currentMP == player.MaxMp;
+
+        // GP Section
+        GPBarWindow.ProgressHalted = condition[ConditionFlag.Gathering];
+        var currentGP = player.CurrentGp;
+        var fullGP = currentGP == player.MaxGp;
+
+        UpdateTick(HPBarWindow, currentTime, currentHP, fullHP, lastHPValue);
+        UpdateTick(MPBarWindow, currentTime, currentMP, fullMP, lastMPValue);
+        // In need of investigation against the abstraction
+        UpdateTick(GPBarWindow, currentTime, currentGP, fullGP, lastGPValue);
+
+        lastHPValue = currentHP;
+        lastMPValue = currentMP;
+        lastGPValue = currentGP;
     }
 
-    private void UpdateHPTick(float currentTime, PlayerCharacter player)
+    private void UpdateTick(BarWindowBase window, double currentTime, uint currentResource, bool fullResource, uint lastResource)
     {
-        var hpRegen = player.StatusList.Any(e => healthRegenList.Contains(e.StatusId));
-        var progressHalt = player.StatusList.Any(e => disabledHealthRegenList.Contains(e.StatusId));
-        var currentHP = player.CurrentHp;
-        if (!HPBarWindow.RegenProgressActive && hpRegen)
+        if (window.RegenProgressActive)
         {
-            HPBarWindow.FastRegenSwitch = true;
-            HPBarWindow.RegenTick = regenValue;
-        }
-        HPBarWindow.RegenProgressActive = hpRegen;
-        HPBarWindow.ProgressHalted = progressHalt;
-
-        if (HPBarWindow.RegenProgressActive)
-        {
-            if (currentHP == player.MaxHp && HPBarWindow.RegenUpdate)
-            {
-                HPBarWindow.RegenTick = regenValue;
-                log.Warning("RegenTick reset by currentHP == player.MaxHp && HPBarWindow.RegenUpdate");
-                HPBarWindow.RegenUpdate = HPBarWindow.FastRegenSwitch = false;
-            }
-            else if (lastHPValue != currentHP)
-            {
-                if (HPBarWindow.RegenUpdate)
-                {
-                    HPBarWindow.RegenTick = regenValue;
-                    log.Warning("RegenTick reset by lastHPValue != currentHP && HPBarWindow.RegenUpdate");
-                    HPBarWindow.RegenUpdate = false;
-                }
-                else if (HPBarWindow.NormalUpdate)
-                {
-                    HPBarWindow.RegenTick = currentTime;
-                    log.Warning("RegenTick reset by lastHPValue != currentHP && HPBarWindow.NormalUpdate");
-                    HPBarWindow.NormalUpdate = false;
-                }
-            }
-            HPBarWindow.NormalTick = syncValue; // Fixes Progress from going over 1 when hpRegen ends while under max hp
-            HPBarWindow.Progress = (currentTime - HPBarWindow.RegenTick) / ((currentHP == player.MaxHp && !HPBarWindow.FastRegenSwitch) ? ActorTickInterval : FastTickInterval);
+            window.Tick = fullResource ? regenValue : fastValue;
+            window.Progress = (currentTime - window.Tick) / (fullResource ? ActorTickInterval : FastTickInterval);
         }
         else
         {
-            if (HPBarWindow.RegenUpdate)
+            if (fullResource || finishedLoading)
             {
-                HPBarWindow.RegenUpdate = false;
+                window.Tick = syncValue;
             }
-            if (currentHP == player.MaxHp || finishedLoading)
+            else if (lastResource != currentResource && window.NormalUpdate)
             {
-                HPBarWindow.NormalTick = syncValue;
+                window.Tick = currentTime;
+                window.NormalUpdate = false;
             }
-            else if (lastHPValue != currentHP && HPBarWindow.NormalUpdate)
-            {
-                HPBarWindow.NormalTick = currentTime;
-                log.Warning("NormalTick reset by lastHPValue != currentHP && HPBarWindow.NormalUpdate");
-                HPBarWindow.NormalUpdate = false;
-            }
-            HPBarWindow.Progress = (currentTime - HPBarWindow.NormalTick) / ActorTickInterval;
+            window.Progress = (currentTime - window.Tick) / ActorTickInterval;
         }
-
-        lastHPValue = currentHP;
     }
-
-    private void UpdateMPTick(float currentTime, PlayerCharacter player)
-    {
-        var mpRegen = player.StatusList.Any(e => manaRegenList.Contains(e.StatusId));
-        var blmGauge = player.ClassJob.Id == 25 ? jobGauges.Get<BLMGauge>() : null;
-        var regenHalt = blmGauge is not null && blmGauge.InAstralFire;
-        var currentMP = player.CurrentMp;
-        if (mpRegen && !MPBarWindow.RegenProgressActive)
-        {
-            MPBarWindow.FastRegenSwitch = true;
-        }
-        MPBarWindow.RegenProgressActive = mpRegen;
-
-        if ((currentMP == player.MaxMp || finishedLoading) && !MPBarWindow.RegenProgressActive)
-        {
-            MPBarWindow.NormalTick = syncValue;
-            MPBarWindow.FastRegenSwitch = false;
-        }
-        else if (lastMPValue != currentMP && !MPBarWindow.RegenProgressActive && MPBarWindow.NormalUpdate)
-        {
-            MPBarWindow.NormalTick = currentTime;
-            MPBarWindow.NormalUpdate = false;
-        }
-        else if (MPBarWindow.RegenProgressActive)
-        {
-            if (MPBarWindow.NormalUpdate)
-            {
-                MPBarWindow.NormalTick = currentTime;
-                MPBarWindow.NormalUpdate = false;
-            }
-            else if (MPBarWindow.RegenUpdate)
-            {
-                MPBarWindow.NormalTick = currentTime;
-                MPBarWindow.RegenUpdate = false;
-            }
-        }
-
-        MPBarWindow.Progress = (currentTime - MPBarWindow.NormalTick) / (MPBarWindow.RegenProgressActive ? FastTickInterval : ActorTickInterval);
-        MPBarWindow.ProgressHalted = regenHalt;
-        lastMPValue = currentMP;
-    }
-
-    private void UpdateGPTick(float currentTime, PlayerCharacter player)
+    
+    /*private void UpdateGPTick(float currentTime, PlayerCharacter player)
     {
         var regenHalt = condition[ConditionFlag.Gathering];
         var currentGP = player.CurrentGp;
         if (!regenHalt && GPBarWindow.ProgressHalted)
         {
-            GPBarWindow.NormalTick = syncValue;
+            GPBarWindow.Tick = syncValue;
         }
         if (currentGP == player.MaxGp || finishedLoading)
         {
-            GPBarWindow.NormalTick = syncValue;
+            GPBarWindow.Tick = syncValue;
         }
         else if (lastGPValue != currentGP)
         {
             if (GPBarWindow.NormalUpdate)
             {
-                GPBarWindow.NormalTick = currentTime;
+                GPBarWindow.Tick = currentTime;
                 GPBarWindow.NormalUpdate = false;
             }
             else if (GPBarWindow.RegenUpdate)
             {
-                GPBarWindow.NormalTick = currentTime;
+                GPBarWindow.Tick = currentTime;
                 GPBarWindow.RegenUpdate = false;
             }
         }
-        GPBarWindow.Progress = (currentTime - GPBarWindow.NormalTick) / ActorTickInterval;
+        GPBarWindow.Progress = (currentTime - GPBarWindow.Tick) / ActorTickInterval;
         GPBarWindow.ProgressHalted = regenHalt;
         lastGPValue = currentGP;
-    }
+    }*/
 
     private void InitializeLuminaSheet()
     {
@@ -517,10 +482,6 @@ public sealed class Plugin : IDalamudPlugin
             {
                 return;
             }
-#if DEBUG
-            //log.Debug("Primary tick triggered");
-            //log.Debug("NetworkHP: {nhp}, vs localHP: {lhp}", networkHP, lastHPValue);
-#endif
             HPBarWindow.NormalUpdate = player.CurrentHp != player.MaxHp;
             MPBarWindow.NormalUpdate = player.CurrentMp != player.MaxMp;
             GPBarWindow.NormalUpdate = true;
@@ -588,14 +549,15 @@ public sealed class Plugin : IDalamudPlugin
         {
             return;
         }
-        var AddonList = new List<nint>
+        var AddonList = new List<nint>();
+        foreach (var name in addonsLookup)
         {
-            gameGui.GetAddonByName("Talk"),
-            gameGui.GetAddonByName("ActionDetail"),
-            gameGui.GetAddonByName("ItemDetail"),
-            gameGui.GetAddonByName("Inventory"),
-            gameGui.GetAddonByName("Character"),
-        };
+            var addonPointer = gameGui.GetAddonByName(name);
+            if (addonPointer != nint.Zero)
+            {
+                AddonList.Add(addonPointer);
+            }
+        }
         foreach (var addon in AddonList)
         {
             var currentAddon = (AtkUnitBase*)addon;
@@ -615,23 +577,19 @@ public sealed class Plugin : IDalamudPlugin
     }
 
 #if DEBUG
-    private unsafe void DevWindowThings(PlayerCharacter player, float currentTime)
+    private unsafe void DevWindowThings(PlayerCharacter player, double currentTime)
     {
-        // TODO: Switch over to altNow, observe progress in DrawProgress pre and post conversion
-        //var altNow = (DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds;
         DevWindow.IsOpen = true;
         DevWindow.printLines.Add("HP: " + player.CurrentHp.ToString() + " / " + player.MaxHp.ToString());
         DevWindow.printLines.Add("Current Time: " + currentTime.ToString(CultureInfo.InvariantCulture));
         DevWindow.printLines.Add("RegenProgressActive: " + HPBarWindow.RegenProgressActive.ToString());
-        DevWindow.printLines.Add("FastRegenSwitch: " + HPBarWindow.FastRegenSwitch.ToString());
-        //DevWindow.printLines.Add("RegenProgress: " + HPBarWindow.RegenProgress.ToString(CultureInfo.InvariantCulture));
-        DevWindow.printLines.Add("RegenTick: " + HPBarWindow.RegenTick.ToString(CultureInfo.InvariantCulture));
         DevWindow.printLines.Add("RegenUpdate: " + HPBarWindow.RegenUpdate.ToString());
         DevWindow.printLines.Add("Progress: " + HPBarWindow.Progress.ToString(CultureInfo.InvariantCulture));
-        DevWindow.printLines.Add("NormalTick: " + HPBarWindow.NormalTick.ToString(CultureInfo.InvariantCulture));
+        DevWindow.printLines.Add("NormalTick: " + HPBarWindow.Tick.ToString(CultureInfo.InvariantCulture));
         DevWindow.printLines.Add("NormalUpdate: " + HPBarWindow.NormalUpdate.ToString());
         DevWindow.printLines.Add("Sync Value: " + syncValue.ToString(CultureInfo.InvariantCulture));
         DevWindow.printLines.Add("Regen Value: " + regenValue.ToString(CultureInfo.InvariantCulture));
+        DevWindow.printLines.Add("Fast Value: " + fastValue.ToString(CultureInfo.InvariantCulture));
     }
 #endif
 

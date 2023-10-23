@@ -22,7 +22,6 @@ public class HPBar : BarWindowBase
     public override void Draw()
     {
         UpdateWindow();
-        //var progress = (float)(RegenProgressActive ? RegenProgress : Progress);
         var progress = Progress;
         if (ProgressHalted)
         {
