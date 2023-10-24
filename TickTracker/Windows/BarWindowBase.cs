@@ -31,13 +31,14 @@ public abstract class BarWindowBase : Window
     public Vector2 WindowPosition { get; set; }
     public Vector2 WindowSize { get; set; }
 
+    private const FontAwesomeIcon RegenIcon = FontAwesomeIcon.Forward;
     private readonly IClientState clientState;
     private readonly Configuration config;
     private readonly Utilities utilities;
 
-    private bool firstTime = true;
     private Vector2 invalidSize = new(0, 0);
     private Vector2 iconSize;
+    private float currentFontSize;
 
     protected BarWindowBase(IClientState _clientState, IPluginLog _pluginLog, Utilities _utilities, Configuration _config, WindowType type, string name) : base(name)
     {
@@ -67,12 +68,12 @@ public abstract class BarWindowBase : Window
 
     public override void PreDraw()
     {
-        if (firstTime)
+        if (currentFontSize != ImGui.GetFontSize())
         {
             ImGui.PushFont(UiBuilder.IconFont);
-            iconSize = ImGui.CalcTextSize(FontAwesomeIcon.Forward.ToIconString());
+            iconSize = ImGui.CalcTextSize(RegenIcon.ToIconString());
             ImGui.PopFont();
-            firstTime = false;
+            log.Debug("Changed iconSize.");
         }
         var barWindowPadding = new Vector2(8, 14);
         Flags = _defaultFlags;
@@ -90,6 +91,7 @@ public abstract class BarWindowBase : Window
 
     public void DrawProgress(double progress, Vector4 backgroundColor, Vector4 fillColor, Vector4 borderColor, Vector4 iconColor)
     {
+        currentFontSize = ImGui.GetFontSize();
         var floatProgress = (float)progress;
         var cornerRounding = 4f; // Maybe make it user configurable?
         var borderThickness = 1.35f; // Maybe make it user configurable?
@@ -113,10 +115,9 @@ public abstract class BarWindowBase : Window
         if (RegenProgressActive)
         {
             var color = ColorHelpers.RgbaVector4ToUint(iconColor);
-            var icon = FontAwesomeIcon.Forward.ToIconString();
             var pos = (topLeft + barFillPosOffset + bottomRight) / 2;
             pos = iconSize == invalidSize ? pos : pos - (iconSize / 2);
-            drawList.AddText(UiBuilder.IconFont, ImGui.GetFontSize() * 0.85f, pos, color, icon);
+            drawList.AddText(UiBuilder.IconFont, currentFontSize * 0.85f, pos, color, RegenIcon.ToIconString());
         }
     }
 }
