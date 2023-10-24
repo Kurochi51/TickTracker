@@ -35,6 +35,10 @@ public abstract class BarWindowBase : Window
     private readonly Configuration config;
     private readonly Utilities utilities;
 
+    private bool firstTime = true;
+    private Vector2 invalidSize = new(0, 0);
+    private Vector2 iconSize;
+
     protected BarWindowBase(IClientState _clientState, IPluginLog _pluginLog, Utilities _utilities, Configuration _config, WindowType type, string name) : base(name)
     {
         SizeCondition = ImGuiCond.FirstUseEver;
@@ -45,6 +49,7 @@ public abstract class BarWindowBase : Window
         utilities = _utilities;
         config = _config;
         WindowType = type;
+        iconSize = invalidSize;
     }
 
     public override bool DrawConditions()
@@ -62,6 +67,13 @@ public abstract class BarWindowBase : Window
 
     public override void PreDraw()
     {
+        if (firstTime)
+        {
+            ImGui.PushFont(UiBuilder.IconFont);
+            iconSize = ImGui.CalcTextSize(FontAwesomeIcon.Forward.ToIconString());
+            ImGui.PopFont();
+            firstTime = false;
+        }
         var barWindowPadding = new Vector2(8, 14);
         Flags = _defaultFlags;
         if (config.LockBar)
@@ -101,9 +113,10 @@ public abstract class BarWindowBase : Window
         if (RegenProgressActive)
         {
             var color = ColorHelpers.RgbaVector4ToUint(iconColor);
-            var altIcon = FontAwesomeIcon.Forward.ToIconString();
-            var pos = new Vector2((topLeft.X + 1 + bottomRight.X) / 2, topLeft.Y + 2);
-            drawList.AddText(UiBuilder.IconFont, UiBuilder.IconFont.FontSize, pos, color, altIcon);
+            var icon = FontAwesomeIcon.Forward.ToIconString();
+            var pos = (topLeft + barFillPosOffset + bottomRight) / 2;
+            pos = iconSize == invalidSize ? pos : pos - (iconSize / 2);
+            drawList.AddText(UiBuilder.IconFont, ImGui.GetFontSize() * 0.85f, pos, color, icon);
         }
     }
 }

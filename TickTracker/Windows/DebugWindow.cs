@@ -101,7 +101,7 @@ public class DebugWindow : Window
         {
             // Place two buttons in bottom left + some padding / extra space
             ImGui.SetCursorPosX(10f);
-            ImGui.SetCursorPosY(ImGui.GetWindowContentRegionMax().Y - ImGui.GetFrameHeight() - 5f);
+            ImGui.SetCursorPosY(ImGui.GetWindowContentRegionMax().Y - ImGui.GetFrameHeight() - 5f + (ImGui.GetScrollY() * 2));
             if (ImGui.Button("Copy top table"))
             {
                 var topTable = new StringBuilder();
@@ -119,7 +119,7 @@ public class DebugWindow : Window
         }
         // Place a button in bottom right + some padding / extra space
         ImGui.SetCursorPosX(ImGui.GetWindowContentRegionMax().X - ImGui.CalcTextSize("Close").X - 10f);
-        ImGui.SetCursorPosY(ImGui.GetWindowContentRegionMax().Y - ImGui.GetFrameHeight() - 5f);
+        ImGui.SetCursorPosY(ImGui.GetWindowContentRegionMax().Y - ImGui.GetFrameHeight() - 5f + (ImGui.GetScrollY() * 2));
         if (ImGui.Button("Close"))
         {
             this.IsOpen = false;
