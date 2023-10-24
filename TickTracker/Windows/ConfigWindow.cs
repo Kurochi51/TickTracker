@@ -60,7 +60,7 @@ public class ConfigWindow : Window
         using var appearanceTab = ImRaii.TabItem("Appearance");
         if (appearanceTab)
         {
-            using var child = ImRaii.Child("TabContent", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y - 40f), false);
+            using var child = ImRaii.Child("TabContent", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y - 40f), border: false);
             ImGui.Spacing();
             var lockBar = config.LockBar;
             if (ImGui.Checkbox("Lock bar size and position", ref lockBar))
@@ -85,7 +85,7 @@ public class ConfigWindow : Window
         using var settingsTab = ImRaii.TabItem("Settings");
         if (settingsTab)
         {
-            using var child = ImRaii.Child("TabContent", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y - 40f), false);
+            using var child = ImRaii.Child("TabContent", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y - 40f), border: false);
             ImGui.Spacing();
             DrawBarVisibilityOptions();
 

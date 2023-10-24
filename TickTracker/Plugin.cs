@@ -3,7 +3,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 
-using Dalamud.Memory;
 using Dalamud.Utility;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
@@ -16,10 +15,7 @@ using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using FFXIVClientStructs.FFXIV.Client.Game.Character;
-using TickTracker.Enums;
 using TickTracker.Windows;
-using TickTracker.Structs;
 using TickTracker.Helpers;
 
 namespace TickTracker;
@@ -50,15 +46,8 @@ public sealed class Plugin : IDalamudPlugin
     /// </summary>
     private readonly ConcurrentSet<uint> disabledHealthRegenList = new();
 
-    // DamageInfo Delegate & Hook
-    private unsafe delegate void ReceiveActionEffectDelegate(uint sourceId, Character* sourceCharacter, IntPtr pos, EffectHeader* effectHeader, EffectEntry* effectArray, ulong* effectTail);
-
     // Function that triggers when client receives a network packet with an update for nearby actors
     private unsafe delegate void ReceivePrimaryActorUpdateDelegate(uint objectId, uint* packetData, byte unkByte);
-
-    [Obsolete("The update delegates aren't affected by stuff like healing, so this has become unnecessary")]
-    [Signature("40 55 53 57 41 54 41 55 41 56 41 57 48 8D AC 24 ?? ?? ?? ?? 48 81 EC ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 45 70", DetourName = nameof(ReceiveActionEffect))]
-    private readonly Hook<ReceiveActionEffectDelegate>? receiveActionEffectHook = null;
 
     [Signature("48 89 5C 24 ?? 48 89 6C 24 ?? 56 48 83 EC 20 83 3D ?? ?? ?? ?? ?? 41 0F B6 E8 48 8B DA 8B F1 0F 84 ?? ?? ?? ?? 48 89 7C 24 ??", DetourName = nameof(PrimaryActorTickUpdate))]
     private readonly Hook<ReceivePrimaryActorUpdateDelegate>? receivePrimaryActorUpdateHook = null;
@@ -117,11 +106,10 @@ public sealed class Plugin : IDalamudPlugin
 
         _interopProvider.InitializeFromAttributes(this);
 
-        if (receiveActionEffectHook is null || receivePrimaryActorUpdateHook is null)
+        if (receivePrimaryActorUpdateHook is null)
         {
             throw new Exception("At least one hook failed, and the plugin is not functional.");
         }
-        receiveActionEffectHook.Enable();
         receivePrimaryActorUpdateHook.Enable();
 
         config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
@@ -333,63 +321,6 @@ public sealed class Plugin : IDalamudPlugin
         log.Debug("MP regen list generated with {MPcount} status effects.", manaRegenList.Count);
     }
 
-    // DamageInfo stripped function
-    /// <summary>
-    /// This detour function is triggered every time the client receives
-    /// a network packet containing an action that's triggered by a player
-    /// in the vecinity of the user
-    /// </summary>
-    private unsafe void ReceiveActionEffect(uint sourceId, Character* sourceCharacter, IntPtr pos, EffectHeader* effectHeader, EffectEntry* effectArray, ulong* effectTail)
-    {
-        receiveActionEffectHook!.Original(sourceId, sourceCharacter, pos, effectHeader, effectArray, effectTail);
-        try
-        {
-            if (clientState is not { LocalPlayer: { } player })
-            {
-                return;
-            }
-            if (!utilities.IsTarget(player, sourceCharacter))
-            {
-                return;
-            }
-
-            var name = MemoryHelper.ReadStringNullTerminated((nint)sourceCharacter->GameObject.GetName());
-
-            var entryCount = effectHeader->TargetCount switch
-            {
-                0 => 0,
-                1 => 8,
-                <= 8 => 64,
-                <= 16 => 128,
-                <= 24 => 192,
-                <= 32 => 256,
-                _ => 0
-            };
-            for (var i = 0; i < entryCount; i++)
-            {
-                if (effectArray[i].type == ActionEffectType.Heal)
-                {
-                    var logMessage = sourceId == player.ObjectId ? "Self healing" : "Healed by " + name;
-                    log.Debug(logMessage);
-                }
-                else if (effectArray[i].type == ActionEffectType.MpGain)
-                {
-                    var logMessage = sourceId == player.ObjectId ? "Restoring your own mana" : "Mana resotred by " + name;
-                    log.Debug(logMessage);
-                }
-                else if (effectArray[i].type != ActionEffectType.Nothing && effectArray[i].type != ActionEffectType.Damage)
-                {
-                    var logMessage = "Received action type: " + effectArray[i].type + " from " + name;
-                    log.Debug(logMessage);
-                }
-            }
-        }
-        catch (Exception e)
-        {
-            log.Error(e, "An error has occured with the ReceiveActionEffect detour.");
-        }
-    }
-
     /// <summary>
     /// This detour function is triggered every time the client receives
     /// a network packet containing an update for the nearby actors
@@ -490,8 +421,6 @@ public sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
-        receiveActionEffectHook?.Disable();
-        receiveActionEffectHook?.Dispose();
         receivePrimaryActorUpdateHook?.Disable();
         receivePrimaryActorUpdateHook?.Dispose();
         commandManager.RemoveHandler(commandName);

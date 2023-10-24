@@ -1,5 +1,3 @@
-using System;
-
 using ImGuiNET;
 using Dalamud.Interface.Utility;
 using Dalamud.Plugin.Services;
