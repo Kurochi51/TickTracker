@@ -227,13 +227,13 @@ public sealed class Plugin : IDalamudPlugin
     private void ProcessTicks(double currentTime, PlayerCharacter player)
     {
         // HP section
-        HPBarWindow.RegenProgressActive = player.StatusList.Any(e => healthRegenList.Contains(e.StatusId));
+        HPBarWindow.RegenActive = player.StatusList.Any(e => healthRegenList.Contains(e.StatusId));
         HPBarWindow.ProgressHalted = player.StatusList.Any(e => disabledHealthRegenList.Contains(e.StatusId));
         var currentHP = player.CurrentHp;
         var fullHP = currentHP == player.MaxHp;
 
         // MP Section
-        MPBarWindow.RegenProgressActive = player.StatusList.Any(e => manaRegenList.Contains(e.StatusId));
+        MPBarWindow.RegenActive = player.StatusList.Any(e => manaRegenList.Contains(e.StatusId));
         var blmGauge = player.ClassJob.Id == 25 ? jobGauges.Get<BLMGauge>() : null;
         MPBarWindow.ProgressHalted = blmGauge is not null && blmGauge.InAstralFire;
         var currentMP = player.CurrentMp;
@@ -255,9 +255,10 @@ public sealed class Plugin : IDalamudPlugin
 
     private void UpdateTick(BarWindowBase window, double currentTime, uint currentResource, bool fullResource, uint lastResource)
     {
-        if (window.RegenProgressActive)
+        if (window.RegenActive)
         {
             window.Tick = fullResource ? regenValue : fastValue;
+            window.FastRegen = !fullResource;
             window.Progress = (currentTime - window.Tick) / (fullResource ? ActorTickInterval : FastTickInterval);
             return;
         }
