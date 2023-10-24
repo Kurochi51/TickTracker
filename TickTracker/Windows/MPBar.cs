@@ -26,7 +26,7 @@ public class MPBar : BarWindowBase
         {
             Progress = PreviousProgress;
         }
-        DrawProgress(Progress, config.MPBarBackgroundColor, config.MPBarFillColor, config.MPBarBorderColor);
+        DrawProgress(Progress, config.MPBarBackgroundColor, config.MPBarFillColor, config.MPBarBorderColor, config.MPIconColor);
         PreviousProgress = Progress;
     }
 

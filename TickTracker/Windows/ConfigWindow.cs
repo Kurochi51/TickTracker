@@ -10,11 +10,15 @@ namespace TickTracker.Windows;
 
 public class ConfigWindow : Window
 {
-    private readonly Vector4 defaultDarkGrey = new(0.246f, 0.262f, 0.270f, 1f); // Default Color: Dark Grey - #3F4345
     private readonly Vector4 defaultBlack = new(0f, 0f, 0f, 1f); // Default Color: Black - #000000
+    private readonly Vector4 defaultWhite = new(1f, 1f, 1f, 1f); // Default Color: White - #FFFFFF
+    private readonly Vector4 defaultDarkGrey = new(0.246f, 0.262f, 0.270f, 1f); // Default Color: Dark Grey - #3F4345
     private readonly Vector4 defaultPink = new(0.753f, 0.271f, 0.482f, 1f); // #C0457B
     private readonly Vector4 defaultGreen = new(0.276f, 0.8f, 0.24f, 1f); // #46CC3D
     private readonly Vector4 defaultBlue = new(0.169f, 0.747f, 0.892f, 1f); // #2BBEE3FF
+
+    private readonly Vector2 defaultSize = new(320, 470);
+    private readonly Vector2 changedSize = new(320, 320);
 
     private readonly DalamudPluginInterface pluginInterface;
     private readonly DebugWindow debugWindow;
@@ -22,7 +26,7 @@ public class ConfigWindow : Window
 
     public ConfigWindow(DalamudPluginInterface _pluginInterface, Configuration _config, DebugWindow _debugWindow) : base("Timer Settings")
     {
-        Size = new(320, 420);
+        Size = defaultSize;
         Flags = ImGuiWindowFlags.NoResize;
         pluginInterface = _pluginInterface;
         config = _config;
@@ -36,7 +40,7 @@ public class ConfigWindow : Window
 
     public override void Draw()
     {
-        Size = new(320, 420);
+        Size = defaultSize;
         var pluginEnabled = config.PluginEnabled;
         if (ImGui.Checkbox("Enable plugin", ref pluginEnabled))
         {
@@ -56,6 +60,7 @@ public class ConfigWindow : Window
         using var appearanceTab = ImRaii.TabItem("Appearance");
         if (appearanceTab)
         {
+            using var child = ImRaii.Child("TabContent", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y - 40f), false);
             ImGui.Spacing();
             var lockBar = config.LockBar;
             if (ImGui.Checkbox("Lock bar size and position", ref lockBar))
@@ -65,10 +70,13 @@ public class ConfigWindow : Window
             }
             if (!lockBar)
             {
-                Size = new(320, 560);
+                Size = changedSize;
                 DrawBarPositions();
             }
-            DrawColorOptions();
+            else
+            {
+                DrawColorOptions();
+            }
         }
     }
 
@@ -77,6 +85,7 @@ public class ConfigWindow : Window
         using var settingsTab = ImRaii.TabItem("Settings");
         if (settingsTab)
         {
+            using var child = ImRaii.Child("TabContent", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y - 40f), false);
             ImGui.Spacing();
             DrawBarVisibilityOptions();
 
@@ -132,7 +141,7 @@ public class ConfigWindow : Window
         var originPos = ImGui.GetCursorPos();
         // Place a button in the bottom left
         ImGui.SetCursorPosX(10f);
-        ImGui.SetCursorPosY(ImGui.GetWindowContentRegionMax().Y - ImGui.GetFrameHeight() - 5f);
+        ImGui.SetCursorPosY(ImGui.GetWindowContentRegionMax().Y - ImGui.GetFrameHeight() - 5f + (ImGui.GetScrollY() * 2));
         if (ImGui.Button("Debug"))
         {
             debugWindow.Toggle();
@@ -140,7 +149,7 @@ public class ConfigWindow : Window
         ImGui.SetCursorPos(originPos);
         // Place a button in the bottom right + some padding / extra space
         ImGui.SetCursorPosX(ImGui.GetWindowContentRegionMax().X - ImGui.CalcTextSize("Close").X - 10f);
-        ImGui.SetCursorPosY(ImGui.GetWindowContentRegionMax().Y - ImGui.GetFrameHeight() - 5f);
+        ImGui.SetCursorPosY(ImGui.GetWindowContentRegionMax().Y - ImGui.GetFrameHeight() - 5f + (ImGui.GetScrollY() * 2));
         if (ImGui.Button("Close"))
         {
             config.Save(pluginInterface);
@@ -263,6 +272,20 @@ public class ConfigWindow : Window
             config.HPBarBorderColor = defaultDarkGrey;
             config.Save(pluginInterface);
         }
+
+        var HPIconColor = config.HPIconColor;
+        if (ImGui.ColorEdit4("HP Icon Color", ref HPIconColor, flags))
+        {
+            config.HPIconColor = HPIconColor;
+            config.Save(pluginInterface);
+        }
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(resetButtonX);
+        if (ImGui.Button("Reset##ResetHPIconColor"))
+        {
+            config.HPIconColor = defaultWhite;
+            config.Save(pluginInterface);
+        }
     }
 
     private void DrawOptionsMP(ImGuiColorEditFlags flags)
@@ -308,6 +331,20 @@ public class ConfigWindow : Window
             config.MPBarBorderColor = defaultDarkGrey;
             config.Save(pluginInterface);
         }
+
+        var MPIconColor = config.MPIconColor;
+        if (ImGui.ColorEdit4("MP Icon Color", ref MPIconColor, flags))
+        {
+            config.MPIconColor = MPIconColor;
+            config.Save(pluginInterface);
+        }
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(resetButtonX);
+        if (ImGui.Button("Reset##ResetMPIconColor"))
+        {
+            config.MPIconColor = defaultWhite;
+            config.Save(pluginInterface);
+        }
     }
 
     private void DrawOptionsGP(ImGuiColorEditFlags flags)
@@ -350,6 +387,20 @@ public class ConfigWindow : Window
         if (ImGui.Button("Reset##ResetGPBarBorderColor"))
         {
             config.GPBarBorderColor = defaultDarkGrey;
+            config.Save(pluginInterface);
+        }
+
+        var GPIconColor = config.GPIconColor;
+        if (ImGui.ColorEdit4("GP Icon Color", ref GPIconColor, flags))
+        {
+            config.GPIconColor = GPIconColor;
+            config.Save(pluginInterface);
+        }
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(resetButtonX);
+        if (ImGui.Button("Reset##ResetGPIconColor"))
+        {
+            config.GPIconColor = defaultWhite;
             config.Save(pluginInterface);
         }
     }

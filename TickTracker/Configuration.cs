@@ -26,18 +26,21 @@ public class Configuration : IPluginConfiguration
     public Vector4 HPBarBackgroundColor { get; set; } = new(0f, 0f, 0f, 1f);
     public Vector4 HPBarFillColor { get; set; } = new(0.276f, 0.8f, 0.24f, 1f);
     public Vector4 HPBarBorderColor { get; set; } = new(0.246f, 0.262f, 0.270f, 1f);
+    public Vector4 HPIconColor { get; set; } = new(1f, 1f, 1f, 1f);
 
     public Vector2 MPBarPosition { get; set; } = new(900, 500);
     public Vector2 MPBarSize { get; set; } = new(180, 50);
     public Vector4 MPBarBackgroundColor { get; set; } = new(0f, 0f, 0f, 1f);
     public Vector4 MPBarFillColor { get; set; } = new(0.753f, 0.271f, 0.482f, 1f);
     public Vector4 MPBarBorderColor { get; set; } = new(0.246f, 0.262f, 0.270f, 1f);
+    public Vector4 MPIconColor { get; set; } = new(1f, 1f, 1f, 1f);
 
     public Vector2 GPBarPosition { get; set; } = new(750, 400);
     public Vector2 GPBarSize { get; set; } = new(180, 50);
     public Vector4 GPBarBackgroundColor { get; set; } = new(0f, 0f, 0f, 1f);
     public Vector4 GPBarFillColor { get; set; } = new(0.169f, 0.747f, 0.892f, 1f);
     public Vector4 GPBarBorderColor { get; set; } = new(0.246f, 0.262f, 0.270f, 1f);
+    public Vector4 GPIconColor { get; set; } = new(1f, 1f, 1f, 1f);
 
     public void Save(DalamudPluginInterface pi) => pi.SavePluginConfig(this);
 

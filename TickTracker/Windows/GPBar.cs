@@ -26,7 +26,7 @@ public class GPBar : BarWindowBase
         {
             Progress = PreviousProgress;
         }
-        DrawProgress(Progress, config.GPBarBackgroundColor, config.GPBarFillColor, config.GPBarBorderColor);
+        DrawProgress(Progress, config.GPBarBackgroundColor, config.GPBarFillColor, config.GPBarBorderColor, config.GPIconColor);
         PreviousProgress = Progress;
     }
 

@@ -2,8 +2,9 @@ using System;
 using System.Numerics;
 
 using ImGuiNET;
-using Dalamud.Plugin.Services;
+using Dalamud.Interface;
 using Dalamud.Interface.Windowing;
+using Dalamud.Plugin.Services;
 using TickTracker.Enums;
 
 namespace TickTracker.Windows;
@@ -29,7 +30,6 @@ public abstract class BarWindowBase : Window
     public double Progress { get; set; }
     public Vector2 WindowPosition { get; set; }
     public Vector2 WindowSize { get; set; }
-    public const float ActorTickInterval = 3, FastTickInterval = 1.5f;
 
     private readonly IClientState clientState;
     private readonly Configuration config;
@@ -76,7 +76,7 @@ public abstract class BarWindowBase : Window
         ImGui.PopStyleVar();
     }
 
-    public static void DrawProgress(double progress, Vector4 backgroundColor, Vector4 fillColor, Vector4 borderColor)
+    public void DrawProgress(double progress, Vector4 backgroundColor, Vector4 fillColor, Vector4 borderColor, Vector4 iconColor)
     {
         var floatProgress = (float)progress;
         var cornerRounding = 4f; // Maybe make it user configurable?
@@ -97,5 +97,13 @@ public abstract class BarWindowBase : Window
         drawList.AddRectFilled(topLeft + barFillPosOffset, bottomRight, ImGui.GetColorU32(backgroundColor), cornerRounding, ImDrawFlags.RoundCornersAll);
         drawList.AddRectFilled(topLeft + barFillPosOffset, filledWidth, ImGui.GetColorU32(fillColor), cornerRounding, ImDrawFlags.RoundCornersAll);
         drawList.AddRect(topLeft, bottomRight, ImGui.GetColorU32(borderColor), cornerRounding, ImDrawFlags.RoundCornersAll, borderThickness);
+
+        if (RegenProgressActive)
+        {
+            var color = ColorHelpers.RgbaVector4ToUint(iconColor);
+            var altIcon = FontAwesomeIcon.Forward.ToIconString();
+            var pos = new Vector2((topLeft.X + 1 + bottomRight.X) / 2, topLeft.Y + 2);
+            drawList.AddText(UiBuilder.IconFont, UiBuilder.IconFont.FontSize, pos, color, altIcon);
+        }
     }
 }

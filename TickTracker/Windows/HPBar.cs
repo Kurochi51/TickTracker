@@ -26,7 +26,7 @@ public class HPBar : BarWindowBase
         {
             Progress = PreviousProgress;
         }
-        DrawProgress(Progress, config.HPBarBackgroundColor, config.HPBarFillColor, config.HPBarBorderColor);
+        DrawProgress(Progress, config.HPBarBackgroundColor, config.HPBarFillColor, config.HPBarBorderColor, config.HPIconColor);
         PreviousProgress = Progress;
     }
 
