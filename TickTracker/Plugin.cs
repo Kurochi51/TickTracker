@@ -410,7 +410,7 @@ public sealed class Plugin : IDalamudPlugin
         DevWindow.IsOpen = true;
         DevWindow.printLines.Add("HP: " + player.CurrentHp.ToString() + " / " + player.MaxHp.ToString());
         DevWindow.printLines.Add("Current Time: " + currentTime.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        DevWindow.printLines.Add("RegenProgressActive: " + window.RegenProgressActive.ToString());
+        DevWindow.printLines.Add("RegenActive: " + window.RegenActive.ToString());
         DevWindow.printLines.Add("Progress: " + window.Progress.ToString(System.Globalization.CultureInfo.InvariantCulture));
         DevWindow.printLines.Add("NormalTick: " + window.Tick.ToString(System.Globalization.CultureInfo.InvariantCulture));
         DevWindow.printLines.Add("NormalUpdate: " + window.TickUpdate.ToString());

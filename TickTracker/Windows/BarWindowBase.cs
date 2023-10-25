@@ -1,9 +1,12 @@
 using System;
+using System.Linq;
 using System.Numerics;
+using System.Collections.Generic;
 
 using ImGuiNET;
 using Dalamud.Interface;
 using Dalamud.Interface.Windowing;
+using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using TickTracker.Enums;
 
@@ -35,12 +38,14 @@ public abstract class BarWindowBase : Window
     private const FontAwesomeIcon RegenIcon = FontAwesomeIcon.Forward;
     private const FontAwesomeIcon FastIcon = FontAwesomeIcon.FastForward;
     private const FontAwesomeIcon PauseIcon = FontAwesomeIcon.Pause;
+    private const FontAwesomeIcon InvalidIcon = FontAwesomeIcon.None;
+
     private readonly IClientState clientState;
     private readonly Configuration config;
     private readonly Utilities utilities;
 
+    private readonly IDictionary<string, Vector2> iconDictionary = new Dictionary<string, Vector2>(StringComparer.Ordinal);
     private Vector2 invalidSize = new(0, 0);
-    private Vector2 regenIconSize, fastIconSize, pauseIconSize;
     private float currentFontSize;
 
     protected BarWindowBase(IClientState _clientState, IPluginLog _pluginLog, Utilities _utilities, Configuration _config, WindowType type, string name) : base(name)
@@ -53,7 +58,10 @@ public abstract class BarWindowBase : Window
         utilities = _utilities;
         config = _config;
         WindowType = type;
-        regenIconSize = fastIconSize = pauseIconSize = invalidSize;
+
+        iconDictionary.Add(RegenIcon.ToIconString(), invalidSize);
+        iconDictionary.Add(FastIcon.ToIconString(), invalidSize);
+        iconDictionary.Add(PauseIcon.ToIconString(), invalidSize);
     }
 
     public override bool DrawConditions()
@@ -73,11 +81,13 @@ public abstract class BarWindowBase : Window
     {
         if (currentFontSize != ImGui.GetFontSize())
         {
-            ImGui.PushFont(UiBuilder.IconFont);
-            regenIconSize = ImGui.CalcTextSize(RegenIcon.ToIconString());
-            fastIconSize = ImGui.CalcTextSize(FastIcon.ToIconString());
-            pauseIconSize = ImGui.CalcTextSize(PauseIcon.ToIconString());
-            ImGui.PopFont();
+            using (var font = ImRaii.PushFont(UiBuilder.IconFont))
+            {
+                foreach (var iconString in iconDictionary.Keys)
+                {
+                    iconDictionary[iconString] = ImGui.CalcTextSize(iconString);
+                }
+            }
             log.Debug("Size of icons changed.");
         }
         var barWindowPadding = new Vector2(8, 14);
@@ -117,27 +127,29 @@ public abstract class BarWindowBase : Window
         drawList.AddRectFilled(topLeft + barFillPosOffset, filledWidth, ImGui.GetColorU32(fillColor), cornerRounding, ImDrawFlags.RoundCornersAll);
         drawList.AddRect(topLeft, bottomRight, ImGui.GetColorU32(borderColor), cornerRounding, ImDrawFlags.RoundCornersAll, borderThickness);
 
+        var icon = InvalidIcon;
         if (ProgressHalted)
         {
-            var color = ColorHelpers.RgbaVector4ToUint(iconColor);
-            var pos = (topLeft + barFillPosOffset + bottomRight) / 2;
-            pos = pauseIconSize == invalidSize ? pos : pos - (pauseIconSize / 2);
-            drawList.AddText(UiBuilder.IconFont, currentFontSize * 0.85f, pos, color, PauseIcon.ToIconString());
+            icon = PauseIcon;
         }
         else if (RegenActive)
         {
-            var color = ColorHelpers.RgbaVector4ToUint(iconColor);
-            var pos = (topLeft + barFillPosOffset + bottomRight) / 2;
+            icon = RegenIcon;
             if (FastRegen)
             {
-                pos = fastIconSize == invalidSize ? pos : pos - (fastIconSize / 2);
-                drawList.AddText(UiBuilder.IconFont, currentFontSize * 0.85f, pos, color, FastIcon.ToIconString());
-            }
-            else
-            {
-                pos = regenIconSize == invalidSize ? pos : pos - (regenIconSize / 2);
-                drawList.AddText(UiBuilder.IconFont, currentFontSize * 0.85f, pos, color, RegenIcon.ToIconString());
+                icon = FastIcon;
             }
         }
+        if (icon is InvalidIcon || iconDictionary.Count is 0)
+        {
+            return;
+        }
+
+        var iconString = icon.ToIconString();
+        var iconPair = iconDictionary.First(i => i.Key.Equals(iconString, StringComparison.Ordinal));
+        var color = ColorHelpers.RgbaVector4ToUint(iconColor);
+        var pos = (topLeft + barFillPosOffset + bottomRight) / 2;
+        pos = iconPair.Value == invalidSize ? pos : pos - (iconPair.Value / 2);
+        drawList.AddText(UiBuilder.IconFont, currentFontSize * 0.85f, pos, color, iconPair.Key);
     }
 }
