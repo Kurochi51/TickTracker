@@ -333,6 +333,9 @@ public sealed class Plugin : IDalamudPlugin
     /// a network packet containing an update for the nearby actors
     /// with HP, MP, GP
     /// </summary>
+    /// HP = *(int*)packetData;
+    /// MP = *((ushort*)packetData + 2);
+    /// GP = *((short*)packetData + 3); // Goes up to 10000 and is tracked and updated at all times
     private unsafe void PrimaryActorTickUpdate(uint objectId, uint* packetData, byte unkByte)
     {
         receivePrimaryActorUpdateHook!.Original(objectId, packetData, unkByte);
@@ -342,15 +345,11 @@ public sealed class Plugin : IDalamudPlugin
             {
                 return;
             }
-#if DEBUG
-            var networkHP = *(int*)packetData;
-            var networkMP = *((ushort*)packetData + 2);
-            var networkGP = *((short*)packetData + 3); // Goes up to 10000 and is tracked and updated at all times
-#endif
             if (objectId != player.ObjectId)
             {
                 return;
             }
+
             HPBarWindow.TickUpdate = player.CurrentHp != player.MaxHp;
             MPBarWindow.TickUpdate = player.CurrentMp != player.MaxMp;
             GPBarWindow.TickUpdate = true;
