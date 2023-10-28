@@ -73,10 +73,10 @@ public sealed class Plugin : IDalamudPlugin
 #endif
 
     public WindowSystem WindowSystem { get; } = new("TickTracker");
-    private readonly string commandName = "/tick";
-    private readonly List<BarWindowBase> windowList = new();
+    private const string CommandName = "/tick";
 
     private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
+    private readonly List<BarWindowBase> barWindows;
     private double syncValue, regenValue, fastValue;
     private bool finishedLoading;
     private bool syncAvailable = true, nullSheet = true;
@@ -119,9 +119,6 @@ public sealed class Plugin : IDalamudPlugin
         HPBarWindow = new HPBar(clientState, log, utilities, config);
         MPBarWindow = new MPBar(clientState, log, utilities, config);
         GPBarWindow = new GPBar(clientState, log, utilities, config);
-        windowList.Add(HPBarWindow);
-        windowList.Add(MPBarWindow);
-        windowList.Add(GPBarWindow);
 #if DEBUG
         DevWindow = new DevWindow();
         WindowSystem.AddWindow(DevWindow);
@@ -132,7 +129,16 @@ public sealed class Plugin : IDalamudPlugin
         WindowSystem.AddWindow(GPBarWindow);
         WindowSystem.AddWindow(DebugWindow);
 
-        commandManager.AddHandler(commandName, new CommandInfo(OnCommand)
+        barWindows = new();
+        foreach (var window in WindowSystem.Windows)
+        {
+            if (window is BarWindowBase barWindow)
+            {
+                barWindows.Add(barWindow);
+            }
+        }
+
+        commandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
             HelpMessage = "Open or close Tick Tracker's config window.",
         });
@@ -396,9 +402,9 @@ public sealed class Plugin : IDalamudPlugin
             if (currentAddon->IsVisible)
             {
                 var scaled = currentAddon->Scale != 100;
-                foreach (var window in windowList.Where(w => utilities.AddonOverlap(currentAddon, w, scaled)))
+                foreach (var barWindow in barWindows.Where(window => utilities.AddonOverlap(currentAddon, window, scaled)))
                 {
-                    window.IsOpen = false;
+                    barWindow.IsOpen = false;
                 }
             }
         }
@@ -424,7 +430,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         receivePrimaryActorUpdateHook?.Disable();
         receivePrimaryActorUpdateHook?.Dispose();
-        commandManager.RemoveHandler(commandName);
+        commandManager.RemoveHandler(CommandName);
         WindowSystem.RemoveAllWindows();
         framework.Update -= OnFrameworkUpdate;
         pluginInterface.UiBuilder.Draw -= DrawUI;

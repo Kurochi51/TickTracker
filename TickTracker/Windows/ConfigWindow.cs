@@ -10,12 +10,12 @@ namespace TickTracker.Windows;
 
 public class ConfigWindow : Window
 {
-    private readonly Vector4 defaultBlack = new(0f, 0f, 0f, 1f); // Default Color: Black - #000000
-    private readonly Vector4 defaultWhite = new(1f, 1f, 1f, 1f); // Default Color: White - #FFFFFF
-    private readonly Vector4 defaultDarkGrey = new(0.246f, 0.262f, 0.270f, 1f); // Default Color: Dark Grey - #3F4345
+    private readonly Vector4 defaultDarkGrey = new(0.246f, 0.262f, 0.270f, 1f); // #3F4345
+    private readonly Vector4 defaultBlue = new(0.169f, 0.747f, 0.892f, 1f); // #2BBEE3
     private readonly Vector4 defaultPink = new(0.753f, 0.271f, 0.482f, 1f); // #C0457B
     private readonly Vector4 defaultGreen = new(0.276f, 0.8f, 0.24f, 1f); // #46CC3D
-    private readonly Vector4 defaultBlue = new(0.169f, 0.747f, 0.892f, 1f); // #2BBEE3FF
+    private readonly Vector4 defaultBlack = new(0f, 0f, 0f, 1f); // #000000
+    private readonly Vector4 defaultWhite = new(1f, 1f, 1f, 1f); // #FFFFFF
 
     private readonly Vector2 defaultSize = new(320, 470);
     private readonly Vector2 changedSize = new(320, 320);
