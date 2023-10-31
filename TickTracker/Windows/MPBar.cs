@@ -20,7 +20,7 @@ public class MPBar : BarWindowBase
     public override void Draw()
     {
         UpdateWindow();
-        if (ProgressHalted)
+        if (TickHalted)
         {
             Progress = PreviousProgress;
         }

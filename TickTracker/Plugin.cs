@@ -47,10 +47,10 @@ public sealed class Plugin : IDalamudPlugin
     private readonly ConcurrentSet<uint> disabledHealthRegenList = new();
 
     // Function that triggers when client receives a network packet with an update for nearby actors
-    private unsafe delegate void ReceivePrimaryActorUpdateDelegate(uint objectId, uint* packetData, byte unkByte);
+    private unsafe delegate void ReceiveActorUpdateDelegate(uint objectId, uint* packetData, byte unkByte);
 
-    [Signature("48 89 5C 24 ?? 48 89 6C 24 ?? 56 48 83 EC 20 83 3D ?? ?? ?? ?? ?? 41 0F B6 E8 48 8B DA 8B F1 0F 84 ?? ?? ?? ?? 48 89 7C 24 ??", DetourName = nameof(PrimaryActorTickUpdate))]
-    private readonly Hook<ReceivePrimaryActorUpdateDelegate>? receivePrimaryActorUpdateHook = null;
+    [Signature("48 89 5C 24 ?? 48 89 6C 24 ?? 56 48 83 EC 20 83 3D ?? ?? ?? ?? ?? 41 0F B6 E8 48 8B DA 8B F1 0F 84 ?? ?? ?? ?? 48 89 7C 24 ??", DetourName = nameof(ActorTickUpdate))]
+    private readonly Hook<ReceiveActorUpdateDelegate>? receiveActorUpdateHook = null;
 
     private readonly DalamudPluginInterface pluginInterface;
     private readonly Configuration config;
@@ -106,11 +106,11 @@ public sealed class Plugin : IDalamudPlugin
 
         _interopProvider.InitializeFromAttributes(this);
 
-        if (receivePrimaryActorUpdateHook is null)
+        if (receiveActorUpdateHook is null)
         {
             throw new Exception("At least one hook failed, and the plugin is not functional.");
         }
-        receivePrimaryActorUpdateHook.Enable();
+        receiveActorUpdateHook.Enable();
 
         config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         utilities = new Utilities(pluginInterface, config, condition, _dataManager, clientState, log);
@@ -234,19 +234,19 @@ public sealed class Plugin : IDalamudPlugin
     {
         // HP section
         HPBarWindow.RegenActive = player.StatusList.Any(e => healthRegenList.Contains(e.StatusId));
-        HPBarWindow.ProgressHalted = player.StatusList.Any(e => disabledHealthRegenList.Contains(e.StatusId));
+        HPBarWindow.TickHalted = player.StatusList.Any(e => disabledHealthRegenList.Contains(e.StatusId));
         var currentHP = player.CurrentHp;
         var fullHP = currentHP == player.MaxHp;
 
         // MP Section
         MPBarWindow.RegenActive = player.StatusList.Any(e => manaRegenList.Contains(e.StatusId));
         var blmGauge = player.ClassJob.Id == 25 ? jobGauges.Get<BLMGauge>() : null;
-        MPBarWindow.ProgressHalted = blmGauge is not null && blmGauge.InAstralFire;
+        MPBarWindow.TickHalted = blmGauge is not null && blmGauge.InAstralFire;
         var currentMP = player.CurrentMp;
         var fullMP = currentMP == player.MaxMp;
 
         // GP Section
-        GPBarWindow.ProgressHalted = condition[ConditionFlag.Gathering];
+        GPBarWindow.TickHalted = condition[ConditionFlag.Gathering];
         var currentGP = player.CurrentGp;
         var fullGP = currentGP == player.MaxGp;
 
@@ -268,7 +268,7 @@ public sealed class Plugin : IDalamudPlugin
             window.Progress = (currentTime - window.Tick) / (fullResource ? ActorTickInterval : FastTickInterval);
             return;
         }
-        if (fullResource || finishedLoading || window.ProgressHalted)
+        if (fullResource || finishedLoading || window.TickHalted)
         {
             window.Tick = syncValue;
         }
@@ -336,9 +336,9 @@ public sealed class Plugin : IDalamudPlugin
     /// HP = *(int*)packetData;
     /// MP = *((ushort*)packetData + 2);
     /// GP = *((short*)packetData + 3); // Goes up to 10000 and is tracked and updated at all times
-    private unsafe void PrimaryActorTickUpdate(uint objectId, uint* packetData, byte unkByte)
+    private unsafe void ActorTickUpdate(uint objectId, uint* packetData, byte unkByte)
     {
-        receivePrimaryActorUpdateHook!.Original(objectId, packetData, unkByte);
+        receiveActorUpdateHook!.Original(objectId, packetData, unkByte);
         try
         {
             if (clientState is not { LocalPlayer: { } player })
@@ -427,8 +427,8 @@ public sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
-        receivePrimaryActorUpdateHook?.Disable();
-        receivePrimaryActorUpdateHook?.Dispose();
+        receiveActorUpdateHook?.Disable();
+        receiveActorUpdateHook?.Dispose();
         commandManager.RemoveHandler(CommandName);
         WindowSystem.RemoveAllWindows();
         framework.Update -= OnFrameworkUpdate;

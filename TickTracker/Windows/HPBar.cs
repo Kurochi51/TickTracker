@@ -20,7 +20,7 @@ public class HPBar : BarWindowBase
     public override void Draw()
     {
         UpdateWindow();
-        if (ProgressHalted)
+        if (TickHalted)
         {
             Progress = PreviousProgress;
         }

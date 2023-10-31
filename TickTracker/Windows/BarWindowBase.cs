@@ -25,13 +25,13 @@ public abstract class BarWindowBase : Window
                                                     ImGuiWindowFlags.NoNav |
                                                     ImGuiWindowFlags.NoInputs;
     public IPluginLog log { get; }
-    public bool ProgressHalted { get; set; }
+    public bool TickUpdate { get; set; }
+    public bool TickHalted { get; set; }
     public bool RegenActive { get; set; }
     public bool FastRegen { get; set; }
-    public bool TickUpdate { get; set; }
     public double Tick { get; set; }
-    public double PreviousProgress { get; set; }
     public double Progress { get; set; }
+    public double PreviousProgress { get; set; }
     public Vector2 WindowPosition { get; set; }
     public Vector2 WindowSize { get; set; }
 
@@ -128,7 +128,7 @@ public abstract class BarWindowBase : Window
         drawList.AddRect(topLeft, bottomRight, ImGui.GetColorU32(borderColor), cornerRounding, ImDrawFlags.RoundCornersAll, borderThickness);
 
         var icon = InvalidIcon;
-        if (ProgressHalted)
+        if (TickHalted)
         {
             icon = PauseIcon;
         }
