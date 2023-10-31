@@ -314,7 +314,7 @@ public partial class Utilities
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <param name="language"></param>
-    /// <returns><see cref="ExcelSheet{T}"/> or <see langword="null"/> if <see cref="Lumina.Excel"/> is in a broken state.</returns>
+    /// <returns><see cref="ExcelSheet{T}"/> or <see langword="null"/> if <see cref="IDataManager.GetExcelSheet{T}(ClientLanguage)"/> returns an invalid sheet.</returns>
     public ExcelSheet<T>? RetrieveSheet<T>(ClientLanguage language = ClientLanguage.English) where T : ExcelRow
     {
         try

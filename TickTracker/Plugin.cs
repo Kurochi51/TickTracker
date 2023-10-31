@@ -222,7 +222,7 @@ public sealed class Plugin : IDalamudPlugin
         {
             regenValue += ActorTickInterval;
         }
-        if (loadingTask is not null && loadingTask.IsCompleted)
+        if (loadingTask is { IsCompleted: true })
         {
             finishedLoading = true;
             loadingTask = null;
