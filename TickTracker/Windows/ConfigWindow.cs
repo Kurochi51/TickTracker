@@ -1,3 +1,4 @@
+using System;
 using System.Numerics;
 
 using ImGuiNET;
@@ -41,12 +42,7 @@ public class ConfigWindow : Window
     public override void Draw()
     {
         Size = defaultSize;
-        var pluginEnabled = config.PluginEnabled;
-        if (ImGui.Checkbox("Enable plugin", ref pluginEnabled))
-        {
-            config.PluginEnabled = pluginEnabled;
-            config.Save(pluginInterface);
-        }
+        EditConfigProperty("Enable plugin", config, c => c.PluginEnabled, (c, value) => c.PluginEnabled = value, checkbox: true);
         using (var tabBar = ImRaii.TabBar("ConfigTabBar", ImGuiTabBarFlags.None))
         {
             DrawAppearanceTab();
@@ -62,13 +58,8 @@ public class ConfigWindow : Window
         {
             using var child = ImRaii.Child("TabContent", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y - 40f), border: false);
             ImGui.Spacing();
-            var lockBar = config.LockBar;
-            if (ImGui.Checkbox("Lock bar size and position", ref lockBar))
-            {
-                config.LockBar = lockBar;
-                config.Save(pluginInterface);
-            }
-            if (!lockBar)
+            EditConfigProperty("Lock bar size and position", config, c => c.LockBar, (c, value) => c.LockBar = value, checkbox: true);
+            if (!config.LockBar)
             {
                 Size = changedSize;
                 DrawBarPositions();
@@ -89,49 +80,18 @@ public class ConfigWindow : Window
             ImGui.Spacing();
             DrawBarVisibilityOptions();
 
-            var HideOnFullResource = config.HideOnFullResource;
-            if (ImGui.Checkbox("Hide bar on full resource", ref HideOnFullResource))
-            {
-                config.HideOnFullResource = HideOnFullResource;
-                config.Save(pluginInterface);
-            }
-            ImGui.Indent();
+            EditConfigProperty("Hide bar on full resource", config, c => c.HideOnFullResource, (c, value) => c.HideOnFullResource = value, checkbox: true);
 
-            var AlwaysShowInCombat = config.AlwaysShowInCombat;
-            if (ImGui.Checkbox("Always show in combat", ref AlwaysShowInCombat))
-            {
-                config.AlwaysShowInCombat = AlwaysShowInCombat;
-                config.Save(pluginInterface);
-            }
+            ImGui.Indent();
+            EditConfigProperty("Always show in combat", config, c => c.AlwaysShowInCombat, (c, value) => c.AlwaysShowInCombat = value, checkbox: true);
             ImGui.Unindent();
 
-            var HideOutOfCombat = config.HideOutOfCombat;
-            if (ImGui.Checkbox("Show only in combat", ref HideOutOfCombat))
-            {
-                config.HideOutOfCombat = HideOutOfCombat;
-                config.Save(pluginInterface);
-            }
+            EditConfigProperty("Show only in combat", config, c => c.HideOutOfCombat, (c, value) => c.HideOutOfCombat = value, checkbox: true);
+
             ImGui.Indent();
-
-            var AlwaysShowInDuties = config.AlwaysShowInDuties;
-            if (ImGui.Checkbox("Always show while in duties", ref AlwaysShowInDuties))
-            {
-                config.AlwaysShowInDuties = AlwaysShowInDuties;
-                config.Save(pluginInterface);
-            }
-
-            var AlwaysShowWithHostileTarget = config.AlwaysShowWithHostileTarget;
-            if (ImGui.Checkbox("Always show with enemy target", ref AlwaysShowWithHostileTarget))
-            {
-                config.AlwaysShowWithHostileTarget = AlwaysShowWithHostileTarget;
-                config.Save(pluginInterface);
-            }
-            var DisableCollisionInCombat = config.DisableCollisionInCombat;
-            if (ImGui.Checkbox("Disable collision detection while in combat", ref DisableCollisionInCombat))
-            {
-                config.DisableCollisionInCombat = DisableCollisionInCombat;
-                config.Save(pluginInterface);
-            }
+            EditConfigProperty("Always show while in duties", config, c => c.AlwaysShowInDuties, (c, value) => c.AlwaysShowInDuties = value, checkbox: true);
+            EditConfigProperty("Always show with enemy target", config, c => c.AlwaysShowWithHostileTarget, (c, value) => c.AlwaysShowWithHostileTarget = value, checkbox: true);
+            EditConfigProperty("Disable collision detection while in combat", config, c => c.DisableCollisionInCombat, (c, value) => c.DisableCollisionInCombat = value, checkbox: true);
             ImGui.Unindent();
         }
     }
@@ -231,214 +191,83 @@ public class ConfigWindow : Window
 
     private void DrawOptionsHP(ImGuiColorEditFlags flags)
     {
-        var HPBarBackgroundColor = config.HPBarBackgroundColor;
-        if (ImGui.ColorEdit4("HP Bar Background Color", ref HPBarBackgroundColor, flags))
-        {
-            config.HPBarBackgroundColor = HPBarBackgroundColor;
-            config.Save(pluginInterface);
-        }
+        EditConfigProperty("HP Bar Background Color", config, c => c.HPBarBackgroundColor, (c, value) => c.HPBarBackgroundColor = value, checkbox: false, button: false, colorEdit: true, flags);
         ImGui.SameLine();
         var resetButtonX = ImGui.GetCursorPosX();
-        if (ImGui.Button("Reset##ResetHPBarBackgroundColor"))
-        {
-            config.HPBarBackgroundColor = defaultBlack;
-            config.Save(pluginInterface);
-        }
+        EditConfigProperty("Reset##ResetHPBarBackgroundColor", config, c => c.HPBarBackgroundColor, (c, value) => c.HPBarBackgroundColor = value, checkbox: false, button: true, colorEdit: false, flags, defaultBlack);
 
-        var HPBarFillColor = config.HPBarFillColor;
-        if (ImGui.ColorEdit4("HP Bar Fill Color", ref HPBarFillColor, flags))
-        {
-            config.HPBarFillColor = HPBarFillColor;
-            config.Save(pluginInterface);
-        }
+        EditConfigProperty("HP Bar Fill Color", config, c => c.HPBarFillColor, (c, value) => c.HPBarFillColor = value, checkbox: false, button: false, colorEdit: true, flags);
         ImGui.SameLine();
         ImGui.SetCursorPosX(resetButtonX);
-        if (ImGui.Button("Reset##ResetHPBarFillColor"))
-        {
-            config.HPBarFillColor = defaultGreen;
-            config.Save(pluginInterface);
-        }
+        EditConfigProperty("Reset##ResetHPBarFillColor", config, c => c.HPBarFillColor, (c, value) => c.HPBarFillColor = value, checkbox: false, button: true, colorEdit: false, flags, defaultGreen);
 
-        var HPBarBorderColor = config.HPBarBorderColor;
-        if (ImGui.ColorEdit4("HP Bar Border Color", ref HPBarBorderColor, flags))
-        {
-            config.HPBarBorderColor = HPBarBorderColor;
-            config.Save(pluginInterface);
-        }
+        EditConfigProperty("HP Bar Border Color", config, c => c.HPBarBorderColor, (c, value) => c.HPBarBorderColor = value, checkbox: false, button: false, colorEdit: true, flags);
         ImGui.SameLine();
         ImGui.SetCursorPosX(resetButtonX);
-        if (ImGui.Button("Reset##ResetHPBarBorderColor"))
-        {
-            config.HPBarBorderColor = defaultDarkGrey;
-            config.Save(pluginInterface);
-        }
+        EditConfigProperty("Reset##ResetHPBarBorderColor", config, c => c.HPBarBorderColor, (c, value) => c.HPBarBorderColor = value, checkbox: false, button: true, colorEdit: false, flags, defaultDarkGrey);
 
-        var HPIconColor = config.HPIconColor;
-        if (ImGui.ColorEdit4("HP Icon Color", ref HPIconColor, flags))
-        {
-            config.HPIconColor = HPIconColor;
-            config.Save(pluginInterface);
-        }
+        EditConfigProperty("HP Icon Color", config, c => c.HPIconColor, (c, value) => c.HPIconColor = value, checkbox: false, button: false, colorEdit: true, flags);
         ImGui.SameLine();
         ImGui.SetCursorPosX(resetButtonX);
-        if (ImGui.Button("Reset##ResetHPIconColor"))
-        {
-            config.HPIconColor = defaultWhite;
-            config.Save(pluginInterface);
-        }
+        EditConfigProperty("Reset##ResetHPIconColor", config, c => c.HPIconColor, (c, value) => c.HPIconColor = value, checkbox: false, button: true, colorEdit: false, flags, defaultWhite);
     }
 
     private void DrawOptionsMP(ImGuiColorEditFlags flags)
     {
-        var MPBarBackgroundColor = config.MPBarBackgroundColor;
-        if (ImGui.ColorEdit4("MP Bar Background Color", ref MPBarBackgroundColor, flags))
-        {
-            config.MPBarBackgroundColor = MPBarBackgroundColor;
-            config.Save(pluginInterface);
-        }
+        EditConfigProperty("MP Bar Background Color", config, c => c.MPBarBackgroundColor, (c, value) => c.MPBarBackgroundColor = value, checkbox: false, button: false, colorEdit: true, flags);
         ImGui.SameLine();
         var resetButtonX = ImGui.GetCursorPosX();
-        if (ImGui.Button("Reset##ResetMPBarBackgroundColor"))
-        {
-            config.MPBarBackgroundColor = defaultBlack;
-            config.Save(pluginInterface);
-        }
+        EditConfigProperty("Reset##ResetMPBarBackgroundColor", config, c => c.MPBarBackgroundColor, (c, value) => c.MPBarBackgroundColor = value, checkbox: false, button: true, colorEdit: false, flags, defaultBlack);
 
-        var MPBarFillColor = config.MPBarFillColor;
-        if (ImGui.ColorEdit4("MP Bar Fill Color", ref MPBarFillColor, flags))
-        {
-            config.MPBarFillColor = MPBarFillColor;
-            config.Save(pluginInterface);
-        }
+        EditConfigProperty("MP Bar Fill Color", config, c => c.MPBarFillColor, (c, value) => c.MPBarFillColor = value, checkbox: false, button: false, colorEdit: true, flags);
         ImGui.SameLine();
         ImGui.SetCursorPosX(resetButtonX);
-        if (ImGui.Button("Reset##ResetMPBarFillColor"))
-        {
-            config.MPBarFillColor = defaultPink;
-            config.Save(pluginInterface);
-        }
+        EditConfigProperty("Reset##ResetMPBarFillColor", config, c => c.MPBarFillColor, (c, value) => c.MPBarFillColor = value, checkbox: false, button: true, colorEdit: false, flags, defaultPink);
 
-        var MPBarBorderColor = config.MPBarBorderColor;
-        if (ImGui.ColorEdit4("MP Bar Border Color", ref MPBarBorderColor, flags))
-        {
-            config.MPBarBorderColor = MPBarBorderColor;
-            config.Save(pluginInterface);
-        }
+        EditConfigProperty("MP Bar Border Color", config, c => c.MPBarBorderColor, (c, value) => c.MPBarBorderColor = value, checkbox: false, button: false, colorEdit: true, flags);
         ImGui.SameLine();
         ImGui.SetCursorPosX(resetButtonX);
-        if (ImGui.Button("Reset##ResetMPBarBorderColor"))
-        {
-            config.MPBarBorderColor = defaultDarkGrey;
-            config.Save(pluginInterface);
-        }
+        EditConfigProperty("Reset##ResetMPBarBorderColor", config, c => c.MPBarBorderColor, (c, value) => c.MPBarBorderColor = value, checkbox: false, button: true, colorEdit: false, flags, defaultDarkGrey);
 
-        var MPIconColor = config.MPIconColor;
-        if (ImGui.ColorEdit4("MP Icon Color", ref MPIconColor, flags))
-        {
-            config.MPIconColor = MPIconColor;
-            config.Save(pluginInterface);
-        }
+        EditConfigProperty("MP Icon Color", config, c => c.MPIconColor, (c, value) => c.MPIconColor = value, checkbox: false, button: false, colorEdit: true, flags);
         ImGui.SameLine();
         ImGui.SetCursorPosX(resetButtonX);
-        if (ImGui.Button("Reset##ResetMPIconColor"))
-        {
-            config.MPIconColor = defaultWhite;
-            config.Save(pluginInterface);
-        }
+        EditConfigProperty("Reset##ResetMPIconColor", config, c => c.MPIconColor, (c, value) => c.MPIconColor = value, checkbox: false, button: true, colorEdit: false, flags, defaultWhite);
     }
 
     private void DrawOptionsGP(ImGuiColorEditFlags flags)
     {
-        var GPBarBackgroundColor = config.GPBarBackgroundColor;
-        if (ImGui.ColorEdit4("GP Bar Background Color", ref GPBarBackgroundColor, flags))
-        {
-            config.GPBarBackgroundColor = GPBarBackgroundColor;
-            config.Save(pluginInterface);
-        }
+        EditConfigProperty("GP Bar Background Color", config, c => c.GPBarBackgroundColor, (c, value) => c.GPBarBackgroundColor = value, checkbox: false, button: false, colorEdit: true, flags);
         ImGui.SameLine();
         var resetButtonX = ImGui.GetCursorPosX();
-        if (ImGui.Button("Reset##ResetGPBarBackgroundColor"))
-        {
-            config.GPBarBackgroundColor = defaultBlack;
-            config.Save(pluginInterface);
-        }
-        var GPBarFillColor = config.GPBarFillColor;
-        if (ImGui.ColorEdit4("GP Bar Fill Color", ref GPBarFillColor, flags))
-        {
-            config.GPBarFillColor = GPBarFillColor;
-            config.Save(pluginInterface);
-        }
-        ImGui.SameLine();
-        ImGui.SetCursorPosX(resetButtonX);
-        if (ImGui.Button("Reset##ResetGPBarFillColor"))
-        {
-            config.GPBarFillColor = defaultBlue;
-            config.Save(pluginInterface);
-        }
+        EditConfigProperty("Reset##ResetGPBarBackgroundColor", config, c => c.GPBarBackgroundColor, (c, value) => c.GPBarBackgroundColor = value, checkbox: false, button: true, colorEdit: false, flags, defaultBlack);
 
-        var GPBarBorderColor = config.GPBarBorderColor;
-        if (ImGui.ColorEdit4("GP Bar Border Color", ref GPBarBorderColor, flags))
-        {
-            config.GPBarBorderColor = GPBarBorderColor;
-            config.Save(pluginInterface);
-        }
+        EditConfigProperty("GP Bar Fill Color", config, c => c.GPBarFillColor, (c, value) => c.GPBarFillColor = value, checkbox: false, button: false, colorEdit: true, flags);
         ImGui.SameLine();
         ImGui.SetCursorPosX(resetButtonX);
-        if (ImGui.Button("Reset##ResetGPBarBorderColor"))
-        {
-            config.GPBarBorderColor = defaultDarkGrey;
-            config.Save(pluginInterface);
-        }
+        EditConfigProperty("Reset##ResetGPBarFillColor", config, c => c.GPBarFillColor, (c, value) => c.GPBarFillColor = value, checkbox: false, button: true, colorEdit: false, flags, defaultBlue);
 
-        var GPIconColor = config.GPIconColor;
-        if (ImGui.ColorEdit4("GP Icon Color", ref GPIconColor, flags))
-        {
-            config.GPIconColor = GPIconColor;
-            config.Save(pluginInterface);
-        }
+        EditConfigProperty("GP Bar Border Color", config, c => c.GPBarBorderColor, (c, value) => c.GPBarBorderColor = value, checkbox: false, button: false, colorEdit: true, flags);
         ImGui.SameLine();
         ImGui.SetCursorPosX(resetButtonX);
-        if (ImGui.Button("Reset##ResetGPIconColor"))
-        {
-            config.GPIconColor = defaultWhite;
-            config.Save(pluginInterface);
-        }
+        EditConfigProperty("Reset##ResetGPBarBorderColor", config, c => c.GPBarBorderColor, (c, value) => c.GPBarBorderColor = value, checkbox: false, button: true, colorEdit: false, flags, defaultDarkGrey);
+
+        EditConfigProperty("GP Icon Color", config, c => c.GPIconColor, (c, value) => c.GPIconColor = value, checkbox: false, button: false, colorEdit: true, flags);
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(resetButtonX);
+        EditConfigProperty("Reset##ResetGPIconColor", config, c => c.GPIconColor, (c, value) => c.GPIconColor = value, checkbox: false, button: true, colorEdit: false, flags, defaultWhite);
     }
 
     private void DrawBarVisibilityOptions()
     {
-        var HPVisible = config.HPVisible;
-        if (ImGui.Checkbox("Show HP Bar", ref HPVisible))
-        {
-            config.HPVisible = HPVisible;
-            config.Save(pluginInterface);
-        }
-        var MPVisible = config.MPVisible;
-        if (ImGui.Checkbox("Show MP Bar", ref MPVisible))
-        {
-            config.MPVisible = MPVisible;
-            config.Save(pluginInterface);
-        }
-        var GPVisible = config.GPVisible;
-        if (ImGui.Checkbox("Show GP Bar", ref GPVisible))
-        {
-            config.GPVisible = GPVisible;
-            config.Save(pluginInterface);
-        }
+        EditConfigProperty("Show HP Bar", config, c => c.HPVisible, (c, value) => c.HPVisible = value, checkbox: true);
+        EditConfigProperty("Show MP Bar", config, c => c.MPVisible, (c, value) => c.MPVisible = value, checkbox: true);
+        EditConfigProperty("Show GP Bar", config, c => c.GPVisible, (c, value) => c.GPVisible = value, checkbox: true);
         ImGui.SameLine();
         ImGuiComponents.HelpMarker("Only shown while a Disciple of Land job is active or bars are unlocked.");
-        var HideMpBarOnMeleeRanged = config.HideMpBarOnMeleeRanged;
-        if (ImGui.Checkbox("Hide MP bar on melee and ranged DPS", ref HideMpBarOnMeleeRanged))
-        {
-            config.HideMpBarOnMeleeRanged = HideMpBarOnMeleeRanged;
-            config.Save(pluginInterface);
-        }
-        var CollisionDetection = config.CollisionDetection;
-        if (ImGui.Checkbox("Hide bar on collision with native ui", ref CollisionDetection))
-        {
-            config.CollisionDetection = CollisionDetection;
-            config.Save(pluginInterface);
-        }
+
+        EditConfigProperty("Hide MP bar on melee and ranged DPS", config, c => c.HideMpBarOnMeleeRanged, (c, value) => c.HideMpBarOnMeleeRanged = value, checkbox: true);
+        EditConfigProperty("Hide bar on collision with native ui", config, c => c.CollisionDetection, (c, value) => c.CollisionDetection = value, checkbox: true);
         ImGui.SameLine();
         ImGuiComponents.HelpMarker("This only affects the description of abilities and items");
     }
@@ -497,5 +326,47 @@ public class ConfigWindow : Window
         ImGui.SameLine();
         ImGui.TextUnformatted(description);
         return change;
+    }
+
+    // A truly horrific piece of code
+    private void EditConfigProperty<T>(string label, Configuration config, Func<Configuration, T> getProperty, Action<Configuration, T> setProperty, bool checkbox = false, bool button = false, bool colorEdit = false, ImGuiColorEditFlags flags = ImGuiColorEditFlags.None, Vector4 defaultColor = default)
+    {
+        // a T that's a Vector4 and has both button and colorEdit set as true would erroneously be forced to a button,
+        // alternatively would have both of them present, which is an invalid use of the function
+
+        var onlyCheckbox = checkbox && !button && !colorEdit;
+        var onlyButton = button && !checkbox && !colorEdit;
+        var onlyColorEdit = colorEdit && !button && !checkbox;
+
+        if (typeof(T) == typeof(bool) && onlyCheckbox)
+        {
+            var option = (bool)(object)getProperty(config)!;
+            if (ImGui.Checkbox(label, ref option))
+            {
+                setProperty(config, (T)(object)option);
+                config.Save(pluginInterface);
+            }
+        }
+        else if (typeof(T) == typeof(Vector4) && onlyButton)
+        {
+            if (ImGui.Button(label))
+            {
+                setProperty(config, (T)(object)defaultColor);
+                config.Save(pluginInterface);
+            }
+        }
+        else if (typeof(T) == typeof(Vector4) && onlyColorEdit)
+        {
+            var vectorValue = (Vector4)(object)getProperty(config)!;
+            if (ImGui.ColorEdit4(label, ref vectorValue, flags))
+            {
+                setProperty(config, (T)(object)vectorValue);
+                config.Save(pluginInterface);
+            }
+        }
+        else
+        {
+            ImGui.TextUnformatted($"Invalid EditConfigProperty invokation.");
+        }
     }
 }
