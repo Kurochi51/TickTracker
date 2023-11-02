@@ -2,9 +2,9 @@ using System.Numerics;
 
 using ImGuiNET;
 using Dalamud.Interface.Windowing;
+using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin;
-using Dalamud.Interface.Components;
 
 namespace TickTracker.Windows;
 
@@ -427,6 +427,12 @@ public class ConfigWindow : Window
         }
         ImGui.SameLine();
         ImGuiComponents.HelpMarker("Only shown while a Disciple of Land job is active or bars are unlocked.");
+        var HideMpBarOnMeleeRanged = config.HideMpBarOnMeleeRanged;
+        if (ImGui.Checkbox("Hide MP bar on melee and ranged DPS", ref HideMpBarOnMeleeRanged))
+        {
+            config.HideMpBarOnMeleeRanged = HideMpBarOnMeleeRanged;
+            config.Save(pluginInterface);
+        }
         var CollisionDetection = config.CollisionDetection;
         if (ImGui.Checkbox("Hide bar on collision with native ui", ref CollisionDetection))
         {

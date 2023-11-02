@@ -217,7 +217,7 @@ public partial class Utilities
         => condition[ConditionFlag.OccupiedInCutSceneEvent] || condition[ConditionFlag.WatchingCutscene] || condition[ConditionFlag.WatchingCutscene78] || condition[ConditionFlag.Occupied38];
 
     /// <summary>
-    ///     Check if the <paramref name="addon"/> can be accessed.
+    ///     Check if the <paramref name="addon"/> can be safely accessed.
     /// </summary>
     /// <returns><see langword="true"/> if addon is initialized and ready for use, otherwise <see langword="false"/>.</returns>
     public unsafe bool IsAddonReady(AtkUnitBase* addon)

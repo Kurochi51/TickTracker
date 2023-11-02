@@ -75,7 +75,10 @@ public sealed class Plugin : IDalamudPlugin
     public WindowSystem WindowSystem { get; } = new("TickTracker");
     private const string CommandName = "/tick";
 
-    private const float ActorTickInterval = 3, FastTickInterval = 1.5f;
+    private const float RegularTickInterval = 3, FastTickInterval = 1.5f;
+    private const uint DiscipleOfTheLand = 32, PugilistID = 2, LancerID = 4, ArcherID = 5;
+    private const byte NonCombatJob = 0, MeleeDPS = 3, PhysRangedDPS = 4;
+
     private readonly List<BarWindowBase> barWindows;
     private double syncValue, regenValue, fastValue;
     private bool finishedLoading;
@@ -210,17 +213,17 @@ public sealed class Plugin : IDalamudPlugin
             regenValue = fastValue = syncValue - FastTickInterval;
             syncAvailable = false;
         }
-        else if (syncValue + ActorTickInterval <= now)
+        else if (syncValue + RegularTickInterval <= now)
         {
-            syncValue += ActorTickInterval;
+            syncValue += RegularTickInterval;
         }
         if (fastValue + FastTickInterval <= now)
         {
             fastValue += FastTickInterval;
         }
-        if (regenValue + ActorTickInterval <= now)
+        if (regenValue + RegularTickInterval <= now)
         {
-            regenValue += ActorTickInterval;
+            regenValue += RegularTickInterval;
         }
         if (loadingTask is { IsCompleted: true })
         {
@@ -265,7 +268,7 @@ public sealed class Plugin : IDalamudPlugin
         {
             window.Tick = fullResource ? regenValue : fastValue;
             window.FastRegen = !fullResource;
-            window.Progress = (currentTime - window.Tick) / (fullResource ? ActorTickInterval : FastTickInterval);
+            window.Progress = (currentTime - window.Tick) / (fullResource ? RegularTickInterval : FastTickInterval);
             return;
         }
         if (fullResource || finishedLoading || window.TickHalted)
@@ -277,7 +280,7 @@ public sealed class Plugin : IDalamudPlugin
             window.Tick = currentTime;
             window.TickUpdate = false;
         }
-        window.Progress = (currentTime - window.Tick) / ActorTickInterval;
+        window.Progress = (currentTime - window.Tick) / RegularTickInterval;
     }
 
     private void InitializeLuminaSheet()
@@ -365,6 +368,8 @@ public sealed class Plugin : IDalamudPlugin
     private unsafe void UpdateBarState(PlayerCharacter player)
     {
         var jobType = player.ClassJob.GameData?.ClassJobCategory.Row ?? 0;
+        var jobID = player.ClassJob.Id;
+        var altJobType = player.ClassJob.GameData?.Unknown44 ?? 0;
         var Enemy = player.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
         var inCombat = condition[ConditionFlag.InCombat];
         var shouldShowHPBar = !config.HideOnFullResource ||
@@ -374,10 +379,12 @@ public sealed class Plugin : IDalamudPlugin
         var shouldShowMPBar = !config.HideOnFullResource ||
                             (config.AlwaysShowInCombat && inCombat) ||
                             (config.AlwaysShowWithHostileTarget && Enemy) ||
-                            (config.AlwaysShowInDuties && utilities.InDuty());
-        HPBarWindow.IsOpen = shouldShowHPBar || (player.CurrentHp != player.MaxHp);
-        MPBarWindow.IsOpen = (jobType != 32 && (shouldShowMPBar || (player.CurrentMp != player.MaxMp))) || !config.GPVisible;
-        GPBarWindow.IsOpen = (jobType == 32 && (!config.HideOnFullResource || (player.CurrentGp != player.MaxGp)) && config.GPVisible) || !config.LockBar;
+                            (config.AlwaysShowInDuties && utilities.InDuty()) || player.CurrentMp != player.MaxMp;
+        var hideForMeleeRangedDPS = (altJobType is MeleeDPS or PhysRangedDPS || (altJobType is NonCombatJob && jobID is PugilistID or LancerID or ArcherID)) && config.HideMpBarOnMeleeRanged;
+        var hideForGPBar = jobType is DiscipleOfTheLand && config.GPVisible;
+        HPBarWindow.IsOpen = shouldShowHPBar;
+        MPBarWindow.IsOpen = shouldShowMPBar && !hideForMeleeRangedDPS && !hideForGPBar;
+        GPBarWindow.IsOpen = (jobType == DiscipleOfTheLand && (!config.HideOnFullResource || (player.CurrentGp != player.MaxGp)) && config.GPVisible) || !config.LockBar;
         if (!config.CollisionDetection || (config.DisableCollisionInCombat && inCombat))
         {
             return;
