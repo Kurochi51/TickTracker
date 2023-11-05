@@ -375,7 +375,7 @@ public sealed class Plugin : IDalamudPlugin
         var shouldShowHPBar = !config.HideOnFullResource ||
                             (config.AlwaysShowInCombat && inCombat) ||
                             (config.AlwaysShowWithHostileTarget && Enemy) ||
-                            (config.AlwaysShowInDuties && utilities.InDuty());
+                            (config.AlwaysShowInDuties && utilities.InDuty()) || player.CurrentHp != player.MaxHp;
         var shouldShowMPBar = !config.HideOnFullResource ||
                             (config.AlwaysShowInCombat && inCombat) ||
                             (config.AlwaysShowWithHostileTarget && Enemy) ||
