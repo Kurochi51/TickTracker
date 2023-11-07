@@ -384,7 +384,7 @@ public sealed class Plugin : IDalamudPlugin
         var hideForGPBar = jobType is DiscipleOfTheLand && config.GPVisible;
         HPBarWindow.IsOpen = shouldShowHPBar;
         MPBarWindow.IsOpen = shouldShowMPBar && !hideForMeleeRangedDPS && !hideForGPBar;
-        GPBarWindow.IsOpen = (jobType == DiscipleOfTheLand && (!config.HideOnFullResource || (player.CurrentGp != player.MaxGp)) && config.GPVisible) || !config.LockBar;
+        GPBarWindow.IsOpen = (jobType is DiscipleOfTheLand && (!config.HideOnFullResource || (player.CurrentGp != player.MaxGp)) && config.GPVisible) || !config.LockBar;
         if (!config.CollisionDetection || (config.DisableCollisionInCombat && inCombat))
         {
             return;

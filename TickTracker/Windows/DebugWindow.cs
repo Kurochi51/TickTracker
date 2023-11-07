@@ -82,14 +82,12 @@ public class DebugWindow : Window
         ImGui.TextUnformatted($"HP regen disabled list generated with {disabledHealthRegenList.Count} status effects.");
         ImGui.TextUnformatted($"MP regen disabled list generated with {disabledManaRegenList.Count} status effects.");
         ImGui.Spacing();
-        var maxRegenCount = Math.Max(healthRegenList.Count, manaRegenList.Count);
-        var maxDisabledRegenCount = Math.Max(disabledHealthRegenList.Count, disabledManaRegenList.Count);
         using (var scrollArea = ImRaii.Child("ScrollArea", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y - 40f), border: true))
         {
-            DrawTable("DisabledRegenSID", table2Column1, table2Column2, disabledHPWidth, disabledMPWidth, maxDisabledRegenCount, disabledHealthRegenList, disabledManaRegenList);
+            DrawTable("DisabledRegenSID", table2Column1, table2Column2, disabledHPWidth, disabledMPWidth, disabledHealthRegenList, disabledManaRegenList);
             ImGui.Separator();
             ImGui.Spacing();
-            DrawTable("RegenSID", table1Column1, table1Column2, hpWidth, mpWidth, maxRegenCount, healthRegenList, manaRegenList);
+            DrawTable("RegenSID", table1Column1, table1Column2, hpWidth, mpWidth, healthRegenList, manaRegenList);
         }
         CopyAndClose();
     }
@@ -168,13 +166,15 @@ public class DebugWindow : Window
         }
     }
 
-    private static unsafe void DrawTable(string id, string column1, string column2, float column1Width, float column2Width, int maxItemCount, List<string> list1, List<string> list2)
+    private static unsafe void DrawTable(string id, string column1, string column2, float column1Width, float column2Width, List<string> list1, List<string> list2)
     {
         using var table = ImRaii.Table(id, 2, ImGuiTableFlags.None);
         if (!table)
         {
             return;
         }
+
+        var maxItemCount = Math.Max(list1.Count, list2.Count);
         var clipper = new ImGuiListClipperPtr(ImGuiNative.ImGuiListClipper_ImGuiListClipper());
         clipper.Begin(maxItemCount, ImGui.GetTextLineHeightWithSpacing());
 
