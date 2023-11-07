@@ -8,7 +8,7 @@ namespace TickTracker.Windows;
 
 public class DevWindow : Window
 {
-    public IList<string> printLines { get; set; } = new List<string>();
+    public IList<string> PrintLines { get; set; } = new List<string>();
     public DevWindow() : base("DevWindow")
     {
         var resolution = ImGui.GetMainViewport().Size;
@@ -21,10 +21,10 @@ public class DevWindow : Window
 
     public override void Draw()
     {
-        foreach (var line in printLines)
+        foreach (var line in PrintLines)
         {
             ImGui.TextUnformatted(line);
         }
-        printLines.Clear();
+        PrintLines.Clear();
     }
 }

@@ -130,18 +130,18 @@ public class DebugWindow : Window
     private static void GetTableContentAsText(ref StringBuilder text, string column1Name, string column2Name, List<string> list1, List<string> list2)
     {
         text.Append(column1Name);
-        for (var i = 0; i < list1.Count; i++)
+        foreach (var item in list1)
         {
             text.AppendLine();
-            text.Append(list1[i].Trim());
+            text.Append(item.Trim());
         }
         text.AppendLine();
         text.AppendLine();
         text.Append(column2Name);
-        for (var i = 0; i < list2.Count; i++)
+        foreach (var item in list2)
         {
             text.AppendLine();
-            text.Append(list2[i].Trim());
+            text.Append(item.Trim());
         }
     }
 

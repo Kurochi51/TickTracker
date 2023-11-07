@@ -9,22 +9,23 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using TickTracker.Enums;
+using TickTracker.Helpers;
 
 namespace TickTracker.Windows;
 
 public abstract class BarWindowBase : Window
 {
     protected WindowType WindowType { get; set; }
-    protected const ImGuiWindowFlags _defaultFlags = ImGuiWindowFlags.NoScrollbar |
+    protected const ImGuiWindowFlags DefaultFlags = ImGuiWindowFlags.NoScrollbar |
                                               ImGuiWindowFlags.NoTitleBar |
                                               ImGuiWindowFlags.NoCollapse;
 
-    protected const ImGuiWindowFlags _lockedBarFlags = ImGuiWindowFlags.NoBackground |
+    protected const ImGuiWindowFlags LockedBarFlags = ImGuiWindowFlags.NoBackground |
                                                     ImGuiWindowFlags.NoMove |
                                                     ImGuiWindowFlags.NoResize |
                                                     ImGuiWindowFlags.NoNav |
                                                     ImGuiWindowFlags.NoInputs;
-    public IPluginLog log { get; }
+    public IPluginLog Log { get; }
     public bool TickUpdate { get; set; }
     public bool TickHalted { get; set; }
     public bool RegenActive { get; set; }
@@ -39,13 +40,17 @@ public abstract class BarWindowBase : Window
     private const FontAwesomeIcon FastIcon = FontAwesomeIcon.FastForward;
     private const FontAwesomeIcon PauseIcon = FontAwesomeIcon.Pause;
     private const FontAwesomeIcon InvalidIcon = FontAwesomeIcon.None;
+    private const float CornerRounding = 4f;     // Maybe make it user configurable?
+    private const float BorderThickness = 1.35f; // Maybe make it user configurable?
 
     private readonly IClientState clientState;
     private readonly Configuration config;
     private readonly Utilities utilities;
 
     private readonly IDictionary<string, Vector2> iconDictionary = new Dictionary<string, Vector2>(StringComparer.Ordinal);
-    private Vector2 invalidSize = new(0, 0);
+    private readonly Vector2 invalidSize = new(0, 0);
+    private readonly Vector2 barFillPosOffset = new(1, 1);
+    private readonly Vector2 barFillSizeOffset = new(-1, 0);
     private float currentFontSize;
 
     protected BarWindowBase(IClientState _clientState, IPluginLog _pluginLog, Utilities _utilities, Configuration _config, WindowType type, string name) : base(name)
@@ -54,7 +59,7 @@ public abstract class BarWindowBase : Window
         PositionCondition = ImGuiCond.FirstUseEver;
 
         clientState = _clientState;
-        log = _pluginLog;
+        Log = _pluginLog;
         utilities = _utilities;
         config = _config;
         WindowType = type;
@@ -65,17 +70,7 @@ public abstract class BarWindowBase : Window
     }
 
     public override bool DrawConditions()
-    {
-        if (!clientState.IsLoggedIn)
-        {
-            return false;
-        }
-        if (!utilities.WindowCondition(WindowType))
-        {
-            return false;
-        }
-        return true;
-    }
+        => clientState.IsLoggedIn && utilities.WindowCondition(WindowType);
 
     public override void PreDraw()
     {
@@ -88,13 +83,13 @@ public abstract class BarWindowBase : Window
                     iconDictionary[iconString] = ImGui.CalcTextSize(iconString);
                 }
             }
-            log.Debug("Size of icons changed.");
+            Log.Debug("Size of icons changed.");
         }
         var barWindowPadding = new Vector2(8, 14);
-        Flags = _defaultFlags;
+        Flags = DefaultFlags;
         if (config.LockBar)
         {
-            Flags |= _lockedBarFlags;
+            Flags |= LockedBarFlags;
         }
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, barWindowPadding);
     }
@@ -108,10 +103,6 @@ public abstract class BarWindowBase : Window
     {
         currentFontSize = ImGui.GetFontSize();
         var floatProgress = (float)progress;
-        var cornerRounding = 4f; // Maybe make it user configurable?
-        var borderThickness = 1.35f; // Maybe make it user configurable?
-        var barFillPosOffset = new Vector2(1, 1);
-        var barFillSizeOffset = new Vector2(-1, 0);
         var topLeft = ImGui.GetWindowContentRegionMin() + ImGui.GetWindowPos();
         var bottomRight = ImGui.GetWindowContentRegionMax() + ImGui.GetWindowPos();
         bottomRight = (floatProgress <= 0) ? bottomRight - barFillSizeOffset : bottomRight;
@@ -123,9 +114,9 @@ public abstract class BarWindowBase : Window
 
         // Draw main bar
         var drawList = ImGui.GetWindowDrawList();
-        drawList.AddRectFilled(topLeft + barFillPosOffset, bottomRight, ImGui.GetColorU32(backgroundColor), cornerRounding, ImDrawFlags.RoundCornersAll);
-        drawList.AddRectFilled(topLeft + barFillPosOffset, filledWidth, ImGui.GetColorU32(fillColor), cornerRounding, ImDrawFlags.RoundCornersAll);
-        drawList.AddRect(topLeft, bottomRight, ImGui.GetColorU32(borderColor), cornerRounding, ImDrawFlags.RoundCornersAll, borderThickness);
+        drawList.AddRectFilled(topLeft + barFillPosOffset, bottomRight, ImGui.GetColorU32(backgroundColor), CornerRounding, ImDrawFlags.RoundCornersAll);
+        drawList.AddRectFilled(topLeft + barFillPosOffset, filledWidth, ImGui.GetColorU32(fillColor), CornerRounding, ImDrawFlags.RoundCornersAll);
+        drawList.AddRect(topLeft, bottomRight, ImGui.GetColorU32(borderColor), CornerRounding, ImDrawFlags.RoundCornersAll, BorderThickness);
 
         var icon = InvalidIcon;
         if (TickHalted)

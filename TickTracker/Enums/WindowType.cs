@@ -1,7 +1,7 @@
 namespace TickTracker.Enums;
 
 /// <summary>
-///     An enum of expected <see cref="WindowType" />.<paramref name="window"/>
+///     An enum of available <see cref="WindowType" />
 /// </summary>
 public enum WindowType
 {

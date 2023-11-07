@@ -62,7 +62,7 @@ namespace TickTracker.Helpers
             get { return dictionary.IsEmpty; }
         }
 
-        public ICollection<T> values
+        public ICollection<T> Values
         {
             get { return dictionary.Keys; }
         }
@@ -224,7 +224,7 @@ namespace TickTracker.Helpers
         /// <param name="array">The one-dimensional <see cref="Array"/> that is the destination of the elements copied from <see cref="ICollection"/>. the <see cref="Array"/> must have zero-based indexing.</param><param name="arrayIndex">the zero-based index in <paramref name="array"/> at which copying begins.</param><exception cref="ArgumentNullException"><paramref name="array"/> is null.</exception><exception cref="ArgumentOutOfRangeException"><paramref name="arrayIndex"/> is less than 0.</exception><exception cref="ArgumentException"><paramref name="array"/> is multidimensional.-or-the number of elements in the source <see cref="ICollection"/> is greater than the available space from <paramref name="arrayIndex"/> to the end of the destination <paramref name="array"/>.-or-type <paramref name="t"/> cannot be cast automatically to the type of the destination <paramref name="array"/>.</exception>
         public void CopyTo(T[] array, int arrayIndex)
         {
-            values.CopyTo(array, arrayIndex);
+            Values.CopyTo(array, arrayIndex);
         }
 
         public T[] ToArray()

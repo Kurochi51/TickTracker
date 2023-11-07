@@ -111,7 +111,7 @@ public sealed class Plugin : IDalamudPlugin
 
         if (receiveActorUpdateHook is null)
         {
-            throw new Exception("At least one hook failed, and the plugin is not functional.");
+            throw new("At least one hook failed, and the plugin is not functional.");
         }
         receiveActorUpdateHook.Enable();
 
@@ -178,7 +178,7 @@ public sealed class Plugin : IDalamudPlugin
         return config.PluginEnabled;
     }
 
-    private void OnFrameworkUpdate(IFramework framework)
+    private void OnFrameworkUpdate(IFramework _framework)
     {
         if (clientState is { IsLoggedIn: false } or { IsPvPExcludingDen: true } || nullSheet)
         {
@@ -199,7 +199,7 @@ public sealed class Plugin : IDalamudPlugin
                 HPBarWindow.IsOpen = MPBarWindow.IsOpen = GPBarWindow.IsOpen = false;
                 return;
             }
-            if (!NameplateAddon->IsVisible || utilities.inCustcene() || player.IsDead)
+            if (!NameplateAddon->IsVisible || utilities.InCustcene() || player.IsDead)
             {
                 HPBarWindow.IsOpen = MPBarWindow.IsOpen = GPBarWindow.IsOpen = false;
                 return;
@@ -420,15 +420,15 @@ public sealed class Plugin : IDalamudPlugin
     private unsafe void DevWindowThings(PlayerCharacter player, double currentTime, BarWindowBase window)
     {
         DevWindow.IsOpen = true;
-        DevWindow.printLines.Add("HP: " + player.CurrentHp.ToString() + " / " + player.MaxHp.ToString());
-        DevWindow.printLines.Add("Current Time: " + currentTime.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        DevWindow.printLines.Add("RegenActive: " + window.RegenActive.ToString());
-        DevWindow.printLines.Add("Progress: " + window.Progress.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        DevWindow.printLines.Add("NormalTick: " + window.Tick.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        DevWindow.printLines.Add("NormalUpdate: " + window.TickUpdate.ToString());
-        DevWindow.printLines.Add("Sync Value: " + syncValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        DevWindow.printLines.Add("Regen Value: " + regenValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        DevWindow.printLines.Add("Fast Value: " + fastValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        DevWindow.PrintLines.Add("HP: " + player.CurrentHp.ToString() + " / " + player.MaxHp.ToString());
+        DevWindow.PrintLines.Add("Current Time: " + currentTime.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        DevWindow.PrintLines.Add("RegenActive: " + window.RegenActive.ToString());
+        DevWindow.PrintLines.Add("Progress: " + window.Progress.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        DevWindow.PrintLines.Add("NormalTick: " + window.Tick.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        DevWindow.PrintLines.Add("NormalUpdate: " + window.TickUpdate.ToString());
+        DevWindow.PrintLines.Add("Sync Value: " + syncValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        DevWindow.PrintLines.Add("Regen Value: " + regenValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        DevWindow.PrintLines.Add("Fast Value: " + fastValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 #endif
 

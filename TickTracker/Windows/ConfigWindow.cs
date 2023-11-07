@@ -24,6 +24,8 @@ public class ConfigWindow : Window
     private readonly DalamudPluginInterface pluginInterface;
     private readonly DebugWindow debugWindow;
     private readonly Configuration config;
+    
+    private const ImGuiColorEditFlags ColorEditFlags = ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar;
 
     public ConfigWindow(DalamudPluginInterface _pluginInterface, Configuration _config, DebugWindow _debugWindow) : base("Timer Settings")
     {
@@ -172,21 +174,19 @@ public class ConfigWindow : Window
 
     private void DrawColorOptions()
     {
-        var flags = ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar;
-
-        DrawOptionsHP(flags);
+        DrawOptionsHP(ColorEditFlags);
 
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
 
-        DrawOptionsMP(flags);
+        DrawOptionsMP(ColorEditFlags);
 
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
 
-        DrawOptionsGP(flags);
+        DrawOptionsGP(ColorEditFlags);
     }
 
     private void DrawOptionsHP(ImGuiColorEditFlags flags)
@@ -329,7 +329,7 @@ public class ConfigWindow : Window
     }
 
     // A truly horrific piece of code
-    private void EditConfigProperty<T>(string label, Configuration config, Func<Configuration, T> getProperty, Action<Configuration, T> setProperty, bool checkbox = false, bool button = false, bool colorEdit = false, ImGuiColorEditFlags flags = ImGuiColorEditFlags.None, Vector4 defaultColor = default)
+    private void EditConfigProperty<T>(string label, Configuration _config, Func<Configuration, T> getProperty, Action<Configuration, T> setProperty, bool checkbox = false, bool button = false, bool colorEdit = false, ImGuiColorEditFlags flags = ImGuiColorEditFlags.None, Vector4 defaultColor = default)
     {
         // a T that's a Vector4 and has both button and colorEdit set as true would erroneously be forced to a button,
         // alternatively would have both of them present, which is an invalid use of the function
@@ -340,33 +340,33 @@ public class ConfigWindow : Window
 
         if (typeof(T) == typeof(bool) && onlyCheckbox)
         {
-            var option = (bool)(object)getProperty(config)!;
+            var option = (bool)(object)getProperty(_config)!;
             if (ImGui.Checkbox(label, ref option))
             {
-                setProperty(config, (T)(object)option);
-                config.Save(pluginInterface);
+                setProperty(_config, (T)(object)option);
+                _config.Save(pluginInterface);
             }
         }
         else if (typeof(T) == typeof(Vector4) && onlyButton)
         {
             if (ImGui.Button(label))
             {
-                setProperty(config, (T)(object)defaultColor);
-                config.Save(pluginInterface);
+                setProperty(_config, (T)(object)defaultColor);
+                _config.Save(pluginInterface);
             }
         }
         else if (typeof(T) == typeof(Vector4) && onlyColorEdit)
         {
-            var vectorValue = (Vector4)(object)getProperty(config)!;
+            var vectorValue = (Vector4)(object)getProperty(_config)!;
             if (ImGui.ColorEdit4(label, ref vectorValue, flags))
             {
-                setProperty(config, (T)(object)vectorValue);
-                config.Save(pluginInterface);
+                setProperty(_config, (T)(object)vectorValue);
+                _config.Save(pluginInterface);
             }
         }
         else
         {
-            ImGui.TextUnformatted($"Invalid EditConfigProperty invokation.");
+            ImGui.TextUnformatted("Invalid EditConfigProperty invokation.");
         }
     }
 }

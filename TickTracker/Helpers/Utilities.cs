@@ -18,7 +18,7 @@ using Dalamud.Game.ClientState.Objects.SubKinds;
 using TickTracker.Enums;
 using TickTracker.Windows;
 
-namespace TickTracker;
+namespace TickTracker.Helpers;
 
 /// <summary>
 ///     A class that contains different helper functions necessary for this plugin's operation
@@ -81,6 +81,9 @@ public partial class Utilities
     private readonly IPluginLog log;
     private readonly Configuration config;
 
+    private const float OffsetX = 10f;
+    private const float OffsetY = 25f;
+
     public Utilities(DalamudPluginInterface _pluginInterface, Configuration _config, ICondition _condition, IDataManager _dataManager, IClientState _clientState, IPluginLog _pluginLog)
     {
         pluginInterface = _pluginInterface;
@@ -107,7 +110,7 @@ public partial class Utilities
                 WindowType.HpWindow => config.HPVisible,
                 WindowType.MpWindow => config.MPVisible,
                 WindowType.GpWindow => config.GPVisible,
-                _ => throw new Exception("Unknown Window")
+                _ => throw new ("Unknown Window"),
             };
             return DisplayThisWindow;
         }
@@ -202,18 +205,15 @@ public partial class Utilities
     public bool InIgnoredInstances()
     {
         var area = dataManager.GetExcelSheet<TerritoryType>()!.GetRow(clientState.TerritoryType);
-        if (area is null)
-        {
-            return false;
-        }
-        return area.TerritoryIntendedUse is (byte)TerritoryIntendedUseType.IslandSanctuary or (byte)TerritoryIntendedUseType.Diadem;
+
+        return area?.TerritoryIntendedUse is (byte)TerritoryIntendedUseType.IslandSanctuary or (byte)TerritoryIntendedUseType.Diadem;
     }
 
     /// <summary>
     ///     Checks the player's <see cref="ConditionFlag" /> for different cutscene flags.
     /// </summary>
     /// <returns><see langword="true"/> if any matching flag is set, otherwise <see langword="false"/>.</returns>
-    public bool inCustcene()
+    public bool InCustcene()
         => condition[ConditionFlag.OccupiedInCutSceneEvent] || condition[ConditionFlag.WatchingCutscene] || condition[ConditionFlag.WatchingCutscene78] || condition[ConditionFlag.Occupied38];
 
     /// <summary>
@@ -221,22 +221,8 @@ public partial class Utilities
     /// </summary>
     /// <returns><see langword="true"/> if addon is initialized and ready for use, otherwise <see langword="false"/>.</returns>
     public unsafe bool IsAddonReady(AtkUnitBase* addon)
-    {
-        if (addon is null)
-        {
-            return false;
-        }
-        if (addon->RootNode is null)
-        {
-            return false;
-        }
-        if (addon->RootNode->ChildNode is null)
-        {
-            return false;
-        }
-
-        return true;
-    }
+        => addon is not null && addon->RootNode is not null && addon->RootNode->ChildNode is not null;
+    
     /// <summary>
     ///     Check if <paramref name="sourceCharacter"/> is currently targetting <paramref name="targetCharacter"/>, whether it's manually set, or the result of using an action.
     /// </summary>
@@ -260,10 +246,8 @@ public partial class Utilities
     /// </summary>
     public unsafe bool AddonOverlap(AtkUnitBase* addon, BarWindowBase window, bool scaledAddon)
     {
-        var offsetY = 25f;
-        var offsetX = 10f;
         var addonPos = (X: addon->X, Y: addon->Y);
-        var addonSize = (width: addon->GetScaledWidth(scaledAddon) - offsetX, height: addon->GetScaledHeight(scaledAddon) - offsetY);
+        var addonSize = (width: addon->GetScaledWidth(scaledAddon) - OffsetX, height: addon->GetScaledHeight(scaledAddon) - OffsetY);
 
         var topLeft = (window.WindowPosition.X, window.WindowPosition.Y);
         var topRight = (X: window.WindowPosition.X + window.WindowSize.X, window.WindowPosition.Y);
@@ -280,11 +264,7 @@ public partial class Utilities
         var bottomLeftCollision = bottomLeft.X > addonBottomLeft.X && bottomLeft.X < addonBottomRight.X && bottomLeft.Y < addonBottomLeft.Y && bottomLeft.Y > addonTopLeft.Y;
         var bottomRightCollision = bottomRight.X < addonBottomRight.X && bottomRight.X > addonBottomLeft.X && bottomRight.Y < addonBottomRight.Y && bottomRight.Y > addonTopRight.Y;
 
-        if (topLeftCollision || topRightCollision || bottomLeftCollision || bottomRightCollision)
-        {
-            return true;
-        }
-        return false;
+        return topLeftCollision || topRightCollision || bottomLeftCollision || bottomRightCollision;
     }
 
     /// <summary>
