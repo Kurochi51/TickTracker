@@ -407,7 +407,7 @@ public sealed class Plugin : IDalamudPlugin
             }
             if (currentAddon->IsVisible)
             {
-                var scaled = currentAddon->Scale != 100;
+                var scaled = (int)currentAddon->Scale != 100;
                 foreach (var barWindow in barWindows.Where(window => utilities.AddonOverlap(currentAddon, window, scaled)))
                 {
                     barWindow.IsOpen = false;

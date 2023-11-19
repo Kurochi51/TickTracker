@@ -64,8 +64,8 @@ public class DebugWindow : Window
             table2Column1 = " Disabled HP Regen Status IDs";
             table2Column2 = "Disabled MP Regen Status IDs";
             ProcessDictionaries();
-            DetermineColumnWidth(table1Column1, table1Column2, healthRegenList, manaRegenList, ref hpWidth, ref mpWidth);
-            DetermineColumnWidth(table2Column1, table2Column2, disabledHealthRegenList, disabledManaRegenList, ref disabledHPWidth, ref disabledMPWidth);
+            DetermineColumnWidth(table1Column1, table1Column2, healthRegenList, manaRegenList, out hpWidth, out mpWidth);
+            DetermineColumnWidth(table2Column1, table2Column2, disabledHealthRegenList, disabledManaRegenList, out disabledHPWidth, out disabledMPWidth);
             firstTime = false;
         }
     }
@@ -143,7 +143,7 @@ public class DebugWindow : Window
         }
     }
 
-    private static void DetermineColumnWidth(string column1, string column2, List<string> list1, List<string> list2, ref float column1Width, ref float column2Width)
+    private static void DetermineColumnWidth(string column1, string column2, List<string> list1, List<string> list2, out float column1Width, out float column2Width)
     {
         column1Width = ImGui.CalcTextSize(column1).X;
         foreach (var item in list1)
@@ -166,7 +166,7 @@ public class DebugWindow : Window
         }
     }
 
-    private static unsafe void DrawTable(string id, string column1, string column2, float column1Width, float column2Width, List<string> list1, List<string> list2)
+    private static unsafe void DrawTable(string id, string column1, string column2, float column1Width, float column2Width, IReadOnlyList<string> list1, IReadOnlyList<string> list2)
     {
         using var table = ImRaii.Table(id, 2, ImGuiTableFlags.None);
         if (!table)

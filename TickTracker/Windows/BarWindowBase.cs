@@ -99,7 +99,7 @@ public abstract class BarWindowBase : Window
         ImGui.PopStyleVar();
     }
 
-    public void DrawProgress(double progress, Vector4 backgroundColor, Vector4 fillColor, Vector4 borderColor, Vector4 iconColor)
+    protected void DrawProgress(double progress, Vector4 backgroundColor, Vector4 fillColor, Vector4 borderColor, Vector4 iconColor)
     {
         currentFontSize = ImGui.GetFontSize();
         var floatProgress = (float)progress;
