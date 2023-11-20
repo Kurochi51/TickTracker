@@ -77,7 +77,7 @@ public partial class Utilities(DalamudPluginInterface _pluginInterface, Configur
                 WindowType.HpWindow => config.HPVisible,
                 WindowType.MpWindow => config.MPVisible,
                 WindowType.GpWindow => config.GPVisible,
-                _ => throw new ("Unknown Window"),
+                _ => throw new NotSupportedException("Unknown Window"),
             };
             return DisplayThisWindow;
         }
