@@ -281,8 +281,8 @@ public partial class Utilities(DalamudPluginInterface _pluginInterface, Configur
         }
     }
 
-    public static FrozenSet<T> CreateFrozenSet<T>(T[] elements)
-        => elements.ToFrozenSet();
+    public static FrozenSet<T> CreateFrozenSet<T>(IEnumerable<T> collection)
+        => collection.ToFrozenSet();
 
 
     [System.Text.RegularExpressions.GeneratedRegex("\\W+", System.Text.RegularExpressions.RegexOptions.Compiled, 500)]
