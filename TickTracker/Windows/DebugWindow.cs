@@ -104,7 +104,7 @@ public class DebugWindow : Window
             {
                 var topTable = new StringBuilder();
                 GetTableContentAsText(ref topTable, "Disabled Health Regen Status IDs", "Disabled Mana Regen Status IDs", disabledHealthRegenList, disabledManaRegenList);
-               
+
                 ImGui.SetClipboardText(topTable.ToString());
             }
             ImGui.SameLine();
