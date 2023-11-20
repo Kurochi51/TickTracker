@@ -5,7 +5,7 @@ on:
     inputs: {}
   push:
     branches:
-      - main
+      - net8
     paths-ignore:
       - '.github/**'
       - '*.yml'
