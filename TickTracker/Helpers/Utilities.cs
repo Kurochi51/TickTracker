@@ -3,6 +3,7 @@ using System.Linq;
 using System.Numerics;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
@@ -28,51 +29,27 @@ public partial class Utilities
     /// <summary>
     ///     A set of words that indicate regeneration
     /// </summary>
-    public IEnumerable<string> RegenKeywords { get; } = new[]
-    {
-        "regenerating",
-        "restoring",
-        "restore",
-        "recovering",
-    };
+    public FrozenSet<string> RegenKeywords { get; } = CreateFrozenSet<string>(["regenerating", "restoring", "restore", "recovering"]);
 
     /// <summary>
     ///     A set of words that indicate an effect over time
     /// </summary>
-    public IEnumerable<string> TimeKeywords { get; } = new[]
-    {
-        "gradually",
-        "over time",
-    };
+    public FrozenSet<string> TimeKeywords { get; } = CreateFrozenSet<string>(["gradually", "over time"]);
 
     /// <summary>
     ///     A set of words that indicate health
     /// </summary>
-    public IEnumerable<string> HealthKeywords { get; } = new[]
-    {
-        "hp",
-        "health",
-    };
+    public FrozenSet<string> HealthKeywords { get; } = CreateFrozenSet<string>(["hp", "health"]);
 
     /// <summary>
     ///     A set of words that indicate mana
     /// </summary>
-    public IEnumerable<string> ManaKeywords { get; } = new[]
-    {
-        "mp",
-        "mana",
-    };
+    public FrozenSet<string> ManaKeywords { get; } = CreateFrozenSet<string>(["mp", "mana"]);
 
     /// <summary>
     ///     A set of words that indicate the halt of regen
     /// </summary>
-    public IEnumerable<string> RegenNullKeywords { get; } = new[]
-    {
-        "null",
-        "nullified",
-        "stop",
-        "stopped",
-    };
+    public FrozenSet<string> RegenNullKeywords { get; } = CreateFrozenSet<string>(["null", "nullified", "stop", "stopped"]);
 
     private readonly DalamudPluginInterface pluginInterface;
     private readonly ICondition condition;
@@ -313,6 +290,10 @@ public partial class Utilities
             return null;
         }
     }
+
+    public static FrozenSet<T> CreateFrozenSet<T>(T[] elements)
+        => elements.ToFrozenSet();
+
 
     [System.Text.RegularExpressions.GeneratedRegex("\\W+", System.Text.RegularExpressions.RegexOptions.Compiled, 500)]
     private static partial System.Text.RegularExpressions.Regex KeywordsRegex();

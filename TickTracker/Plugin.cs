@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 
 using Dalamud.Utility;
@@ -23,28 +24,21 @@ namespace TickTracker;
 public sealed class Plugin : IDalamudPlugin
 {
     /// <summary>
-    /// A <see cref="List{T}"/> of addons to fetch for collision checks.
+    /// A <see cref="FrozenSet{T}"/> of addons to fetch for collision checks.
     /// </summary>
-    private readonly List<string> addonsLookup = new()
-    {
-        "Talk",
-        "ActionDetail",
-        "ItemDetail",
-        "Inventory",
-        "Character",
-    };
+    private readonly FrozenSet<string> addonsLookup = Utilities.CreateFrozenSet<string>(["Talk", "ActionDetail", "ItemDetail", "Inventory", "Character"]);
     /// <summary>
     /// A <see cref="HashSet{T}" /> based list of Status IDs that trigger HP regen
     /// </summary>
-    private readonly ConcurrentSet<uint> healthRegenList = new();
+    private readonly ConcurrentSet<uint> healthRegenList = [];
     /// <summary>
     /// A <see cref="HashSet{T}" /> based list of Status IDs that trigger MP regen
     /// </summary>
-    private readonly ConcurrentSet<uint> manaRegenList = new();
+    private readonly ConcurrentSet<uint> manaRegenList = [];
     /// <summary>
     /// A <see cref="HashSet{T}" /> based list of Status IDs that stop HP regen
     /// </summary>
-    private readonly ConcurrentSet<uint> disabledHealthRegenList = new();
+    private readonly ConcurrentSet<uint> disabledHealthRegenList = [];
 
     // Function that triggers when client receives a network packet with an update for nearby actors
     private unsafe delegate void ReceiveActorUpdateDelegate(uint objectId, uint* packetData, byte unkByte);
@@ -132,7 +126,7 @@ public sealed class Plugin : IDalamudPlugin
         WindowSystem.AddWindow(GPBarWindow);
         WindowSystem.AddWindow(DebugWindow);
 
-        barWindows = new();
+        barWindows = [];
         foreach (var window in WindowSystem.Windows)
         {
             if (window is BarWindowBase barWindow)
@@ -290,7 +284,7 @@ public sealed class Plugin : IDalamudPlugin
         {
             return;
         }
-        List<int> bannedStatus = new() { 135, 307, 751, 1419, 1465, 1730, 2326 };
+        List<int> bannedStatus = [135, 307, 751, 1419, 1465, 1730, 2326];
         var filteredSheet = statusSheet.Where(s => !bannedStatus.Exists(rowId => rowId == s.RowId));
         var parallelOptions = new ParallelOptions
         {

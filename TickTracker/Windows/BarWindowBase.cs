@@ -47,7 +47,7 @@ public abstract class BarWindowBase : Window
     private readonly Configuration config;
     private readonly Utilities utilities;
 
-    private readonly IDictionary<string, Vector2> iconDictionary = new Dictionary<string, Vector2>(StringComparer.Ordinal);
+    private readonly Dictionary<string, Vector2> iconDictionary = new(StringComparer.Ordinal);
     private readonly Vector2 invalidSize = new(0, 0);
     private readonly Vector2 barFillPosOffset = new(1, 1);
     private readonly Vector2 barFillSizeOffset = new(-1, 0);

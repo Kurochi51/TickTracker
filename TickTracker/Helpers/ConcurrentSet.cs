@@ -229,7 +229,7 @@ namespace TickTracker.Helpers
 
         public T[] ToArray()
         {
-            return dictionary.Keys.ToArray();
+            return [.. dictionary.Keys];
         }
 
         private bool TryAddInternal(T item)
