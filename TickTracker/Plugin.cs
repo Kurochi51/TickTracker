@@ -73,7 +73,7 @@ public sealed class Plugin : IDalamudPlugin
     private const uint DiscipleOfTheLand = 32, PugilistID = 2, LancerID = 4, ArcherID = 5;
     private const byte NonCombatJob = 0, MeleeDPS = 3, PhysRangedDPS = 4;
 
-    private readonly List<BarWindowBase> barWindows;
+    private readonly FrozenSet<BarWindowBase> barWindows;
     private double syncValue, regenValue, fastValue;
     private bool finishedLoading;
     private bool syncAvailable = true, nullSheet = true;
@@ -126,14 +126,12 @@ public sealed class Plugin : IDalamudPlugin
         WindowSystem.AddWindow(GPBarWindow);
         WindowSystem.AddWindow(DebugWindow);
 
-        barWindows = [];
-        foreach (var window in WindowSystem.Windows)
+        var barWindowList = new List<BarWindowBase>();
+        foreach (var window in WindowSystem.Windows.OfType<BarWindowBase>())
         {
-            if (window is BarWindowBase barWindow)
-            {
-                barWindows.Add(barWindow);
-            }
+            barWindowList.Add(window);
         }
+        barWindows = barWindowList.Count > 0 ? barWindowList.ToFrozenSet() : FrozenSet<BarWindowBase>.Empty;
 
         commandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
@@ -385,7 +383,7 @@ public sealed class Plugin : IDalamudPlugin
         HPBarWindow.IsOpen = shouldShowHPBar;
         MPBarWindow.IsOpen = shouldShowMPBar && !hideForMeleeRangedDPS && !hideForGPBar;
         GPBarWindow.IsOpen = (jobType is DiscipleOfTheLand && (!config.HideOnFullResource || (player.CurrentGp != player.MaxGp)) && config.GPVisible) || !config.LockBar;
-        if (!config.CollisionDetection || (config.DisableCollisionInCombat && inCombat))
+        if (!config.CollisionDetection || (config.DisableCollisionInCombat && inCombat) || barWindows.Count == 0)
         {
             return;
         }
@@ -401,17 +399,14 @@ public sealed class Plugin : IDalamudPlugin
         foreach (var addon in AddonList)
         {
             var currentAddon = (AtkUnitBase*)addon;
-            if (!utilities.IsAddonReady(currentAddon))
+            if (!utilities.IsAddonReady(currentAddon) || !currentAddon->IsVisible)
             {
                 continue;
             }
-            if (currentAddon->IsVisible)
+            var scaled = (int)currentAddon->Scale != 100;
+            foreach (var barWindow in barWindows.Where(window => utilities.AddonOverlap(currentAddon, window, scaled)))
             {
-                var scaled = (int)currentAddon->Scale != 100;
-                foreach (var barWindow in barWindows.Where(window => utilities.AddonOverlap(currentAddon, window, scaled)))
-                {
-                    barWindow.IsOpen = false;
-                }
+                barWindow.IsOpen = false;
             }
         }
     }

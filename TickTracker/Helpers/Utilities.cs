@@ -93,7 +93,7 @@ public partial class Utilities(DalamudPluginInterface _pluginInterface, Configur
     /// </summary>
     public void UpdateWindowConfig(Vector2 currentPos, Vector2 currentSize, WindowType window)
     {
-        if (window == WindowType.HpWindow)
+        if (window is WindowType.HpWindow)
         {
             if (!currentPos.Equals(config.HPBarPosition))
             {
@@ -106,7 +106,7 @@ public partial class Utilities(DalamudPluginInterface _pluginInterface, Configur
                 config.Save(pluginInterface);
             }
         }
-        if (window == WindowType.MpWindow)
+        if (window is WindowType.MpWindow)
         {
             if (!currentPos.Equals(config.MPBarPosition))
             {
@@ -119,7 +119,7 @@ public partial class Utilities(DalamudPluginInterface _pluginInterface, Configur
                 config.Save(pluginInterface);
             }
         }
-        if (window == WindowType.GpWindow)
+        if (window is WindowType.GpWindow)
         {
             if (!currentPos.Equals(config.GPBarPosition))
             {
@@ -172,7 +172,6 @@ public partial class Utilities(DalamudPluginInterface _pluginInterface, Configur
     public bool InIgnoredInstances()
     {
         var area = dataManager.GetExcelSheet<TerritoryType>()!.GetRow(clientState.TerritoryType);
-
         return area?.TerritoryIntendedUse is (byte)TerritoryIntendedUseType.IslandSanctuary or (byte)TerritoryIntendedUseType.Diadem;
     }
 
@@ -237,7 +236,6 @@ public partial class Utilities(DalamudPluginInterface _pluginInterface, Configur
     /// <summary>
     ///     Spawn a <see cref="Task"/> that checks if the <see cref="ConditionFlag"/> for loading is present every polling period.
     /// </summary>
-    /// <param name="pollingPeriodMiliseconds"></param>
     public async Task Loading(long pollingPeriodMiliseconds)
     {
         var loadingTimer = new Stopwatch();
@@ -259,8 +257,6 @@ public partial class Utilities(DalamudPluginInterface _pluginInterface, Configur
     /// <summary>
     ///     Attempt to retrieve an <see cref="ExcelSheet{T}"/>, optionally in a specific <paramref name="language"/>.
     /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="language"></param>
     /// <returns><see cref="ExcelSheet{T}"/> or <see langword="null"/> if <see cref="IDataManager.GetExcelSheet{T}(ClientLanguage)"/> returns an invalid sheet.</returns>
     public ExcelSheet<T>? RetrieveSheet<T>(ClientLanguage language = ClientLanguage.English) where T : ExcelRow
     {
@@ -281,6 +277,10 @@ public partial class Utilities(DalamudPluginInterface _pluginInterface, Configur
         }
     }
 
+    /// <summary>
+    ///     Function that returns a <see cref="FrozenSet{T}"/> from the provided <see cref="IEnumerable{T}"/> <paramref name="collection"/>.
+    /// <para>This is used mostly to remove some boilerplate.</para>
+    /// </summary>
     public static FrozenSet<T> CreateFrozenSet<T>(IEnumerable<T> collection)
         => collection.ToFrozenSet();
 

@@ -25,7 +25,7 @@ public abstract class BarWindowBase : Window
                                                     ImGuiWindowFlags.NoResize |
                                                     ImGuiWindowFlags.NoNav |
                                                     ImGuiWindowFlags.NoInputs;
-    public IPluginLog Log { get; }
+    protected IPluginLog Log { get; }
     public bool TickUpdate { get; set; }
     public bool TickHalted { get; set; }
     public bool RegenActive { get; set; }
@@ -33,8 +33,8 @@ public abstract class BarWindowBase : Window
     public double Tick { get; set; }
     public double Progress { get; set; }
     public double PreviousProgress { get; set; }
-    public Vector2 WindowPosition { get; set; }
-    public Vector2 WindowSize { get; set; }
+    public Vector2 WindowPosition { get; protected set; }
+    public Vector2 WindowSize { get; protected set; }
 
     private const FontAwesomeIcon RegenIcon = FontAwesomeIcon.Forward;
     private const FontAwesomeIcon FastIcon = FontAwesomeIcon.FastForward;
