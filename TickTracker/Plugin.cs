@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Frozen;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 
 using Dalamud.Utility;
 using Dalamud.Plugin;
@@ -284,9 +285,9 @@ public sealed class Plugin : IDalamudPlugin
         }
         List<int> bannedStatus = [135, 307, 751, 1419, 1465, 1730, 2326];
         var filteredSheet = statusSheet.Where(s => !bannedStatus.Exists(rowId => rowId == s.RowId));
-        var disabledHealthRegenList = new ConcurrentSet<uint>();
-        var healthRegenList = new ConcurrentSet<uint>();
-        var manaRegenList = new ConcurrentSet<uint>();
+        var disabledHealthRegenList = new ConcurrentBag<uint>();
+        var healthRegenList = new ConcurrentBag<uint>();
+        var manaRegenList = new ConcurrentBag<uint>();
         var parallelOptions = new ParallelOptions
         {
             MaxDegreeOfParallelism = Environment.ProcessorCount / 2, // Surely no one will cause an access issue by using an 128 core CPU hahaha
