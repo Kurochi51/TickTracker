@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 
 using Dalamud.Utility;
 using Dalamud.Plugin;
@@ -34,17 +35,17 @@ public sealed class Plugin : IDalamudPlugin
         "Character",
     };
     /// <summary>
-    /// A <see cref="HashSet{T}" /> based list of Status IDs that trigger HP regen
+    /// A <see cref="HashSet{T}" /> of Status IDs that trigger HP regen
     /// </summary>
-    private readonly ConcurrentSet<uint> healthRegenList = new();
+    private HashSet<uint> healthRegenSet = new();
     /// <summary>
-    /// A <see cref="HashSet{T}" /> based list of Status IDs that trigger MP regen
+    /// A <see cref="HashSet{T}" /> of Status IDs that trigger MP regen
     /// </summary>
-    private readonly ConcurrentSet<uint> manaRegenList = new();
+    private HashSet<uint> manaRegenSet = new();
     /// <summary>
-    /// A <see cref="HashSet{T}" /> based list of Status IDs that stop HP regen
+    /// A <see cref="HashSet{T}" /> of Status IDs that stop HP regen
     /// </summary>
-    private readonly ConcurrentSet<uint> disabledHealthRegenList = new();
+    private HashSet<uint> disabledHealthRegenSet = new();
 
     // Function that triggers when client receives a network packet with an update for nearby actors
     private unsafe delegate void ReceiveActorUpdateDelegate(uint objectId, uint* packetData, byte unkByte);
@@ -111,7 +112,7 @@ public sealed class Plugin : IDalamudPlugin
 
         if (receiveActorUpdateHook is null)
         {
-            throw new("At least one hook failed, and the plugin is not functional.");
+            throw new NotSupportedException("At least one hook failed, and the plugin is not functional.");
         }
         receiveActorUpdateHook.Enable();
 
@@ -132,14 +133,12 @@ public sealed class Plugin : IDalamudPlugin
         WindowSystem.AddWindow(GPBarWindow);
         WindowSystem.AddWindow(DebugWindow);
 
-        barWindows = new();
-        foreach (var window in WindowSystem.Windows)
+        var barWindowList = new List<BarWindowBase>();
+        foreach (var window in WindowSystem.Windows.OfType<BarWindowBase>())
         {
-            if (window is BarWindowBase barWindow)
-            {
-                barWindows.Add(barWindow);
-            }
+            barWindowList.Add(window);
         }
+        barWindows = barWindowList.Count > 0 ? barWindowList : Enumerable.Empty<BarWindowBase>().ToList();
 
         commandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
@@ -236,13 +235,13 @@ public sealed class Plugin : IDalamudPlugin
     private void ProcessTicks(double currentTime, PlayerCharacter player)
     {
         // HP section
-        HPBarWindow.RegenActive = player.StatusList.Any(e => healthRegenList.Contains(e.StatusId));
-        HPBarWindow.TickHalted = player.StatusList.Any(e => disabledHealthRegenList.Contains(e.StatusId));
+        HPBarWindow.RegenActive = player.StatusList.Any(e => healthRegenSet.Contains(e.StatusId));
+        HPBarWindow.TickHalted = player.StatusList.Any(e => disabledHealthRegenSet.Contains(e.StatusId));
         var currentHP = player.CurrentHp;
         var fullHP = currentHP == player.MaxHp;
 
         // MP Section
-        MPBarWindow.RegenActive = player.StatusList.Any(e => manaRegenList.Contains(e.StatusId));
+        MPBarWindow.RegenActive = player.StatusList.Any(e => manaRegenSet.Contains(e.StatusId));
         var blmGauge = player.ClassJob.Id == 25 ? jobGauges.Get<BLMGauge>() : null;
         MPBarWindow.TickHalted = blmGauge is not null && blmGauge.InAstralFire;
         var currentMP = player.CurrentMp;
@@ -292,6 +291,9 @@ public sealed class Plugin : IDalamudPlugin
         }
         List<int> bannedStatus = new() { 135, 307, 751, 1419, 1465, 1730, 2326 };
         var filteredSheet = statusSheet.Where(s => !bannedStatus.Exists(rowId => rowId == s.RowId));
+        var disabledHealthRegenBag = new ConcurrentBag<uint>();
+        var healthRegenBag = new ConcurrentBag<uint>();
+        var manaRegenBag = new ConcurrentBag<uint>();
         var parallelOptions = new ParallelOptions
         {
             MaxDegreeOfParallelism = Environment.ProcessorCount / 2, // Surely no one will cause an access issue by using an 128 core CPU hahaha
@@ -305,7 +307,7 @@ public sealed class Plugin : IDalamudPlugin
             }
             if (Utilities.WholeKeywordMatch(text, utilities.RegenNullKeywords) && Utilities.WholeKeywordMatch(text, utilities.HealthKeywords))
             {
-                disabledHealthRegenList.Add(stat.RowId);
+                disabledHealthRegenBag.Add(stat.RowId);
                 DebugWindow.DisabledHealthRegenDictionary.TryAdd(stat.RowId, stat.Name);
             }
             if (Utilities.WholeKeywordMatch(text, utilities.RegenNullKeywords) && Utilities.WholeKeywordMatch(text, utilities.ManaKeywords))
@@ -316,19 +318,22 @@ public sealed class Plugin : IDalamudPlugin
             {
                 if (Utilities.KeywordMatch(text, utilities.HealthKeywords))
                 {
-                    healthRegenList.Add(stat.RowId);
+                    healthRegenBag.Add(stat.RowId);
                     DebugWindow.HealthRegenDictionary.TryAdd(stat.RowId, stat.Name);
                 }
                 if (Utilities.KeywordMatch(text, utilities.ManaKeywords))
                 {
-                    manaRegenList.Add(stat.RowId);
+                    manaRegenBag.Add(stat.RowId);
                     DebugWindow.ManaRegenDictionary.TryAdd(stat.RowId, stat.Name);
                 }
             }
         });
+        healthRegenSet = healthRegenBag.ToHashSet();
+        manaRegenSet = manaRegenBag.ToHashSet();
+        disabledHealthRegenSet = disabledHealthRegenBag.ToHashSet();
         nullSheet = false;
-        log.Debug("HP regen list generated with {HPcount} status effects.", healthRegenList.Count);
-        log.Debug("MP regen list generated with {MPcount} status effects.", manaRegenList.Count);
+        log.Debug("HP regen list generated with {HPcount} status effects.", healthRegenSet.Count);
+        log.Debug("MP regen list generated with {MPcount} status effects.", manaRegenSet.Count);
     }
 
     /// <summary>
@@ -385,7 +390,7 @@ public sealed class Plugin : IDalamudPlugin
         HPBarWindow.IsOpen = shouldShowHPBar;
         MPBarWindow.IsOpen = shouldShowMPBar && !hideForMeleeRangedDPS && !hideForGPBar;
         GPBarWindow.IsOpen = (jobType is DiscipleOfTheLand && (!config.HideOnFullResource || (player.CurrentGp != player.MaxGp)) && config.GPVisible) || !config.LockBar;
-        if (!config.CollisionDetection || (config.DisableCollisionInCombat && inCombat))
+        if (!config.CollisionDetection || (config.DisableCollisionInCombat && inCombat) || barWindows.Count == 0)
         {
             return;
         }
@@ -401,17 +406,14 @@ public sealed class Plugin : IDalamudPlugin
         foreach (var addon in AddonList)
         {
             var currentAddon = (AtkUnitBase*)addon;
-            if (!utilities.IsAddonReady(currentAddon))
+            if (!utilities.IsAddonReady(currentAddon) || !currentAddon->IsVisible)
             {
                 continue;
             }
-            if (currentAddon->IsVisible)
+            var scaled = (int)currentAddon->Scale != 100;
+            foreach (var barWindow in barWindows.Where(window => utilities.AddonOverlap(currentAddon, window, scaled)))
             {
-                var scaled = (int)currentAddon->Scale != 100;
-                foreach (var barWindow in barWindows.Where(window => utilities.AddonOverlap(currentAddon, window, scaled)))
-                {
-                    barWindow.IsOpen = false;
-                }
+                barWindow.IsOpen = false;
             }
         }
     }

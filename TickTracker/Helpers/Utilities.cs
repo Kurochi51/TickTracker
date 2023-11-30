@@ -110,7 +110,7 @@ public partial class Utilities
                 WindowType.HpWindow => config.HPVisible,
                 WindowType.MpWindow => config.MPVisible,
                 WindowType.GpWindow => config.GPVisible,
-                _ => throw new ("Unknown Window"),
+                _ => throw new NotSupportedException("Unknown Window"),
             };
             return DisplayThisWindow;
         }
@@ -126,7 +126,7 @@ public partial class Utilities
     /// </summary>
     public void UpdateWindowConfig(Vector2 currentPos, Vector2 currentSize, WindowType window)
     {
-        if (window == WindowType.HpWindow)
+        if (window is WindowType.HpWindow)
         {
             if (!currentPos.Equals(config.HPBarPosition))
             {
@@ -139,7 +139,7 @@ public partial class Utilities
                 config.Save(pluginInterface);
             }
         }
-        if (window == WindowType.MpWindow)
+        if (window is WindowType.MpWindow)
         {
             if (!currentPos.Equals(config.MPBarPosition))
             {
@@ -152,7 +152,7 @@ public partial class Utilities
                 config.Save(pluginInterface);
             }
         }
-        if (window == WindowType.GpWindow)
+        if (window is WindowType.GpWindow)
         {
             if (!currentPos.Equals(config.GPBarPosition))
             {
@@ -205,7 +205,6 @@ public partial class Utilities
     public bool InIgnoredInstances()
     {
         var area = dataManager.GetExcelSheet<TerritoryType>()!.GetRow(clientState.TerritoryType);
-
         return area?.TerritoryIntendedUse is (byte)TerritoryIntendedUseType.IslandSanctuary or (byte)TerritoryIntendedUseType.Diadem;
     }
 
@@ -270,7 +269,6 @@ public partial class Utilities
     /// <summary>
     ///     Spawn a <see cref="Task"/> that checks if the <see cref="ConditionFlag"/> for loading is present every polling period.
     /// </summary>
-    /// <param name="pollingPeriodMiliseconds"></param>
     public async Task Loading(long pollingPeriodMiliseconds)
     {
         var loadingTimer = new Stopwatch();
@@ -292,8 +290,6 @@ public partial class Utilities
     /// <summary>
     ///     Attempt to retrieve an <see cref="ExcelSheet{T}"/>, optionally in a specific <paramref name="language"/>.
     /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="language"></param>
     /// <returns><see cref="ExcelSheet{T}"/> or <see langword="null"/> if <see cref="IDataManager.GetExcelSheet{T}(ClientLanguage)"/> returns an invalid sheet.</returns>
     public ExcelSheet<T>? RetrieveSheet<T>(ClientLanguage language = ClientLanguage.English) where T : ExcelRow
     {
