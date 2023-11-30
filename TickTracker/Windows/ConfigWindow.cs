@@ -25,7 +25,7 @@ public class ConfigWindow : Window
     private readonly DalamudPluginInterface pluginInterface;
     private readonly DebugWindow debugWindow;
     private readonly Configuration config;
-    
+
     private const ImGuiColorEditFlags ColorEditFlags = ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar;
 
     public ConfigWindow(DalamudPluginInterface _pluginInterface, Configuration _config, DebugWindow _debugWindow) : base("Timer Settings")

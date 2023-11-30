@@ -125,7 +125,7 @@ public class DebugWindow : Window
         ImGui.SetCursorPos(originPos);
     }
 
-    private static void GetTableContentAsText(ref StringBuilder text, string column1Name, string column2Name, List<string> list1, List<string> list2)
+    private static void GetTableContentAsText(ref StringBuilder text, string column1Name, string column2Name, IReadOnlyList<string> list1, IReadOnlyList<string> list2)
     {
         text.Append(column1Name);
         foreach (var item in list1)
@@ -143,7 +143,7 @@ public class DebugWindow : Window
         }
     }
 
-    private static void DetermineColumnWidth(string column1, string column2, List<string> list1, List<string> list2, out float column1Width, out float column2Width)
+    private static void DetermineColumnWidth(string column1, string column2, IReadOnlyList<string> list1, IReadOnlyList<string> list2, out float column1Width, out float column2Width)
     {
         column1Width = ImGui.CalcTextSize(column1).X;
         foreach (var item in list1)
@@ -213,26 +213,22 @@ public class DebugWindow : Window
 
     private void ProcessDictionaries()
     {
-        var sortedHR = HealthRegenDictionary.OrderBy(x => x.Key);
-        var sortedMR = ManaRegenDictionary.OrderBy(x => x.Key);
-        var sortedDHR = DisabledHealthRegenDictionary.OrderBy(x => x.Key);
-        var sortedDMR = DisabledManaRegenDictionary.OrderBy(x => x.Key);
-        foreach (var kvp in sortedHR)
+        foreach (var kvp in HealthRegenDictionary.OrderBy(x => x.Key))
         {
             var entry = " " + kvp.Key + ": " + kvp.Value;
             healthRegenList.Add(entry);
         }
-        foreach (var kvp in sortedMR)
+        foreach (var kvp in ManaRegenDictionary.OrderBy(x => x.Key))
         {
             var entry = kvp.Key + ": " + kvp.Value;
             manaRegenList.Add(entry);
         }
-        foreach (var kvp in sortedDHR)
+        foreach (var kvp in DisabledHealthRegenDictionary.OrderBy(x => x.Key))
         {
             var entry = " " + kvp.Key + ": " + kvp.Value;
             disabledHealthRegenList.Add(entry);
         }
-        foreach (var kvp in sortedDMR)
+        foreach (var kvp in DisabledManaRegenDictionary.OrderBy(x => x.Key))
         {
             var entry = kvp.Key + ": " + kvp.Value;
             disabledManaRegenList.Add(entry);

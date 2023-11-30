@@ -112,7 +112,7 @@ public sealed class Plugin : IDalamudPlugin
 
         if (receiveActorUpdateHook is null)
         {
-            throw new NotSupportedException("At least one hook failed, and the plugin is not functional.");
+            throw new NotSupportedException("Hook not found in current game version. The plugin is non functional.");
         }
         receiveActorUpdateHook.Enable();
 

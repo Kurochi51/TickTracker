@@ -221,7 +221,7 @@ public partial class Utilities
     /// <returns><see langword="true"/> if addon is initialized and ready for use, otherwise <see langword="false"/>.</returns>
     public unsafe bool IsAddonReady(AtkUnitBase* addon)
         => addon is not null && addon->RootNode is not null && addon->RootNode->ChildNode is not null;
-    
+
     /// <summary>
     ///     Check if <paramref name="sourceCharacter"/> is currently targetting <paramref name="targetCharacter"/>, whether it's manually set, or the result of using an action.
     /// </summary>
