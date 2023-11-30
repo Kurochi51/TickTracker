@@ -8,6 +8,7 @@ using System.Collections.Concurrent;
 using ImGuiNET;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Utility.Raii;
+using Dalamud.Interface.Utility;
 
 namespace TickTracker.Windows;
 
@@ -41,8 +42,7 @@ public class DebugWindow : Window
 
     public DebugWindow() : base("DebugWindow")
     {
-        Size = new(400, 500);
-        SizeCondition = ImGuiCond.Appearing;
+        Size = new Vector2(400, 500) * ImGuiHelpers.GlobalScale;
         Flags = ImGuiWindowFlags.NoResize;
         table1Column1 = table1Column2 = table2Column1 = table2Column2 = string.Empty;
     }

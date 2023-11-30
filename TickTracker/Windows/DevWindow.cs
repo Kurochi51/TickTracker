@@ -2,6 +2,7 @@ using System.Numerics;
 using System.Collections.Generic;
 
 using ImGuiNET;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 
 namespace TickTracker.Windows;
@@ -14,7 +15,7 @@ public class DevWindow : Window
         var resolution = ImGui.GetMainViewport().Size;
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(200, 200),
+            MinimumSize = new Vector2(200, 200) * ImGuiHelpers.GlobalScale,
             MaximumSize = resolution,
         };
     }

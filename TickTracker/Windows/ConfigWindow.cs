@@ -5,6 +5,7 @@ using ImGuiNET;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility.Raii;
+using Dalamud.Interface.Utility;
 using Dalamud.Plugin;
 
 namespace TickTracker.Windows;
@@ -18,8 +19,8 @@ public class ConfigWindow : Window
     private readonly Vector4 defaultBlack = new(0f, 0f, 0f, 1f); // #000000
     private readonly Vector4 defaultWhite = new(1f, 1f, 1f, 1f); // #FFFFFF
 
-    private readonly Vector2 defaultSize = new(320, 470);
-    private readonly Vector2 changedSize = new(320, 320);
+    private readonly Vector2 defaultSize = new Vector2(320, 470) * ImGuiHelpers.GlobalScale;
+    private readonly Vector2 changedSize = new Vector2(320, 320) * ImGuiHelpers.GlobalScale;
 
     private readonly DalamudPluginInterface pluginInterface;
     private readonly DebugWindow debugWindow;
