@@ -422,7 +422,7 @@ public sealed class Plugin : IDalamudPlugin
     private unsafe void DevWindowThings(PlayerCharacter player, double currentTime, BarWindowBase window)
     {
         DevWindow.IsOpen = true;
-        DevWindow.PrintLines.Add("HP: " + player.CurrentHp.ToString() + " / " + player.MaxHp.ToString());
+        DevWindow.PrintLines.Add(window.WindowName + ": " + player.CurrentHp.ToString() + " / " + player.MaxHp.ToString());
         DevWindow.PrintLines.Add("Current Time: " + currentTime.ToString(System.Globalization.CultureInfo.InvariantCulture));
         DevWindow.PrintLines.Add("RegenActive: " + window.RegenActive.ToString());
         DevWindow.PrintLines.Add("Progress: " + window.Progress.ToString(System.Globalization.CultureInfo.InvariantCulture));
