@@ -179,28 +179,6 @@ public sealed class Plugin : IDalamudPlugin
 #endif
     }
 
-    private void InitializeResolution()
-    {
-        gameConfig.TryGet(SystemConfigOption.ScreenMode, out uint screenMode);
-        if (Enum.IsDefined(typeof(ScreenMode), screenMode))
-        {
-            Resolution = (ScreenMode)screenMode switch
-            {
-                ScreenMode.Borderless or ScreenMode.Fullscreen => new Vector2(gameConfig.System.GetUInt("FullScreenWidth"), gameConfig.System.GetUInt("FullScreenHeight")),
-                ScreenMode.Windowed => new Vector2(gameConfig.System.GetUInt("ScreenWidth"), gameConfig.System.GetUInt("ScreenHeight")),
-            };
-        }
-        else
-        {
-            Resolution = new Vector2(1280, 720);
-            log.Error("Unexpected ScreenMode value of {sMode}", screenMode);
-        }
-        Utilities.ChangeWindowConstraints(DebugWindow, Resolution);
-#if DEBUG
-        Utilities.ChangeWindowConstraints(DevWindow, Resolution);
-#endif
-    }
-
     private void TerritoryChanged(ushort e)
     {
         loadingTask = Task.Run(async () => await utilities.Loading(1000).ConfigureAwait(false));
@@ -384,6 +362,28 @@ public sealed class Plugin : IDalamudPlugin
         nullSheet = false;
         log.Debug("HP regen list generated with {HPcount} status effects.", healthRegenSet.Count);
         log.Debug("MP regen list generated with {MPcount} status effects.", manaRegenSet.Count);
+    }
+
+    private void InitializeResolution()
+    {
+        gameConfig.TryGet(SystemConfigOption.ScreenMode, out uint screenMode);
+        if (Enum.IsDefined(typeof(ScreenMode), screenMode))
+        {
+            Resolution = (ScreenMode)screenMode switch
+            {
+                ScreenMode.Borderless or ScreenMode.Fullscreen => new Vector2(gameConfig.System.GetUInt("FullScreenWidth"), gameConfig.System.GetUInt("FullScreenHeight")),
+                ScreenMode.Windowed => new Vector2(gameConfig.System.GetUInt("ScreenWidth"), gameConfig.System.GetUInt("ScreenHeight")),
+            };
+        }
+        else
+        {
+            Resolution = new Vector2(1280, 720);
+            log.Error("Unexpected ScreenMode value of {sMode}", screenMode);
+        }
+        Utilities.ChangeWindowConstraints(DebugWindow, Resolution);
+#if DEBUG
+        Utilities.ChangeWindowConstraints(DevWindow, Resolution);
+#endif
     }
 
     /// <summary>
