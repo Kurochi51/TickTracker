@@ -14,7 +14,7 @@ public class GPBar : BarWindowBase
     {
         config = _config;
         utilities = _utilities;
-        Size = config.GPBarSize * ImGuiHelpers.GlobalScale;
+        Size = config.GPBarSize;
         Position = config.GPBarPosition;
     }
 

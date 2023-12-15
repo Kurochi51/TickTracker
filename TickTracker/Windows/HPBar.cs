@@ -14,7 +14,7 @@ public class HPBar : BarWindowBase
     {
         config = _config;
         utilities = _utilities;
-        Size = config.HPBarSize * ImGuiHelpers.GlobalScale;
+        Size = config.HPBarSize;
         Position = config.HPBarPosition;
     }
 

@@ -14,7 +14,7 @@ public class MPBar : BarWindowBase
     {
         config = _config;
         utilities = _utilities;
-        Size = config.MPBarSize * ImGuiHelpers.GlobalScale;
+        Size = config.MPBarSize;
         Position = config.MPBarPosition;
     }
 

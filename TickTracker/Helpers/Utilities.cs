@@ -15,6 +15,7 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.SubKinds;
+using Dalamud.Interface.Windowing;
 using TickTracker.Enums;
 using TickTracker.Windows;
 
@@ -307,6 +308,23 @@ public partial class Utilities
             log.Fatal("Retrieving lumina sheet failed!");
             log.Fatal(e.Message);
             return null;
+        }
+    }
+
+    /// <summary>
+    ///     Change the <see cref="Window.SizeConstraints"/> of <paramref name="window"/> to the provided <paramref name="sizeLimit"/>.
+    /// </summary>
+    /// <param name="window">The desired <see cref="Window"/> to change size constraints</param>
+    /// <param name="sizeLimit">The maximum size of the <paramref name="window"/></param>
+    public static void ChangeWindowConstraints(Window window, Vector2 sizeLimit)
+    {
+        if (window.SizeConstraints.HasValue)
+        {
+            window.SizeConstraints = new Window.WindowSizeConstraints
+            {
+                MinimumSize = window.SizeConstraints.Value.MinimumSize,
+                MaximumSize = sizeLimit,
+            };
         }
     }
 

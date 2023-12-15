@@ -5,7 +5,6 @@ using ImGuiNET;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility.Raii;
-using Dalamud.Interface.Utility;
 using Dalamud.Plugin;
 
 namespace TickTracker.Windows;
@@ -19,8 +18,8 @@ public class ConfigWindow : Window
     private readonly Vector4 defaultBlack = new(0f, 0f, 0f, 1f); // #000000
     private readonly Vector4 defaultWhite = new(1f, 1f, 1f, 1f); // #FFFFFF
 
-    private readonly Vector2 defaultSize = new Vector2(320, 470) * ImGuiHelpers.GlobalScale;
-    private readonly Vector2 changedSize = new Vector2(320, 320) * ImGuiHelpers.GlobalScale;
+    private readonly Vector2 defaultSize = new Vector2(320, 470);
+    private readonly Vector2 changedSize = new Vector2(320, 320);
 
     private readonly DalamudPluginInterface pluginInterface;
     private readonly DebugWindow debugWindow;
@@ -28,7 +27,7 @@ public class ConfigWindow : Window
 
     private const ImGuiColorEditFlags ColorEditFlags = ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar;
 
-    public ConfigWindow(DalamudPluginInterface _pluginInterface, Configuration _config, DebugWindow _debugWindow) : base("Timer Settings")
+    public ConfigWindow(DalamudPluginInterface _pluginInterface, Configuration _config, DebugWindow _debugWindow) : base("TickTracker Settings")
     {
         Size = defaultSize;
         Flags = ImGuiWindowFlags.NoResize;
@@ -305,12 +304,11 @@ public class ConfigWindow : Window
     /// </summary>
     private static bool DragInput2Size(ref Vector2 vector, string label1, string label2, string description)
     {
-        var resolution = ImGui.GetMainViewport().Size;
         var change = false;
         var x = (int)vector.X;
         var y = (int)vector.Y;
         ImGui.PushItemWidth(ImGui.GetContentRegionMax().X / 3.5f);
-        if (ImGui.DragInt($"##{label1}", ref x, 1, 32, (int)resolution.X, "%d", ImGuiSliderFlags.AlwaysClamp))
+        if (ImGui.DragInt($"##{label1}", ref x, 1, 32, (int)Plugin.Resolution.X, "%d", ImGuiSliderFlags.AlwaysClamp))
         {
             vector.X = x;
             change = true;
@@ -318,7 +316,7 @@ public class ConfigWindow : Window
         ImGui.PopItemWidth();
         ImGui.SameLine();
         ImGui.PushItemWidth(ImGui.GetContentRegionMax().X / 3.5f);
-        if (ImGui.DragInt($"##{label2}", ref y, 1, 32, (int)resolution.Y, "%d", ImGuiSliderFlags.AlwaysClamp))
+        if (ImGui.DragInt($"##{label2}", ref y, 1, 32, (int)Plugin.Resolution.Y, "%d", ImGuiSliderFlags.AlwaysClamp))
         {
             vector.Y = y;
             change = true;

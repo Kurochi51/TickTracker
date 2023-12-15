@@ -6,13 +6,14 @@ using System.Collections.Generic;
 using System.Collections.Concurrent;
 
 using ImGuiNET;
+using Dalamud.Plugin;
+using Dalamud.Plugin.Services;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Utility.Raii;
-using Dalamud.Interface.Utility;
 
 namespace TickTracker.Windows;
 
-public class DebugWindow : Window
+public sealed class DebugWindow : Window, IDisposable
 {
     /// <summary>
     /// An <see cref="ConcurrentDictionary{TKey, TValue}" /> of Status IDs and Status Names that trigger HP regen
@@ -31,6 +32,9 @@ public class DebugWindow : Window
     /// </summary>
     public ConcurrentDictionary<uint, string> DisabledManaRegenDictionary { get; set; } = new();
 
+    private readonly DalamudPluginInterface pluginInterface;
+    private readonly IPluginLog log;
+
     private readonly List<string> healthRegenList = new();
     private readonly List<string> manaRegenList = new();
     private readonly List<string> disabledHealthRegenList = new();
@@ -38,13 +42,20 @@ public class DebugWindow : Window
 
     private string table1Column1, table1Column2, table2Column1, table2Column2;
     private float hpWidth, mpWidth, disabledHPWidth, disabledMPWidth;
-    private bool invalidList, firstTime = true;
+    private bool invalidList, fontChange, firstTime = true;
 
-    public DebugWindow() : base("DebugWindow")
+    public DebugWindow(DalamudPluginInterface _pluginInterface, IPluginLog _pluginLog) : base("DebugWindow")
     {
-        Size = new Vector2(400, 500) * ImGuiHelpers.GlobalScale;
-        Flags = ImGuiWindowFlags.NoResize;
+        pluginInterface = _pluginInterface;
+        log = _pluginLog;
+
+        SizeConstraints = new WindowSizeConstraints
+        {
+            MinimumSize = new Vector2(400, 500),
+            MaximumSize = Plugin.Resolution,
+        };
         table1Column1 = table1Column2 = table2Column1 = table2Column2 = string.Empty;
+        pluginInterface.UiBuilder.AfterBuildFonts += QueueColumnWidthChange;
     }
 
     public override void OnClose()
@@ -77,6 +88,12 @@ public class DebugWindow : Window
             CopyAndClose();
             return;
         }
+        if (fontChange)
+        {
+            DetermineColumnWidth(table1Column1, table1Column2, healthRegenList, manaRegenList, out hpWidth, out mpWidth);
+            DetermineColumnWidth(table2Column1, table2Column2, disabledHealthRegenList, disabledManaRegenList, out disabledHPWidth, out disabledMPWidth);
+            fontChange = false;
+        }
         ImGui.TextUnformatted($"HP regen list generated with {healthRegenList.Count} status effects.");
         ImGui.TextUnformatted($"MP regen list generated with {manaRegenList.Count} status effects.");
         ImGui.TextUnformatted($"HP regen disabled list generated with {disabledHealthRegenList.Count} status effects.");
@@ -99,7 +116,7 @@ public class DebugWindow : Window
         {
             // Place two buttons in bottom left + some padding / extra space
             ImGui.SetCursorPosX(10f);
-            ImGui.SetCursorPosY(ImGui.GetWindowContentRegionMax().Y - ImGui.GetFrameHeight() - 5f + (ImGui.GetScrollY() * 2));
+            ImGui.SetCursorPosY(ImGui.GetWindowContentRegionMax().Y - ImGui.GetFrameHeight() - 3f + (ImGui.GetScrollY() * 2));
             if (ImGui.Button("Copy top table"))
             {
                 var topTable = new StringBuilder();
@@ -116,8 +133,8 @@ public class DebugWindow : Window
             ImGui.SetCursorPos(originPos);
         }
         // Place a button in bottom right + some padding / extra space
-        ImGui.SetCursorPosX(ImGui.GetWindowContentRegionMax().X - ImGui.CalcTextSize("Close").X - 10f);
-        ImGui.SetCursorPosY(ImGui.GetWindowContentRegionMax().Y - ImGui.GetFrameHeight() - 5f + (ImGui.GetScrollY() * 2));
+        ImGui.SetCursorPosX(ImGui.GetWindowContentRegionMax().X - ImGui.CalcTextSize("Close").X - 15f);
+        ImGui.SetCursorPosY(ImGui.GetWindowContentRegionMax().Y - ImGui.GetFrameHeight() - 3f + (ImGui.GetScrollY() * 2));
         if (ImGui.Button("Close"))
         {
             this.IsOpen = false;
@@ -233,5 +250,15 @@ public class DebugWindow : Window
             var entry = kvp.Key + ": " + kvp.Value;
             disabledManaRegenList.Add(entry);
         }
+    }
+
+    private void QueueColumnWidthChange()
+    {
+        fontChange = true;
+    }
+
+    public void Dispose()
+    {
+        pluginInterface.UiBuilder.AfterBuildFonts -= QueueColumnWidthChange;
     }
 }
