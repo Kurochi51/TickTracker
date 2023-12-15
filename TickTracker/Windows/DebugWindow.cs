@@ -7,9 +7,9 @@ using System.Collections.Concurrent;
 
 using ImGuiNET;
 using Dalamud.Plugin;
+using Dalamud.Plugin.Services;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Utility.Raii;
-using Dalamud.Plugin.Services;
 
 namespace TickTracker.Windows;
 
@@ -43,15 +43,9 @@ public sealed class DebugWindow : Window, IDisposable
     private float hpWidth, mpWidth, disabledHPWidth, disabledMPWidth;
     private bool invalidList, fontChange, firstTime = true;
 
-    private readonly IPluginLog log;
-
-    public DebugWindow(DalamudPluginInterface _pluginInterface, IPluginLog _pluginLog) : base("DebugWindow")
+    public DebugWindow(DalamudPluginInterface _pluginInterface) : base("DebugWindow")
     {
         pluginInterface = _pluginInterface;
-        log = _pluginLog;
-
-        //Size = new Vector2(400, 500);
-        //Flags = ImGuiWindowFlags.NoResize;
 
         SizeConstraints = new WindowSizeConstraints
         {

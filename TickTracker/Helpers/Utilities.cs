@@ -14,11 +14,11 @@ using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using Dalamud;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using Dalamud.Interface.Windowing;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using TickTracker.Enums;
 using TickTracker.Windows;
-using Dalamud.Interface.Windowing;
 
 namespace TickTracker.Helpers;
 
@@ -301,7 +301,6 @@ public partial class Utilities(DalamudPluginInterface _pluginInterface, Configur
             };
         }
     }
-
 
     [System.Text.RegularExpressions.GeneratedRegex("\\W+", System.Text.RegularExpressions.RegexOptions.Compiled, 500)]
     private static partial System.Text.RegularExpressions.Regex KeywordsRegex();
