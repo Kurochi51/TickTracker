@@ -6,6 +6,8 @@ using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 
+using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
+using FFXIVClientStructs.FFXIV.Component.GUI;
 using Dalamud.Utility;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
@@ -18,10 +20,8 @@ using Dalamud.Game.ClientState.JobGauge.Types;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.SubKinds;
-using FFXIVClientStructs.FFXIV.Component.GUI;
 using TickTracker.Windows;
 using TickTracker.Helpers;
-using TickTracker.Enums;
 
 namespace TickTracker;
 
@@ -125,7 +125,7 @@ public sealed class Plugin : IDalamudPlugin
         MPBarWindow = new MPBar(clientState, log, utilities, config);
         GPBarWindow = new GPBar(clientState, log, utilities, config);
 #if DEBUG
-        DevWindow = new DevWindow(gameConfig);
+        DevWindow = new DevWindow();
         WindowSystem.AddWindow(DevWindow);
 #endif
         WindowSystem.AddWindow(ConfigWindow);
@@ -155,18 +155,13 @@ public sealed class Plugin : IDalamudPlugin
         InitializeResolution();
     }
 
-    // Really overcomplicated code for a simple constraint
-    private void CheckResolutionChange(object? sender, ConfigChangeEvent e)
+    private unsafe void CheckResolutionChange(object? sender, ConfigChangeEvent e)
     {
         var configOption = e.Option.ToString();
-        var windowed = gameConfig.System.GetUInt("ScreenMode") is (uint)ScreenMode.Windowed;
-
-        Resolution = (windowed, configOption) switch
+        if (configOption is "FullScreenWidth" or "FullScreenHeight" or "ScreenWidth" or "ScreenHeight" or "ScreenMode")
         {
-            (true, "ScreenWidth" or "ScreenHeight") => new Vector2(gameConfig.System.GetUInt("ScreenWidth"), gameConfig.System.GetUInt("ScreenHeight")),
-            (false, "FullScreenWidth" or "FullScreenHeight") => new Vector2(gameConfig.System.GetUInt("FullScreenWidth"), gameConfig.System.GetUInt("FullScreenHeight")),
-            _ => Resolution,
-        };
+            Resolution = new Vector2(Device.Instance()->SwapChain->Width, Device.Instance()->SwapChain->Height);
+        }
         Utilities.ChangeWindowConstraints(DebugWindow, Resolution);
 #if DEBUG
         Utilities.ChangeWindowConstraints(DevWindow, Resolution);
@@ -440,22 +435,9 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
-    private void InitializeResolution()
+    private unsafe void InitializeResolution()
     {
-        gameConfig.TryGet(SystemConfigOption.ScreenMode, out uint screenMode);
-        if (Enum.IsDefined(typeof(ScreenMode), screenMode))
-        {
-            Resolution = (ScreenMode)screenMode switch
-            {
-                ScreenMode.Borderless or ScreenMode.Fullscreen => new Vector2(gameConfig.System.GetUInt("FullScreenWidth"), gameConfig.System.GetUInt("FullScreenHeight")),
-                ScreenMode.Windowed => new Vector2(gameConfig.System.GetUInt("ScreenWidth"), gameConfig.System.GetUInt("ScreenHeight")),
-            };
-        }
-        else
-        {
-            Resolution = new Vector2(1280, 720);
-            log.Error("Unexpected ScreenMode value of {sMode}", screenMode);
-        }
+        Resolution = new Vector2(Device.Instance()->SwapChain->Width, Device.Instance()->SwapChain->Height);
         Utilities.ChangeWindowConstraints(DebugWindow, Resolution);
 #if DEBUG
         Utilities.ChangeWindowConstraints(DevWindow, Resolution);
