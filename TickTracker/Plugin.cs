@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Numerics;
 using System.Threading.Tasks;
 using System.Collections.Frozen;
 using System.Collections.Generic;
@@ -11,6 +12,7 @@ using Dalamud.Plugin.Services;
 using Dalamud.Hooking;
 using Dalamud.Utility.Signatures;
 using Dalamud.Interface.Windowing;
+using Dalamud.Game.Config;
 using Dalamud.Game.Command;
 using Dalamud.Game.ClientState.JobGauge.Types;
 using Dalamud.Game.ClientState.Conditions;
@@ -19,6 +21,7 @@ using Dalamud.Game.ClientState.Objects.SubKinds;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using TickTracker.Windows;
 using TickTracker.Helpers;
+using TickTracker.Enums;
 
 namespace TickTracker;
 
@@ -57,6 +60,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly ICondition condition;
     private readonly IJobGauges jobGauges;
     private readonly IPluginLog log;
+    private readonly IGameConfig gameConfig;
 
     private ConfigWindow ConfigWindow { get; init; }
     private DebugWindow DebugWindow { get; init; }
@@ -66,6 +70,7 @@ public sealed class Plugin : IDalamudPlugin
 #if DEBUG
     public static DevWindow DevWindow { get; set; } = null!;
 #endif
+    public static Vector2 Resolution { get; set; }
 
     public WindowSystem WindowSystem { get; } = new("TickTracker");
     private const string CommandName = "/tick";
@@ -91,6 +96,7 @@ public sealed class Plugin : IDalamudPlugin
         IDataManager _dataManager,
         IJobGauges _jobGauges,
         IPluginLog _pluginLog,
+        IGameConfig _gameConfig,
         IGameInteropProvider _interopProvider)
     {
         pluginInterface = _pluginInterface;
@@ -101,6 +107,7 @@ public sealed class Plugin : IDalamudPlugin
         condition = _condition;
         jobGauges = _jobGauges;
         log = _pluginLog;
+        gameConfig = _gameConfig;
 
         _interopProvider.InitializeFromAttributes(this);
 
@@ -112,13 +119,13 @@ public sealed class Plugin : IDalamudPlugin
 
         config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         utilities = new Utilities(pluginInterface, config, condition, _dataManager, clientState, log);
-        DebugWindow = new DebugWindow();
+        DebugWindow = new DebugWindow(pluginInterface, log);
         ConfigWindow = new ConfigWindow(pluginInterface, config, DebugWindow);
         HPBarWindow = new HPBar(clientState, log, utilities, config);
         MPBarWindow = new MPBar(clientState, log, utilities, config);
         GPBarWindow = new GPBar(clientState, log, utilities, config);
 #if DEBUG
-        DevWindow = new DevWindow();
+        DevWindow = new DevWindow(gameConfig);
         WindowSystem.AddWindow(DevWindow);
 #endif
         WindowSystem.AddWindow(ConfigWindow);
@@ -142,7 +149,28 @@ public sealed class Plugin : IDalamudPlugin
         pluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
         framework.Update += OnFrameworkUpdate;
         clientState.TerritoryChanged += TerritoryChanged;
+        gameConfig.SystemChanged += CheckResolutionChange;
         _ = Task.Run(InitializeLuminaSheet);
+
+        InitializeResolution();
+    }
+
+    // Really overcomplicated code for a simple constraint
+    private void CheckResolutionChange(object? sender, ConfigChangeEvent e)
+    {
+        var configOption = e.Option.ToString();
+        var windowed = gameConfig.System.GetUInt("ScreenMode") is (uint)ScreenMode.Windowed;
+
+        Resolution = (windowed, configOption) switch
+        {
+            (true, "ScreenWidth" or "ScreenHeight") => new Vector2(gameConfig.System.GetUInt("ScreenWidth"), gameConfig.System.GetUInt("ScreenHeight")),
+            (false, "FullScreenWidth" or "FullScreenHeight") => new Vector2(gameConfig.System.GetUInt("FullScreenWidth"), gameConfig.System.GetUInt("FullScreenHeight")),
+            _ => Resolution,
+        };
+        Utilities.ChangeWindowConstraints(DebugWindow, Resolution);
+#if DEBUG
+        Utilities.ChangeWindowConstraints(DevWindow, Resolution);
+#endif
     }
 
     private void TerritoryChanged(ushort e)
@@ -412,6 +440,28 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
+    private void InitializeResolution()
+    {
+        gameConfig.TryGet(SystemConfigOption.ScreenMode, out uint screenMode);
+        if (Enum.IsDefined(typeof(ScreenMode), screenMode))
+        {
+            Resolution = (ScreenMode)screenMode switch
+            {
+                ScreenMode.Borderless or ScreenMode.Fullscreen => new Vector2(gameConfig.System.GetUInt("FullScreenWidth"), gameConfig.System.GetUInt("FullScreenHeight")),
+                ScreenMode.Windowed => new Vector2(gameConfig.System.GetUInt("ScreenWidth"), gameConfig.System.GetUInt("ScreenHeight")),
+            };
+        }
+        else
+        {
+            Resolution = new Vector2(1280, 720);
+            log.Error("Unexpected ScreenMode value of {sMode}", screenMode);
+        }
+        Utilities.ChangeWindowConstraints(DebugWindow, Resolution);
+#if DEBUG
+        Utilities.ChangeWindowConstraints(DevWindow, Resolution);
+#endif
+    }
+
 #if DEBUG
     private unsafe void DevWindowThings(PlayerCharacter player, double currentTime, BarWindowBase window)
     {
@@ -425,6 +475,7 @@ public sealed class Plugin : IDalamudPlugin
         DevWindow.PrintLines.Add("Sync Value: " + syncValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
         DevWindow.PrintLines.Add("Regen Value: " + regenValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
         DevWindow.PrintLines.Add("Fast Value: " + fastValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        DevWindow.PrintLines.Add(Resolution.X + "x" + Resolution.Y);
     }
 #endif
 
@@ -432,11 +483,13 @@ public sealed class Plugin : IDalamudPlugin
     {
         receiveActorUpdateHook?.Disable();
         receiveActorUpdateHook?.Dispose();
+        DebugWindow.Dispose();
         commandManager.RemoveHandler(CommandName);
         WindowSystem.RemoveAllWindows();
         framework.Update -= OnFrameworkUpdate;
         pluginInterface.UiBuilder.Draw -= DrawUI;
         clientState.TerritoryChanged -= TerritoryChanged;
+        gameConfig.SystemChanged -= CheckResolutionChange;
         pluginInterface.UiBuilder.OpenConfigUi -= DrawConfigUI;
     }
 

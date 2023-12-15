@@ -18,6 +18,7 @@ using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using TickTracker.Enums;
 using TickTracker.Windows;
+using Dalamud.Interface.Windowing;
 
 namespace TickTracker.Helpers;
 
@@ -283,6 +284,23 @@ public partial class Utilities(DalamudPluginInterface _pluginInterface, Configur
     /// </summary>
     public static FrozenSet<T> CreateFrozenSet<T>(IEnumerable<T> collection)
         => collection.ToFrozenSet();
+
+    /// <summary>
+    ///     Change the <see cref="Window.SizeConstraints"/> of <paramref name="window"/> to the provided <paramref name="sizeLimit"/>.
+    /// </summary>
+    /// <param name="window">The desired <see cref="Window"/> to change size constraints</param>
+    /// <param name="sizeLimit">The maximum size of the <paramref name="window"/></param>
+    public static void ChangeWindowConstraints(Window window, Vector2 sizeLimit)
+    {
+        if (window.SizeConstraints.HasValue)
+        {
+            window.SizeConstraints = new Window.WindowSizeConstraints
+            {
+                MinimumSize = window.SizeConstraints.Value.MinimumSize,
+                MaximumSize = sizeLimit,
+            };
+        }
+    }
 
 
     [System.Text.RegularExpressions.GeneratedRegex("\\W+", System.Text.RegularExpressions.RegexOptions.Compiled, 500)]

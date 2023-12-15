@@ -1,5 +1,4 @@
 using ImGuiNET;
-using Dalamud.Interface.Utility;
 using Dalamud.Plugin.Services;
 using TickTracker.Enums;
 using TickTracker.Helpers;
@@ -14,7 +13,7 @@ public class HPBar : BarWindowBase
     {
         config = _config;
         utilities = _utilities;
-        Size = config.HPBarSize * ImGuiHelpers.GlobalScale;
+        Size = config.HPBarSize;
         Position = config.HPBarPosition;
     }
 

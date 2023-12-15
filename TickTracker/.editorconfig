@@ -13,6 +13,10 @@ indent_size = 4
 
 # disable redundant style warnings
 
+# .NET diagnostic warnings
+dotnet_diagnostic.CS8524.severity = suggestion
+dotnet_diagnostic.CS8509.severity = error
+
 # Microsoft .NET properties
 csharp_indent_braces = false
 csharp_prefer_braces = true:none
