@@ -125,7 +125,7 @@ public sealed class Plugin : IDalamudPlugin
 
         config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         utilities = new Utilities(pluginInterface, config, condition, _dataManager, clientState, log);
-        DebugWindow = new DebugWindow(pluginInterface, log);
+        DebugWindow = new DebugWindow(pluginInterface);
         ConfigWindow = new ConfigWindow(pluginInterface, config, DebugWindow);
         HPBarWindow = new HPBar(clientState, log, utilities, config);
         MPBarWindow = new MPBar(clientState, log, utilities, config);
@@ -161,6 +161,9 @@ public sealed class Plugin : IDalamudPlugin
         InitializeResolution();
     }
 
+    /// <summary>
+    ///     Retrieve the resolution from the <see cref="Device.SwapChain"/> on resolution or screen mode changes.
+    /// </summary>
     private unsafe void CheckResolutionChange(object? sender, ConfigChangeEvent e)
     {
         var configOption = e.Option.ToString();
@@ -359,6 +362,10 @@ public sealed class Plugin : IDalamudPlugin
         log.Debug("MP regen list generated with {MPcount} status effects.", manaRegenSet.Count);
     }
 
+    /// <summary>
+    ///     Grab the resolution from the <see cref="Device.SwapChain"/> on plugin init, and propagate it as the <see cref="Window.WindowSizeConstraints.MaximumSize"/>
+    ///     to the appropriate windows.
+    /// </summary>
     private unsafe void InitializeResolution()
     {
         Resolution = new Vector2(Device.Instance()->SwapChain->Width, Device.Instance()->SwapChain->Height);

@@ -33,7 +33,6 @@ public sealed class DebugWindow : Window, IDisposable
     public ConcurrentDictionary<uint, string> DisabledManaRegenDictionary { get; set; } = new();
 
     private readonly DalamudPluginInterface pluginInterface;
-    private readonly IPluginLog log;
 
     private readonly List<string> healthRegenList = new();
     private readonly List<string> manaRegenList = new();
@@ -44,10 +43,9 @@ public sealed class DebugWindow : Window, IDisposable
     private float hpWidth, mpWidth, disabledHPWidth, disabledMPWidth;
     private bool invalidList, fontChange, firstTime = true;
 
-    public DebugWindow(DalamudPluginInterface _pluginInterface, IPluginLog _pluginLog) : base("DebugWindow")
+    public DebugWindow(DalamudPluginInterface _pluginInterface) : base("DebugWindow")
     {
         pluginInterface = _pluginInterface;
-        log = _pluginLog;
 
         SizeConstraints = new WindowSizeConstraints
         {
