@@ -30,4 +30,9 @@ public class DevWindow : Window
         }
         PrintLines.Clear();
     }
+
+    public void Separator()
+    {
+        PrintLines.Add("--------------------------");
+    }
 }
