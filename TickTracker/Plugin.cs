@@ -22,6 +22,7 @@ using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using TickTracker.Windows;
 using TickTracker.Helpers;
+using System.Diagnostics;
 
 namespace TickTracker;
 
@@ -69,6 +70,12 @@ public sealed class Plugin : IDalamudPlugin
     private GPBar GPBarWindow { get; init; }
 #if DEBUG
     public static DevWindow DevWindow { get; set; } = null!;
+    private FrozenDictionary<string, nint> addonDic = null!;
+    private readonly FrozenSet<string> addonsLookup2 = Utilities.CreateFrozenSet<string>(["Talk", "ActionDetail", "ItemDetail", "Inventory"]);
+    private unsafe AtkUnitBase* CharacterAddon => (AtkUnitBase*)gameGui.GetAddonByName("Character");
+    private double min1, max1, min2, max2;
+    private double average1, average2;
+    private int count1, count2, runs;
 #endif
     public static Vector2 Resolution { get; set; }
 
@@ -149,10 +156,35 @@ public sealed class Plugin : IDalamudPlugin
         pluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
         framework.Update += OnFrameworkUpdate;
         clientState.TerritoryChanged += TerritoryChanged;
+        clientState.Login += LoginAddonDicGrab;
+        clientState.Logout += LogoutAddonDicReset;
         gameConfig.SystemChanged += CheckResolutionChange;
         _ = Task.Run(InitializeLuminaSheet);
-
+        LoginAddonDicGrab();
         InitializeResolution();
+    }
+
+    private void LoginAddonDicGrab()
+    {
+        var tempdic = new Dictionary<string, nint>(StringComparer.Ordinal);
+        foreach (var name in addonsLookup2)
+        {
+            var addon = gameGui.GetAddonByName(name);
+            if (addon != nint.Zero)
+            {
+                tempdic.Add(name, addon);
+            }
+            else
+            {
+                tempdic.Add(name, nint.Zero);
+            }
+        }
+        addonDic = tempdic.ToFrozenDictionary();
+    }
+
+    private void LogoutAddonDicReset()
+    {
+        addonDic = null!;
     }
 
     /// <summary>
@@ -199,6 +231,10 @@ public sealed class Plugin : IDalamudPlugin
 
     private void OnFrameworkUpdate(IFramework _framework)
     {
+#if DEBUG
+        addonListStuff();
+        DevWindowThings(clientState?.LocalPlayer, (DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds, HPBarWindow);
+#endif
         if (clientState is { IsLoggedIn: false } or { IsPvPExcludingDen: true } || nullSheet)
         {
             return;
@@ -208,9 +244,6 @@ public sealed class Plugin : IDalamudPlugin
             return;
         }
 
-#if DEBUG
-        DevWindowThings(player, (DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds, GPBarWindow);
-#endif
         unsafe
         {
             if (!PluginEnabled(player) || !utilities.IsAddonReady(NameplateAddon))
@@ -448,14 +481,115 @@ public sealed class Plugin : IDalamudPlugin
         Utilities.ChangeWindowConstraints(DebugWindow, Resolution);
 #if DEBUG
         Utilities.ChangeWindowConstraints(DevWindow, Resolution);
+        _ = Task.Run(() =>
+        {
+            var sw = new Stopwatch();
+            var timers1 = new List<double>();
+            var timers2 = new List<double>();
+            runs = 500_000;
+            for (var i = 0; i < runs; i++)
+            {
+                sw.Restart();
+                Benchmark1();
+                sw.Stop();
+                timers1.Add(sw.Elapsed.TotalMicroseconds);
+                count1 = timers1.Count;
+                min1 = timers1.Min();
+                max1 = timers1.Max();
+                average1 = timers1.Average();
+            }
+            for (var i = 0; i < runs; i++)
+            {
+                sw.Restart();
+                Benchmark2();
+                sw.Stop();
+                timers2.Add(sw.Elapsed.TotalMicroseconds);
+                count2 = timers2.Count;
+                min2 = timers2.Min();
+                max2 = timers2.Max();
+                average2 = timers2.Average();
+            }
+        });
 #endif
     }
 
 #if DEBUG
-    private unsafe void DevWindowThings(PlayerCharacter player, double currentTime, BarWindowBase window)
+    private unsafe void Benchmark1()
+    {
+        var AddonList = new List<nint>();
+        foreach (var name in addonsLookup)
+        {
+            var addonPointer = gameGui.GetAddonByName(name);
+            if (addonPointer != nint.Zero)
+            {
+                AddonList.Add(addonPointer);
+            }
+        }
+        foreach (var addon in AddonList)
+        {
+            var currentAddon = (AtkUnitBase*)addon;
+            if (!utilities.IsAddonReady(currentAddon) || !currentAddon->IsVisible)
+            {
+                continue;
+            }
+            var scaled = (int)currentAddon->Scale != 100;
+            foreach (var barWindow in barWindows.Where(window => utilities.AddonOverlap(currentAddon, window, scaled)))
+            {
+                barWindow.IsOpen = false;
+            }
+        }
+    }
+
+    private unsafe void Benchmark2()
+    {
+        foreach (var addon in addonDic.Values)
+        {
+            var currentAddon = (AtkUnitBase*)addon;
+            if (!utilities.IsAddonReady(currentAddon) || !currentAddon->IsVisible)
+            {
+                continue;
+            }
+            var scaled = (int)currentAddon->Scale != 100;
+            foreach (var barWindow in barWindows.Where(window => utilities.AddonOverlap(currentAddon, window, scaled)))
+            {
+                barWindow.IsOpen = false;
+            }
+        }
+        if (utilities.IsAddonReady(CharacterAddon) && CharacterAddon->IsVisible)
+        {
+            var scaled = (int)CharacterAddon->Scale != 100;
+            foreach (var barWindow in barWindows.Where(window => utilities.AddonOverlap(CharacterAddon, window, scaled)))
+            {
+                barWindow.IsOpen = false;
+            }
+        }
+    }
+    private void addonListStuff()
+    {
+        var tempDic = addonDic.ToDictionary();
+        var dicChanged = false;
+        foreach (var addon in tempDic.Where(x => x.Value == nint.Zero))
+        {
+            var tempAddon = gameGui.GetAddonByName(addon.Key);
+            if (tempAddon != nint.Zero)
+            {
+                tempDic[addon.Key] = tempAddon;
+                dicChanged = true;
+            }
+        }
+        if (dicChanged)
+        {
+            addonDic = tempDic.ToFrozenDictionary();
+        }
+    }
+
+    private unsafe void DevWindowThings(PlayerCharacter? player, double currentTime, BarWindowBase window)
     {
         DevWindow.IsOpen = true;
-        DevWindow.PrintLines.Add(window.WindowName + ": " + player.CurrentHp.ToString() + " / " + player.MaxHp.ToString());
+        if (player is not null)
+        {
+            DevWindow.PrintLines.Add(window.WindowName + ": " + player.CurrentHp.ToString() + " / " + player.MaxHp.ToString());
+        }
         DevWindow.PrintLines.Add("Current Time: " + currentTime.ToString(System.Globalization.CultureInfo.InvariantCulture));
         DevWindow.PrintLines.Add("RegenActive: " + window.RegenActive.ToString());
         DevWindow.PrintLines.Add("Progress: " + window.Progress.ToString(System.Globalization.CultureInfo.InvariantCulture));
@@ -465,6 +599,10 @@ public sealed class Plugin : IDalamudPlugin
         DevWindow.PrintLines.Add("Regen Value: " + regenValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
         DevWindow.PrintLines.Add("Fast Value: " + fastValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
         DevWindow.PrintLines.Add("Swapchain resolution: " + Resolution.X + "x" + Resolution.Y);
+        DevWindow.PrintLines.Add("Benchmark 1 runs: " + count1 + " out of " + runs);
+        DevWindow.PrintLines.Add("Benchmark 2 runs: " + count2 + " out of " + runs);
+        DevWindow.PrintLines.Add("Benchmark 1 Average runtime: " + average1 + " Fastest run: " + min1 + " Slowest run: " + max1);
+        DevWindow.PrintLines.Add("Benchmark 2 Average runtime: " + average2 + " Fastest run: " + min2 + " Slowest run: " + max2);
     }
 #endif
 
@@ -478,6 +616,8 @@ public sealed class Plugin : IDalamudPlugin
         framework.Update -= OnFrameworkUpdate;
         pluginInterface.UiBuilder.Draw -= DrawUI;
         clientState.TerritoryChanged -= TerritoryChanged;
+        clientState.Login -= LoginAddonDicGrab;
+        clientState.Logout -= LogoutAddonDicReset;
         gameConfig.SystemChanged -= CheckResolutionChange;
         pluginInterface.UiBuilder.OpenConfigUi -= DrawConfigUI;
     }
