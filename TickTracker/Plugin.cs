@@ -173,30 +173,17 @@ public sealed class Plugin : IDalamudPlugin
         WindowSystem.AddWindow(DebugWindow);
     }
 
-    private void TerritoryChanged(ushort e)
+    /// <summary>
+    ///     Grab the resolution from the <see cref="Device.SwapChain"/> on plugin init, and propagate it as the <see cref="Window.WindowSizeConstraints.MaximumSize"/>
+    ///     to the appropriate windows.
+    /// </summary>
+    private unsafe void InitializeResolution()
     {
-        loadingTask = Task.Run(async () => await utilities.Loading(1000).ConfigureAwait(false));
-    }
-
-    private bool PluginEnabled(PlayerCharacter player)
-    {
-        var target = player.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
-        var inCombat = condition[ConditionFlag.InCombat];
-
-        if (condition[ConditionFlag.InDuelingArea])
-        {
-            return false;
-        }
-        if (config.HideOutOfCombat && !inCombat)
-        {
-            var showingBecauseInDuty = config.AlwaysShowInDuties && utilities.InDuty();
-            var showingBecauseHasTarget = config.AlwaysShowWithHostileTarget && target;
-            if (!(showingBecauseInDuty || showingBecauseHasTarget))
-            {
-                return false;
-            }
-        }
-        return config.PluginEnabled;
+        Resolution = new Vector2(Device.Instance()->SwapChain->Width, Device.Instance()->SwapChain->Height);
+        Utilities.ChangeWindowConstraints(DebugWindow, Resolution);
+#if DEBUG
+        Utilities.ChangeWindowConstraints(DevWindow, Resolution);
+#endif
     }
 
     private void OnFrameworkUpdate(IFramework _framework)
@@ -359,19 +346,6 @@ public sealed class Plugin : IDalamudPlugin
     }
 
     /// <summary>
-    ///     Grab the resolution from the <see cref="Device.SwapChain"/> on plugin init, and propagate it as the <see cref="Window.WindowSizeConstraints.MaximumSize"/>
-    ///     to the appropriate windows.
-    /// </summary>
-    private unsafe void InitializeResolution()
-    {
-        Resolution = new Vector2(Device.Instance()->SwapChain->Width, Device.Instance()->SwapChain->Height);
-        Utilities.ChangeWindowConstraints(DebugWindow, Resolution);
-#if DEBUG
-        Utilities.ChangeWindowConstraints(DevWindow, Resolution);
-#endif
-    }
-
-    /// <summary>
     /// This detour function is triggered every time the client receives
     /// a network packet containing an update for the nearby actors
     /// with HP, MP, GP
@@ -405,6 +379,27 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
+    private bool PluginEnabled(PlayerCharacter player)
+    {
+        var target = player.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
+        var inCombat = condition[ConditionFlag.InCombat];
+
+        if (condition[ConditionFlag.InDuelingArea])
+        {
+            return false;
+        }
+        if (config.HideOutOfCombat && !inCombat)
+        {
+            var showingBecauseInDuty = config.AlwaysShowInDuties && utilities.InDuty();
+            var showingBecauseHasTarget = config.AlwaysShowWithHostileTarget && target;
+            if (!(showingBecauseInDuty || showingBecauseHasTarget))
+            {
+                return false;
+            }
+        }
+        return config.PluginEnabled;
+    }
+
     private unsafe void UpdateBarState(PlayerCharacter player)
     {
         var jobType = player.ClassJob.GameData?.ClassJobCategory.Row ?? 0;
@@ -425,6 +420,11 @@ public sealed class Plugin : IDalamudPlugin
         HPBarWindow.IsOpen = shouldShowHPBar;
         MPBarWindow.IsOpen = shouldShowMPBar && !hideForMeleeRangedDPS && !hideForGPBar;
         GPBarWindow.IsOpen = (jobType is DiscipleOfTheLand && (!config.HideOnFullResource || (player.CurrentGp != player.MaxGp)) && config.GPVisible) || !config.LockBar;
+    }
+
+    private void TerritoryChanged(ushort e)
+    {
+        loadingTask = Task.Run(async () => await utilities.Loading(1000).ConfigureAwait(false));
     }
 
     /// <summary>
