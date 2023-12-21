@@ -269,7 +269,7 @@ public class ConfigWindow : Window
         EditConfigProperty("Hide MP bar on melee and ranged DPS", config, c => c.HideMpBarOnMeleeRanged, (c, value) => c.HideMpBarOnMeleeRanged = value, checkbox: true);
         EditConfigProperty("Hide bar on collision with native ui", config, c => c.CollisionDetection, (c, value) => c.CollisionDetection = value, checkbox: true);
         ImGui.SameLine();
-        ImGuiComponents.HelpMarker("This only affects the description of abilities and items");
+        ImGuiComponents.HelpMarker("This only affects certain windows.");
     }
 
     /// <summary>
