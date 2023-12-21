@@ -7,7 +7,6 @@ using System.Collections.Concurrent;
 
 using ImGuiNET;
 using Dalamud.Plugin;
-using Dalamud.Plugin.Services;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Utility.Raii;
 

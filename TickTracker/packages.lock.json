@@ -10,9 +10,9 @@
       },
       "Meziantou.Analyzer": {
         "type": "Direct",
-        "requested": "[2.0.121, )",
-        "resolved": "2.0.121",
-        "contentHash": "056n9q4N7ktzc+HejD25LDyKM4J9hBVcrdnImDLArObY2ir+DQy5tqI7uNYmQ2sP41NA83PTIi26n08cwph8fA=="
+        "requested": "[2.0.126, )",
+        "resolved": "2.0.126",
+        "contentHash": "nMIxxywyNS5qcECsXPCDbsorM+d7QQRWSObMFaAaA59CLOwvi514jx4jySqBhDLKKoPKlsBd/lMrwfekgZClVQ=="
       }
     }
   }

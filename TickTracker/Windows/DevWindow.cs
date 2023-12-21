@@ -4,7 +4,6 @@ using System.Collections.Generic;
 
 using ImGuiNET;
 using Dalamud.Interface.Windowing;
-using Dalamud.Plugin.Services;
 
 namespace TickTracker.Windows;
 
