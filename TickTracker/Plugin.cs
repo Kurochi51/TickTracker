@@ -79,7 +79,7 @@ public sealed class Plugin : IDalamudPlugin
 #if DEBUG
     public static DevWindow DevWindow { get; set; } = null!;
 #endif
-    public static Vector2 Resolution { get; set; }
+    public static Vector2 Resolution { get; private set; }
 
     public WindowSystem WindowSystem { get; } = new("TickTracker");
     private const string CommandName = "/tick";
@@ -471,17 +471,17 @@ public sealed class Plugin : IDalamudPlugin
         DevWindow.IsOpen = true;
         if (player is not null)
         {
-            DevWindow.PrintLines.Add(window.WindowName + ": " + player.CurrentHp.ToString() + " / " + player.MaxHp.ToString());
+            DevWindow.Print(window.WindowName + ": " + player.CurrentHp.ToString() + " / " + player.MaxHp.ToString());
         }
-        DevWindow.PrintLines.Add("Current Time: " + currentTime.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        DevWindow.PrintLines.Add("RegenActive: " + window.RegenActive.ToString());
-        DevWindow.PrintLines.Add("Progress: " + window.Progress.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        DevWindow.PrintLines.Add("NormalTick: " + window.Tick.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        DevWindow.PrintLines.Add("NormalUpdate: " + window.TickUpdate.ToString());
-        DevWindow.PrintLines.Add("Sync Value: " + syncValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        DevWindow.PrintLines.Add("Regen Value: " + regenValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        DevWindow.PrintLines.Add("Fast Value: " + fastValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        DevWindow.PrintLines.Add("Swapchain resolution: " + Resolution.X + "x" + Resolution.Y);
+        DevWindow.Print("Current Time: " + currentTime.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        DevWindow.Print("RegenActive: " + window.RegenActive.ToString());
+        DevWindow.Print("Progress: " + window.Progress.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        DevWindow.Print("NormalTick: " + window.Tick.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        DevWindow.Print("NormalUpdate: " + window.TickUpdate.ToString());
+        DevWindow.Print("Sync Value: " + syncValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        DevWindow.Print("Regen Value: " + regenValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        DevWindow.Print("Fast Value: " + fastValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        DevWindow.Print("Swapchain resolution: " + Resolution.X + "x" + Resolution.Y);
     }
 #endif
 

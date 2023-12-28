@@ -1,4 +1,3 @@
-using System;
 using System.Numerics;
 using System.Collections.Generic;
 
@@ -9,7 +8,7 @@ namespace TickTracker.Windows;
 
 public class DevWindow : Window
 {
-    public IList<string> PrintLines { get; set; } = new List<string>();
+    private static IList<string> PrintLines { get; set; } = new List<string>();
 
     public DevWindow() : base("DevWindow")
     {
@@ -30,7 +29,12 @@ public class DevWindow : Window
         PrintLines.Clear();
     }
 
-    public void Separator()
+    public static void Print(string text)
+    {
+        PrintLines.Add(text);
+    }
+
+    public static void Separator()
     {
         PrintLines.Add("--------------------------");
     }

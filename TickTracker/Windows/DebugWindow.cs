@@ -9,6 +9,7 @@ using ImGuiNET;
 using Dalamud.Plugin;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Utility.Raii;
+using TickTracker.Structs;
 
 namespace TickTracker.Windows;
 
@@ -38,8 +39,9 @@ public sealed class DebugWindow : Window, IDisposable
     private readonly List<string> disabledHealthRegenList = new();
     private readonly List<string> disabledManaRegenList = new();
 
-    private string table1Column1, table1Column2, table2Column1, table2Column2;
-    private float hpWidth, mpWidth, disabledHPWidth, disabledMPWidth;
+    private const ImGuiTableFlags TableFlags = ImGuiTableFlags.ScrollY | ImGuiTableFlags.PreciseWidths;
+    private TableStruct table1, table2;
+    private Vector2 lastSize = Vector2.Zero;
     private bool invalidList, fontChange, firstTime = true;
 
     public DebugWindow(DalamudPluginInterface _pluginInterface) : base("DebugWindow")
@@ -51,7 +53,6 @@ public sealed class DebugWindow : Window, IDisposable
             MinimumSize = new Vector2(400, 500),
             MaximumSize = Plugin.Resolution,
         };
-        table1Column1 = table1Column2 = table2Column1 = table2Column2 = string.Empty;
         pluginInterface.UiBuilder.AfterBuildFonts += QueueColumnWidthChange;
     }
 
@@ -67,16 +68,35 @@ public sealed class DebugWindow : Window, IDisposable
         }
         if (firstTime && !invalidList)
         {
-            table1Column1 = " Health Regen Status IDs";
-            table1Column2 = "Mana Regen Status IDs";
-            table2Column1 = " Disabled HP Regen Status IDs";
-            table2Column2 = "Disabled MP Regen Status IDs";
             ProcessDictionaries();
-            DetermineColumnWidth(table1Column1, table1Column2, healthRegenList, manaRegenList, out hpWidth, out mpWidth);
-            DetermineColumnWidth(table2Column1, table2Column2, disabledHealthRegenList, disabledManaRegenList, out disabledHPWidth, out disabledMPWidth);
+            table1 = new TableStruct()
+            {
+                Id = "DisabledRegenSID",
+                Column1Header = " Disabled HP Regen Status IDs",
+                Column2Header = "Disabled MP Regen Status IDs",
+                Column1Width = 0,
+                Column2Width = 0,
+                Column1Content = disabledHealthRegenList,
+                Column2Content = disabledManaRegenList,
+                Size = Vector2.Zero,
+            };
+            table2 = new TableStruct()
+            {
+                Id = "RegenSID",
+                Column1Header = " Health Regen Status IDs",
+                Column2Header = "Mana Regen Status IDs",
+                Column1Width = 0,
+                Column2Width = 0,
+                Column1Content = healthRegenList,
+                Column2Content = manaRegenList,
+                Size = Vector2.Zero,
+            };
+            DetermineColumnWidth(ref table1);
+            DetermineColumnWidth(ref table2);
             firstTime = false;
         }
     }
+
     public override void Draw()
     {
         if (invalidList)
@@ -85,23 +105,43 @@ public sealed class DebugWindow : Window, IDisposable
             CopyAndClose();
             return;
         }
+        var tableSizeChange = false;
         if (fontChange)
         {
-            DetermineColumnWidth(table1Column1, table1Column2, healthRegenList, manaRegenList, out hpWidth, out mpWidth);
-            DetermineColumnWidth(table2Column1, table2Column2, disabledHealthRegenList, disabledManaRegenList, out disabledHPWidth, out disabledMPWidth);
+            DetermineColumnWidth(ref table1);
+            DetermineColumnWidth(ref table2);
             fontChange = false;
+            tableSizeChange = true;
+        }
+        if (lastSize != ImGui.GetWindowSize())
+        {
+            lastSize = ImGui.GetWindowSize();
+            tableSizeChange = true;
         }
         ImGui.TextUnformatted($"HP regen list generated with {healthRegenList.Count} status effects.");
         ImGui.TextUnformatted($"MP regen list generated with {manaRegenList.Count} status effects.");
         ImGui.TextUnformatted($"HP regen disabled list generated with {disabledHealthRegenList.Count} status effects.");
         ImGui.TextUnformatted($"MP regen disabled list generated with {disabledManaRegenList.Count} status effects.");
         ImGui.Spacing();
-        using (var scrollArea = ImRaii.Child("ScrollArea", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y - 40f), border: true))
+        using (var tableArea = ImRaii.Child("TableArea", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y - 40f), border: true, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse))
         {
-            DrawTable("DisabledRegenSID", table2Column1, table2Column2, disabledHPWidth, disabledMPWidth, disabledHealthRegenList, disabledManaRegenList);
+            if (tableSizeChange)
+            {
+                table1.Size = new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y / 2);
+                table2.Size = new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y / 2);
+            }
+            if (table1.Size == Vector2.Zero)
+            {
+                table1.Size = new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y / 2);
+            }
+            if (table2.Size == Vector2.Zero)
+            {
+                table2.Size = new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y / 2);
+            }
+            DrawTable(table1);
             ImGui.Separator();
             ImGui.Spacing();
-            DrawTable("RegenSID", table1Column1, table1Column2, hpWidth, mpWidth, healthRegenList, manaRegenList);
+            DrawTable(table2);
         }
         CopyAndClose();
     }
@@ -117,14 +157,14 @@ public sealed class DebugWindow : Window, IDisposable
             if (ImGui.Button("Copy top table"))
             {
                 var topTable = new StringBuilder();
-                GetTableContentAsText(ref topTable, "Disabled Health Regen Status IDs", "Disabled Mana Regen Status IDs", disabledHealthRegenList, disabledManaRegenList);
+                GetTableContentAsText(ref topTable, table1);
                 ImGui.SetClipboardText(topTable.ToString());
             }
             ImGui.SameLine();
             if (ImGui.Button("Copy bottom table"))
             {
                 var bottomTable = new StringBuilder();
-                GetTableContentAsText(ref bottomTable, "Health Regen Status IDs", "Mana Regen Status IDs", healthRegenList, manaRegenList);
+                GetTableContentAsText(ref bottomTable, table2);
                 ImGui.SetClipboardText(bottomTable.ToString());
             }
             ImGui.SetCursorPos(originPos);
@@ -134,90 +174,103 @@ public sealed class DebugWindow : Window, IDisposable
         ImGui.SetCursorPosY(ImGui.GetWindowContentRegionMax().Y - ImGui.GetFrameHeight() - 3f + (ImGui.GetScrollY() * 2));
         if (ImGui.Button("Close"))
         {
-            this.IsOpen = false;
+            IsOpen = false;
         }
         ImGui.SetCursorPos(originPos);
     }
 
-    private static void GetTableContentAsText(ref StringBuilder text, string column1Name, string column2Name, IReadOnlyList<string> list1, IReadOnlyList<string> list2)
+    private static void GetTableContentAsText(ref StringBuilder text, TableStruct table)
     {
-        text.Append(column1Name);
-        foreach (var item in list1)
+        text.Append(table.Column1Header.Trim());
+        foreach (var item in table.Column1Content)
         {
             text.AppendLine();
             text.Append(item.Trim());
         }
         text.AppendLine();
         text.AppendLine();
-        text.Append(column2Name);
-        foreach (var item in list2)
+        text.Append(table.Column2Header.Trim());
+        foreach (var item in table.Column2Content)
         {
             text.AppendLine();
             text.Append(item.Trim());
         }
     }
 
-    private static void DetermineColumnWidth(string column1, string column2, IReadOnlyList<string> list1, IReadOnlyList<string> list2, out float column1Width, out float column2Width)
+    private static void DetermineColumnWidth(ref TableStruct table)
     {
-        column1Width = ImGui.CalcTextSize(column1).X;
-        foreach (var item in list1)
+        table.Column1Width = ImGui.CalcTextSize(table.Column1Header).X;
+        foreach (var item in table.Column1Content)
         {
-            var textWidth = ImGui.CalcTextSize(item);
-            if (textWidth.X > column1Width)
+            var textWidth = ImGui.CalcTextSize(item).X;
+            if (textWidth > table.Column1Width)
             {
-                column1Width = textWidth.X;
+                table.Column1Width = textWidth;
             }
         }
 
-        column2Width = ImGui.CalcTextSize(column2).X;
-        foreach (var item in list2)
+        table.Column2Width = ImGui.CalcTextSize(table.Column2Header).X;
+        foreach (var item in table.Column2Content)
         {
-            var textWidth = ImGui.CalcTextSize(item);
-            if (textWidth.X > column2Width)
+            var textWidth = ImGui.CalcTextSize(item).X;
+            if (textWidth > table.Column2Width)
             {
-                column2Width = textWidth.X;
+                table.Column2Width = textWidth;
             }
         }
     }
 
-    private static unsafe void DrawTable(string id, string column1, string column2, float column1Width, float column2Width, IReadOnlyList<string> list1, IReadOnlyList<string> list2)
+    private static unsafe void DrawTable(TableStruct table)
     {
-        using var table = ImRaii.Table(id, 2, ImGuiTableFlags.None);
-        if (!table)
+        if (!table.IsValid())
+        {
+            ImGui.TextUnformatted($"{table.Id} has an invalid member.\n{table}");
+            return;
+        }
+        using var tableUsable = ImRaii.Table(table.Id, 2, TableFlags, table.Size);
+        if (!tableUsable)
         {
             return;
         }
 
-        var maxItemCount = Math.Max(list1.Count, list2.Count);
+        var clipperCount = Math.Max(table.Column1Content.Count, table.Column2Content.Count);
         var clipper = new ImGuiListClipperPtr(ImGuiNative.ImGuiListClipper_ImGuiListClipper());
-        clipper.Begin(maxItemCount, ImGui.GetTextLineHeightWithSpacing());
+        clipper.Begin(clipperCount, ImGui.GetTextLineHeightWithSpacing());
 
-        ImGui.TableSetupColumn(column1, ImGuiTableColumnFlags.WidthFixed, column1Width);
-        ImGui.TableSetupColumn(column2, ImGuiTableColumnFlags.WidthFixed, column2Width);
+        ImGui.TableSetupColumn(table.Column1Header, ImGuiTableColumnFlags.WidthFixed, table.Column1Width);
+        ImGui.TableSetupColumn(table.Column2Header, ImGuiTableColumnFlags.WidthFixed, table.Column2Width);
+        ImGui.TableSetupScrollFreeze(0, 1);
+
         ImGui.TableHeadersRow();
 
+        var clipperBreak = false;
         while (clipper.Step())
         {
+            if (clipperBreak)
+            {
+                break;
+            }
             for (var i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
             {
-                if (i >= maxItemCount)
+                if (i >= clipperCount)
                 {
-                    return;
+                    clipperBreak = true;
+                    break;
                 }
                 ImGui.TableNextRow();
 
                 // Health Regen column
                 ImGui.TableSetColumnIndex(0);
-                if (i < list1.Count)
+                if (i < table.Column1Content.Count)
                 {
-                    ImGui.TextUnformatted($"{list1[i]}");
+                    ImGui.TextUnformatted($"{table.Column1Content[i]}");
                 }
 
                 // Mana Regen column
                 ImGui.TableSetColumnIndex(1);
-                if (i < list2.Count)
+                if (i < table.Column2Content.Count)
                 {
-                    ImGui.TextUnformatted($"{list2[i]}");
+                    ImGui.TextUnformatted($"{table.Column2Content[i]}");
                 }
             }
         }
