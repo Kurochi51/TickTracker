@@ -7,6 +7,8 @@ using System.Collections.Concurrent;
 
 using ImGuiNET;
 using Dalamud.Plugin;
+using Dalamud.Interface;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Utility.Raii;
 using TickTracker.Structs;
@@ -39,9 +41,8 @@ public sealed class DebugWindow : Window, IDisposable
     private readonly List<string> disabledHealthRegenList = new();
     private readonly List<string> disabledManaRegenList = new();
 
-    private const ImGuiTableFlags TableFlags = ImGuiTableFlags.ScrollY | ImGuiTableFlags.PreciseWidths;
-    private TableStruct table1, table2;
-    private Vector2 lastSize = Vector2.Zero;
+    private const ImGuiTableFlags TableFlags = ImGuiTableFlags.ScrollY | ImGuiTableFlags.PreciseWidths | ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersOuter;
+    private TableStruct disabledRegenTable, regenTable;
     private bool invalidList, fontChange, firstTime = true;
 
     public DebugWindow(DalamudPluginInterface _pluginInterface) : base("DebugWindow")
@@ -69,7 +70,7 @@ public sealed class DebugWindow : Window, IDisposable
         if (firstTime && !invalidList)
         {
             ProcessDictionaries();
-            table1 = new TableStruct()
+            disabledRegenTable = new TableStruct()
             {
                 Id = "DisabledRegenSID",
                 Column1Header = " Disabled HP Regen Status IDs",
@@ -78,9 +79,8 @@ public sealed class DebugWindow : Window, IDisposable
                 Column2Width = 0,
                 Column1Content = disabledHealthRegenList,
                 Column2Content = disabledManaRegenList,
-                Size = Vector2.Zero,
             };
-            table2 = new TableStruct()
+            regenTable = new TableStruct()
             {
                 Id = "RegenSID",
                 Column1Header = " Health Regen Status IDs",
@@ -89,10 +89,9 @@ public sealed class DebugWindow : Window, IDisposable
                 Column2Width = 0,
                 Column1Content = healthRegenList,
                 Column2Content = manaRegenList,
-                Size = Vector2.Zero,
             };
-            DetermineColumnWidth(ref table1);
-            DetermineColumnWidth(ref table2);
+            DetermineColumnWidth(ref disabledRegenTable);
+            DetermineColumnWidth(ref regenTable);
             firstTime = false;
         }
     }
@@ -105,44 +104,24 @@ public sealed class DebugWindow : Window, IDisposable
             CopyAndClose();
             return;
         }
-        var tableSizeChange = false;
         if (fontChange)
         {
-            DetermineColumnWidth(ref table1);
-            DetermineColumnWidth(ref table2);
+            DetermineColumnWidth(ref disabledRegenTable);
+            DetermineColumnWidth(ref regenTable);
             fontChange = false;
-            tableSizeChange = true;
-        }
-        if (lastSize != ImGui.GetWindowSize())
-        {
-            lastSize = ImGui.GetWindowSize();
-            tableSizeChange = true;
         }
         ImGui.TextUnformatted($"HP regen list generated with {healthRegenList.Count} status effects.");
         ImGui.TextUnformatted($"MP regen list generated with {manaRegenList.Count} status effects.");
         ImGui.TextUnformatted($"HP regen disabled list generated with {disabledHealthRegenList.Count} status effects.");
         ImGui.TextUnformatted($"MP regen disabled list generated with {disabledManaRegenList.Count} status effects.");
         ImGui.Spacing();
-        using (var tableArea = ImRaii.Child("TableArea", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y - 40f), border: true, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse))
-        {
-            if (tableSizeChange)
-            {
-                table1.Size = new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y / 2);
-                table2.Size = new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y / 2);
-            }
-            if (table1.Size == Vector2.Zero)
-            {
-                table1.Size = new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y / 2);
-            }
-            if (table2.Size == Vector2.Zero)
-            {
-                table2.Size = new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y / 2);
-            }
-            DrawTable(table1);
-            ImGui.Separator();
-            ImGui.Spacing();
-            DrawTable(table2);
-        }
+
+        var currentSize = new Vector2(ImGui.GetContentRegionAvail().X, (ImGui.GetContentRegionAvail().Y - (36f * ImGuiHelpers.GlobalScale)) / 2);
+        disabledRegenTable.ResizeIfNeeded(currentSize);
+        regenTable.ResizeIfNeeded(currentSize);
+        DrawTable(disabledRegenTable);
+        DrawTable(regenTable);
+
         CopyAndClose();
     }
 
@@ -153,25 +132,25 @@ public sealed class DebugWindow : Window, IDisposable
         {
             // Place two buttons in bottom left + some padding / extra space
             ImGui.SetCursorPosX(10f);
-            ImGui.SetCursorPosY(ImGui.GetWindowContentRegionMax().Y - ImGui.GetFrameHeight() - 3f + (ImGui.GetScrollY() * 2));
+            ImGui.SetCursorPosY(ImGui.GetWindowContentRegionMax().Y - ImGui.GetFrameHeight() - (3f * ImGuiHelpers.GlobalScale) + (ImGui.GetScrollY() * 2));
             if (ImGui.Button("Copy top table"))
             {
                 var topTable = new StringBuilder();
-                GetTableContentAsText(ref topTable, table1);
+                GetTableContentAsText(ref topTable, disabledRegenTable);
                 ImGui.SetClipboardText(topTable.ToString());
             }
             ImGui.SameLine();
             if (ImGui.Button("Copy bottom table"))
             {
                 var bottomTable = new StringBuilder();
-                GetTableContentAsText(ref bottomTable, table2);
+                GetTableContentAsText(ref bottomTable, regenTable);
                 ImGui.SetClipboardText(bottomTable.ToString());
             }
             ImGui.SetCursorPos(originPos);
         }
         // Place a button in bottom right + some padding / extra space
         ImGui.SetCursorPosX(ImGui.GetWindowContentRegionMax().X - ImGui.CalcTextSize("Close").X - 15f);
-        ImGui.SetCursorPosY(ImGui.GetWindowContentRegionMax().Y - ImGui.GetFrameHeight() - 3f + (ImGui.GetScrollY() * 2));
+        ImGui.SetCursorPosY(ImGui.GetWindowContentRegionMax().Y - ImGui.GetFrameHeight() - (3f * ImGuiHelpers.GlobalScale) + (ImGui.GetScrollY() * 2));
         if (ImGui.Button("Close"))
         {
             IsOpen = false;
@@ -227,7 +206,9 @@ public sealed class DebugWindow : Window, IDisposable
             ImGui.TextUnformatted($"{table.Id} has an invalid member.\n{table}");
             return;
         }
-        using var tableUsable = ImRaii.Table(table.Id, 2, TableFlags, table.Size);
+
+        using var tableBorderColor = ImRaii.PushColor(ImGuiCol.TableBorderStrong, ColorHelpers.RgbaVector4ToUint(*ImGui.GetStyleColorVec4(ImGuiCol.Border)));
+        using var tableUsable = ImRaii.Table(table.Id, 2, TableFlags, table.Size!.Value);
         if (!tableUsable)
         {
             return;

@@ -38,10 +38,31 @@ public struct TableStruct
     /// <summary>
     ///     The size of the overall table, this is used for the table's border to allow scrollable columns with a fixed header.
     /// </summary>
-    public Vector2 Size { get; set; }
+    public Vector2? Size { get; set; }
 
+    /// <summary>
+    ///     Check if every property is properly populated before the <see langword="struct"/> is accessed to create the table.
+    /// </summary>
     public readonly bool IsValid()
     {
-        return !Id.IsNullOrWhitespace() && !Column1Header.IsNullOrWhitespace() && !Column2Header.IsNullOrWhitespace() && Column1Width != 0 && Column2Width != 0 && Column1Content != null && Column2Content != null && Size != Vector2.Zero;
+        return !Id.IsNullOrWhitespace()
+            && !Column1Header.IsNullOrWhitespace()
+            && !Column2Header.IsNullOrWhitespace()
+            && Column1Width != 0
+            && Column2Width != 0
+            && Column1Content != null
+            && Column2Content != null
+            && Size.HasValue;
+    }
+
+    /// <summary>
+    ///     Assign the <paramref name="newSize"/> to the struct's Size if it's not populated, or is different than <paramref name="newSize"/>.
+    /// </summary>
+    public void ResizeIfNeeded(Vector2 newSize)
+    {
+        if (!Size.HasValue || Size.Value != newSize)
+        {
+            Size = newSize;
+        }
     }
 }
