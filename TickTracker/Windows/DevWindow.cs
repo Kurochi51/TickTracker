@@ -3,13 +3,12 @@ using System.Collections.Generic;
 
 using ImGuiNET;
 using Dalamud.Interface.Windowing;
-using Dalamud.Plugin.Services;
 
 namespace TickTracker.Windows;
 
 public class DevWindow : Window
 {
-    public IList<string> PrintLines { get; set; } = new List<string>();
+    private static readonly List<string> PrintLines = [];
 
     public DevWindow() : base("DevWindow")
     {
@@ -27,5 +26,15 @@ public class DevWindow : Window
             ImGui.TextUnformatted(line);
         }
         PrintLines.Clear();
+    }
+
+    public static void Print(string text)
+    {
+        PrintLines.Add(text);
+    }
+
+    public static void Separator()
+    {
+        PrintLines.Add("--------------------------");
     }
 }
