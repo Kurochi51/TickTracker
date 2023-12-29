@@ -7,11 +7,11 @@ using System.Collections.Concurrent;
 
 using ImGuiNET;
 using Dalamud.Plugin;
+using Dalamud.Interface;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Utility.Raii;
 using TickTracker.Structs;
-using Dalamud.Interface.Utility;
-using Dalamud.Interface;
 
 namespace TickTracker.Windows;
 
@@ -56,11 +56,6 @@ public sealed class DebugWindow : Window, IDisposable
         };
 
         pluginInterface.UiBuilder.AfterBuildFonts += QueueColumnWidthChange;
-    }
-
-    public void Dispose()
-    {
-        pluginInterface.UiBuilder.AfterBuildFonts -= QueueColumnWidthChange;
     }
 
     public override void OnClose()
@@ -293,5 +288,10 @@ public sealed class DebugWindow : Window, IDisposable
     private void QueueColumnWidthChange()
     {
         fontChange = true;
+    }
+
+    public void Dispose()
+    {
+        pluginInterface.UiBuilder.AfterBuildFonts -= QueueColumnWidthChange;
     }
 }

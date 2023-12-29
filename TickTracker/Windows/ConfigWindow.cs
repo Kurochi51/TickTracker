@@ -5,8 +5,6 @@ using ImGuiNET;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility.Raii;
-using Dalamud.Interface.Utility;
-using Dalamud.Plugin.Services;
 using Dalamud.Plugin;
 
 namespace TickTracker.Windows;
