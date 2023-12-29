@@ -8,7 +8,7 @@ namespace TickTracker.Windows;
 
 public class DevWindow : Window
 {
-    private static IList<string> PrintLines { get; set; } = new List<string>();
+    private static readonly List<string> PrintLines = new();
 
     public DevWindow() : base("DevWindow")
     {
