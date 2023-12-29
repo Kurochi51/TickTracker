@@ -203,7 +203,7 @@ public sealed class DebugWindow : Window, IDisposable
     {
         if (!table.IsValid())
         {
-            ImGui.TextUnformatted($"{table.Id} has an invalid member.\n{table}");
+            ImGui.TextUnformatted($"{table.Id} has an invalid member.");
             return;
         }
 
