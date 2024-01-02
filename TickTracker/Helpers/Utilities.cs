@@ -67,10 +67,6 @@ public partial class Utilities(DalamudPluginInterface _pluginInterface, Configur
     /// </summary>
     public bool WindowCondition(WindowType window)
     {
-        if (!config.PluginEnabled)
-        {
-            return false;
-        }
         try
         {
             var DisplayThisWindow = window switch

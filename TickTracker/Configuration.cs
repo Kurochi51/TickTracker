@@ -8,7 +8,6 @@ namespace TickTracker;
 public class Configuration : IPluginConfiguration
 {
     public int Version { get; set; } = 0;
-    public bool PluginEnabled { get; set; } = true;
     public bool LockBar { get; set; } = false;
     public bool HideOutOfCombat { get; set; } = false;
     public bool AlwaysShowInDuties { get; set; } = false;
