@@ -397,7 +397,7 @@ public sealed class Plugin : IDalamudPlugin
                 return false;
             }
         }
-        return config.PluginEnabled;
+        return true;
     }
 
     private unsafe void UpdateBarState(PlayerCharacter player)
@@ -417,8 +417,8 @@ public sealed class Plugin : IDalamudPlugin
                             (config.AlwaysShowInDuties && utilities.InDuty()) || player.CurrentMp != player.MaxMp;
         var hideForMeleeRangedDPS = (altJobType is MeleeDPS or PhysRangedDPS || (altJobType is NonCombatJob && jobID is PugilistID or LancerID or ArcherID)) && config.HideMpBarOnMeleeRanged;
         var hideForGPBar = jobType is DiscipleOfTheLand && config.GPVisible;
-        HPBarWindow.IsOpen = shouldShowHPBar;
-        MPBarWindow.IsOpen = shouldShowMPBar && !hideForMeleeRangedDPS && !hideForGPBar;
+        HPBarWindow.IsOpen = shouldShowHPBar || !config.LockBar;
+        MPBarWindow.IsOpen = (shouldShowMPBar && !hideForMeleeRangedDPS && !hideForGPBar) || !config.LockBar;
         GPBarWindow.IsOpen = (jobType is DiscipleOfTheLand && (!config.HideOnFullResource || (player.CurrentGp != player.MaxGp)) && config.GPVisible) || !config.LockBar;
     }
 
@@ -449,7 +449,7 @@ public sealed class Plugin : IDalamudPlugin
     /// </summary>
     private unsafe void CheckBarCollision(AddonEvent type, AddonArgs args)
     {
-        if (!config.CollisionDetection || (config.DisableCollisionInCombat && condition[ConditionFlag.InCombat]))
+        if (!config.CollisionDetection || (config.DisableCollisionInCombat && condition[ConditionFlag.InCombat]) || !config.LockBar)
         {
             return;
         }
@@ -469,19 +469,20 @@ public sealed class Plugin : IDalamudPlugin
     private unsafe void DevWindowThings(PlayerCharacter? player, double currentTime, BarWindowBase window)
     {
         DevWindow.IsOpen = true;
+        var cultureFormat = System.Globalization.CultureInfo.InvariantCulture;
         if (player is not null)
         {
             DevWindow.Print(window.WindowName + ": " + player.CurrentHp.ToString() + " / " + player.MaxHp.ToString());
         }
-        DevWindow.Print("Current Time: " + currentTime.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        DevWindow.Print("Current Time: " + currentTime.ToString(cultureFormat));
         DevWindow.Print("RegenActive: " + window.RegenActive.ToString());
-        DevWindow.Print("Progress: " + window.Progress.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        DevWindow.Print("NormalTick: " + window.Tick.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        DevWindow.Print("Progress: " + window.Progress.ToString(cultureFormat));
+        DevWindow.Print("NormalTick: " + window.Tick.ToString(cultureFormat));
         DevWindow.Print("NormalUpdate: " + window.TickUpdate.ToString());
-        DevWindow.Print("Sync Value: " + syncValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        DevWindow.Print("Regen Value: " + regenValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        DevWindow.Print("Fast Value: " + fastValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        DevWindow.Print("Swapchain resolution: " + Resolution.X + "x" + Resolution.Y);
+        DevWindow.Print("Sync Value: " + syncValue.ToString(cultureFormat));
+        DevWindow.Print("Regen Value: " + regenValue.ToString(cultureFormat));
+        DevWindow.Print("Fast Value: " + fastValue.ToString(cultureFormat));
+        DevWindow.Print("Swapchain resolution: " + Resolution.X.ToString(cultureFormat) + "x" + Resolution.Y.ToString(cultureFormat));
     }
 #endif
 

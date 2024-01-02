@@ -100,10 +100,6 @@ public partial class Utilities
     /// </summary>
     public bool WindowCondition(WindowType window)
     {
-        if (!config.PluginEnabled)
-        {
-            return false;
-        }
         try
         {
             var DisplayThisWindow = window switch
