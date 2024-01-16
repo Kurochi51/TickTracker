@@ -201,15 +201,19 @@ public partial class Utilities
     /// or <see cref="TerritoryIntendedUseType.Diadem"/>, otherwise <see langword="false"/>.</returns>
     public bool InIgnoredInstances()
     {
-        var area = dataManager.GetExcelSheet<TerritoryType>()!.GetRow(clientState.TerritoryType);
-        return area?.TerritoryIntendedUse is (byte)TerritoryIntendedUseType.IslandSanctuary or (byte)TerritoryIntendedUseType.Diadem;
+        var territory = RetrieveSheet<TerritoryType>()?.GetRow(clientState.TerritoryType);
+        if (territory is null)
+        {
+            return false;
+        }
+        return (TerritoryIntendedUseType)territory.TerritoryIntendedUse is TerritoryIntendedUseType.IslandSanctuary or TerritoryIntendedUseType.Diadem;
     }
 
     /// <summary>
     ///     Checks the player's <see cref="ConditionFlag" /> for different cutscene flags.
     /// </summary>
     /// <returns><see langword="true"/> if any matching flag is set, otherwise <see langword="false"/>.</returns>
-    public bool InCustcene()
+    public bool InCutscene()
         => condition[ConditionFlag.OccupiedInCutSceneEvent] || condition[ConditionFlag.WatchingCutscene] || condition[ConditionFlag.WatchingCutscene78] || condition[ConditionFlag.Occupied38];
 
     /// <summary>
@@ -224,12 +228,16 @@ public partial class Utilities
     /// </summary>
     public unsafe bool IsTarget(PlayerCharacter targetCharacter, Character* sourceCharacter)
     {
-        ITuple sourceTarget = (sourceCharacter->GetCastInfo()->CastTargetID, sourceCharacter->GetSoftTargetId().ObjectID, sourceCharacter->GetTargetId(), sourceCharacter->LookTargetId.ObjectID);
+        ITuple sourceTarget = (sourceCharacter->GetCastInfo()->CastTargetID, sourceCharacter->GetSoftTargetId().ObjectID, sourceCharacter->GetTargetId(), sourceCharacter->Gaze.Controller.GazesSpan[0].TargetInfo.TargetId.ObjectID);
         var targetID = (object)targetCharacter.ObjectId;
         for (var i = 0; i < sourceTarget.Length; i++)
         {
-            var sourceTargetID = sourceTarget[i]; // 3758096384 which is E000000 means that the target isn't set
-            if (sourceTargetID is not null && sourceTargetID.Equals(targetID))
+            var sourceTargetID = sourceTarget[i];
+            if (sourceTargetID is null or 0xE0000000)
+            {
+                continue;
+            }
+            if (sourceTargetID.Equals(targetID))
             {
                 return true;
             }
@@ -255,10 +263,22 @@ public partial class Utilities
         var addonBottomLeft = (addonPos.X, Y: addonPos.Y + addonSize.height);
         var addonBottomRight = (X: addonPos.X + addonSize.width, Y: addonPos.Y + addonSize.height);
 
-        var topLeftCollision = topLeft.X > addonTopLeft.X && topLeft.X < addonTopRight.X && topLeft.Y > addonTopLeft.Y && topLeft.Y < addonBottomLeft.Y;
-        var topRightCollision = topRight.X < addonTopRight.X && topRight.X > addonTopLeft.X && topRight.Y > addonTopRight.Y && topRight.Y < addonBottomRight.Y;
-        var bottomLeftCollision = bottomLeft.X > addonBottomLeft.X && bottomLeft.X < addonBottomRight.X && bottomLeft.Y < addonBottomLeft.Y && bottomLeft.Y > addonTopLeft.Y;
-        var bottomRightCollision = bottomRight.X < addonBottomRight.X && bottomRight.X > addonBottomLeft.X && bottomRight.Y < addonBottomRight.Y && bottomRight.Y > addonTopRight.Y;
+        var topLeftCollision = topLeft.X > addonTopLeft.X
+            && topLeft.X < addonTopRight.X
+            && topLeft.Y > addonTopLeft.Y
+            && topLeft.Y < addonBottomLeft.Y;
+        var topRightCollision = topRight.X < addonTopRight.X
+            && topRight.X > addonTopLeft.X
+            && topRight.Y > addonTopRight.Y
+            && topRight.Y < addonBottomRight.Y;
+        var bottomLeftCollision = bottomLeft.X > addonBottomLeft.X
+            && bottomLeft.X < addonBottomRight.X
+            && bottomLeft.Y < addonBottomLeft.Y
+            && bottomLeft.Y > addonTopLeft.Y;
+        var bottomRightCollision = bottomRight.X < addonBottomRight.X
+            && bottomRight.X > addonBottomLeft.X
+            && bottomRight.Y < addonBottomRight.Y
+            && bottomRight.Y > addonTopRight.Y;
 
         return topLeftCollision || topRightCollision || bottomLeftCollision || bottomRightCollision;
     }
@@ -266,16 +286,16 @@ public partial class Utilities
     /// <summary>
     ///     Spawn a <see cref="Task"/> that checks if the <see cref="ConditionFlag"/> for loading is present every polling period.
     /// </summary>
-    public async Task Loading(long pollingPeriodMiliseconds)
+    public async Task Loading(long pollingPeriodMilliseconds)
     {
         var loadingTimer = new Stopwatch();
         var loading = condition[ConditionFlag.BetweenAreas] || condition[ConditionFlag.BetweenAreas51];
         loadingTimer.Start();
         while (loading)
         {
-            if (loadingTimer.ElapsedMilliseconds <= pollingPeriodMiliseconds)
+            if (loadingTimer.ElapsedMilliseconds <= pollingPeriodMilliseconds)
             {
-                var remainingTime = pollingPeriodMiliseconds - loadingTimer.ElapsedMilliseconds;
+                var remainingTime = pollingPeriodMilliseconds - loadingTimer.ElapsedMilliseconds;
                 await Task.Delay((int)remainingTime).ConfigureAwait(false);
                 loadingTimer.Restart();
             }

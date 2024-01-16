@@ -207,7 +207,7 @@ public sealed class Plugin : IDalamudPlugin
                 HPBarWindow.IsOpen = MPBarWindow.IsOpen = GPBarWindow.IsOpen = false;
                 return;
             }
-            if (!NameplateAddon->IsVisible || utilities.InCustcene() || player.IsDead)
+            if (!NameplateAddon->IsVisible || utilities.InCutscene() || player.IsDead)
             {
                 HPBarWindow.IsOpen = MPBarWindow.IsOpen = GPBarWindow.IsOpen = false;
                 return;
@@ -400,7 +400,7 @@ public sealed class Plugin : IDalamudPlugin
         return true;
     }
 
-    private unsafe void UpdateBarState(PlayerCharacter player)
+    private void UpdateBarState(PlayerCharacter player)
     {
         var jobType = player.ClassJob.GameData?.ClassJobCategory.Row ?? 0;
         var jobID = player.ClassJob.Id;
@@ -473,6 +473,12 @@ public sealed class Plugin : IDalamudPlugin
         if (player is not null)
         {
             DevWindow.Print(window.WindowName + ": " + player.CurrentHp.ToString() + " / " + player.MaxHp.ToString());
+            var csPlayer = *(FFXIVClientStructs.FFXIV.Client.Game.Character.Character*)player.Address;
+            var csName = Dalamud.Memory.MemoryHelper.ReadStringNullTerminated((nint)csPlayer.GameObject.GetName());
+            var shieldValue = csPlayer.CharacterData.ShieldValue * csPlayer.CharacterData.MaxHealth / 100;
+            DevWindow.Print("Possible shield values for " + (csName ?? "unknown") + " of " + shieldValue);
+            DevWindow.Print("TargetId field: " + csPlayer.TargetId.ObjectID);
+            DevWindow.Print("GetTargetId method: " + csPlayer.GetTargetId());
         }
         DevWindow.Print("Current Time: " + currentTime.ToString(cultureFormat));
         DevWindow.Print("RegenActive: " + window.RegenActive.ToString());

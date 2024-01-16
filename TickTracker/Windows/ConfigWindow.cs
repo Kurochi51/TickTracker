@@ -61,11 +61,7 @@ public class ConfigWindow : Window
             return;
         }
         ImGui.Spacing();
-        var disabled = false;
-        if (!config.HPVisible)
-        {
-            disabled = true;
-        }
+        var disabled = !config.HPVisible;
 
         EditConfigProperty("Show HP Bar", config, c => c.HPVisible, (c, value) => c.HPVisible = value, checkbox: true);
         ImGui.Spacing();
@@ -98,11 +94,7 @@ public class ConfigWindow : Window
             return;
         }
         ImGui.Spacing();
-        var disabled = false;
-        if (!config.MPVisible)
-        {
-            disabled = true;
-        }
+        var disabled = !config.MPVisible;
 
         EditConfigProperty("Show MP Bar", config, c => c.MPVisible, (c, value) => c.MPVisible = value, checkbox: true);
         ImGui.BeginDisabled(disabled);
@@ -139,11 +131,7 @@ public class ConfigWindow : Window
             return;
         }
         ImGui.Spacing();
-        var disabled = false;
-        if (!config.GPVisible)
-        {
-            disabled = true;
-        }
+        var disabled = !config.GPVisible;
 
         EditConfigProperty("Show GP Bar", config, c => c.GPVisible, (c, value) => c.GPVisible = value, checkbox: true);
         ImGui.SameLine();
@@ -328,11 +316,11 @@ public class ConfigWindow : Window
         var change = false;
         var x = (int)vector.X;
         var y = (int)vector.Y;
-        var minValue = 0;
-        if (size)
+        var minValue = size switch
         {
-            minValue = 32;
-        }
+            true => 32,
+            _ => 0,
+        };
         if (disabled)
         {
             ImGui.BeginDisabled();
