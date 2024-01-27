@@ -20,12 +20,7 @@ public class MPBar : BarWindowBase
     public override void Draw()
     {
         UpdateWindow();
-        if (TickHalted)
-        {
-            Progress = PreviousProgress;
-        }
         DrawProgress(Progress, config.MPBarBackgroundColor, config.MPBarFillColor, config.MPBarBorderColor, config.MPIconColor);
-        PreviousProgress = Progress;
     }
 
     private void UpdateWindow()

@@ -14,7 +14,9 @@ public class Configuration : IPluginConfiguration
     public bool AlwaysShowWithHostileTarget { get; set; } = false;
     public bool AlwaysShowInCombat { get; set; } = false;
     public bool HPVisible { get; set; } = true;
+    public bool HPNativeUiVisible { get; set; } = false;
     public bool MPVisible { get; set; } = true;
+    public bool MPNativeUiVisible { get; set; }
     public bool GPVisible { get; set; } = true;
     public bool HideOnFullResource { get; set; } = false;
     public bool DisableCollisionInCombat { get; set; } = false;
@@ -26,6 +28,7 @@ public class Configuration : IPluginConfiguration
     public Vector4 HPBarBackgroundColor { get; set; } = new(0f, 0f, 0f, 1f);
     public Vector4 HPBarFillColor { get; set; } = new(0.276f, 0.8f, 0.24f, 1f);
     public Vector4 HPBarBorderColor { get; set; } = new(0.246f, 0.262f, 0.270f, 1f);
+    public Vector4 HPNativeUiColor { get; set; } = new(0f, 0.570f, 0.855f, 1f);
     public Vector4 HPIconColor { get; set; } = new(1f, 1f, 1f, 1f);
 
     public Vector2 MPBarPosition { get; set; } = new(900, 500);
@@ -33,6 +36,7 @@ public class Configuration : IPluginConfiguration
     public Vector4 MPBarBackgroundColor { get; set; } = new(0f, 0f, 0f, 1f);
     public Vector4 MPBarFillColor { get; set; } = new(0.753f, 0.271f, 0.482f, 1f);
     public Vector4 MPBarBorderColor { get; set; } = new(0.246f, 0.262f, 0.270f, 1f);
+    public Vector4 MPNativeUiColor { get; set; } = new(0f, 0.570f, 0.855f, 1f);
     public Vector4 MPIconColor { get; set; } = new(1f, 1f, 1f, 1f);
 
     public Vector2 GPBarPosition { get; set; } = new(750, 400);

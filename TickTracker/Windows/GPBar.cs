@@ -20,12 +20,7 @@ public class GPBar : BarWindowBase
     public override void Draw()
     {
         UpdateWindow();
-        if (TickHalted)
-        {
-            Progress = PreviousProgress;
-        }
         DrawProgress(Progress, config.GPBarBackgroundColor, config.GPBarFillColor, config.GPBarBorderColor, config.GPIconColor);
-        PreviousProgress = Progress;
     }
 
     private void UpdateWindow()

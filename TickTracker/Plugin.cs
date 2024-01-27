@@ -85,16 +85,21 @@ public sealed class Plugin : IDalamudPlugin
     private const string CommandName = "/tick";
 
     private const float RegularTickInterval = 3, FastTickInterval = 1.5f;
-    private const uint DiscipleOfTheLand = 32, PugilistID = 2, LancerID = 4, ArcherID = 5;
+    private const uint DiscipleOfTheLand = 32, PugilistId = 2, LancerId = 4, ArcherId = 5, HPGaugeNodeId = 3, MPGaugeNodeId = 4, ParamFrameImageNode = 4;
     private const byte NonCombatJob = 0, MeleeDPS = 3, PhysRangedDPS = 4;
 
     private readonly List<BarWindowBase> barWindows;
+    private readonly uint mpTickerImageID = NativeUi.Get("TickerImageMP");
+    private readonly uint hpTickerImageID = NativeUi.Get("TickerImageHP");
+
     private double syncValue, regenValue, fastValue;
-    private bool finishedLoading;
+    private bool finishedLoading, nativeHpBarCreationFailed, nativeMpBarCreationFailed;
     private bool syncAvailable = true, nullSheet = true;
     private uint lastHPValue, lastMPValue, lastGPValue;
     private Task? loadingTask;
     private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
+    private unsafe AtkUnitBase* ParamWidget => (AtkUnitBase*)gameGui.GetAddonByName("_ParameterWidget");
+    private unsafe AtkImageNode* hpTicker, mpTicker;
 
     public Plugin(DalamudPluginInterface _pluginInterface,
         IClientState _clientState,
@@ -150,6 +155,7 @@ public sealed class Plugin : IDalamudPlugin
         clientState.TerritoryChanged += TerritoryChanged;
         gameConfig.SystemChanged += CheckResolutionChange;
         addonLifecycle.RegisterListener(AddonEvent.PostUpdate, addonsLookup, CheckBarCollision);
+        addonLifecycle.RegisterListener(AddonEvent.PreFinalize, "_ParameterWidget", NativeUiDisposeListener);
 
         _ = Task.Run(InitializeLuminaSheet);
         InitializeResolution();
@@ -189,7 +195,7 @@ public sealed class Plugin : IDalamudPlugin
     private void OnFrameworkUpdate(IFramework _framework)
     {
 #if DEBUG
-        DevWindowThings(clientState?.LocalPlayer, (DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds, HPBarWindow);
+        DevWindowThings(clientState?.LocalPlayer, (DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds, MPBarWindow);
 #endif
         if (clientState is { IsLoggedIn: false } or { IsPvPExcludingDen: true } || nullSheet)
         {
@@ -199,19 +205,19 @@ public sealed class Plugin : IDalamudPlugin
         {
             return;
         }
-
         unsafe
         {
-            if (!PluginEnabled(player) || !utilities.IsAddonReady(NameplateAddon))
+            if (!PluginEnabled(player) || utilities.InCutscene() || player.IsDead)
             {
                 HPBarWindow.IsOpen = MPBarWindow.IsOpen = GPBarWindow.IsOpen = false;
                 return;
             }
-            if (!NameplateAddon->IsVisible || utilities.InCutscene() || player.IsDead)
+            if (!utilities.IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible)
             {
                 HPBarWindow.IsOpen = MPBarWindow.IsOpen = GPBarWindow.IsOpen = false;
                 return;
             }
+            DrawNativeNodes();
         }
         UpdateBarState(player);
         var now = (DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds;
@@ -272,6 +278,13 @@ public sealed class Plugin : IDalamudPlugin
 
     private void UpdateTick(BarWindowBase window, double currentTime, uint currentResource, bool fullResource, uint lastResource)
     {
+        window.PreviousProgress = window.Progress;
+        if (window.TickHalted)
+        {
+            window.Tick = currentTime;
+            window.Progress = window.PreviousProgress;
+            return;
+        }
         if (window.RegenActive)
         {
             window.Tick = fullResource ? regenValue : fastValue;
@@ -279,7 +292,7 @@ public sealed class Plugin : IDalamudPlugin
             window.Progress = (currentTime - window.Tick) / (fullResource ? RegularTickInterval : FastTickInterval);
             return;
         }
-        if (fullResource || finishedLoading || window.TickHalted)
+        if (fullResource || finishedLoading)
         {
             window.Tick = syncValue;
         }
@@ -415,10 +428,10 @@ public sealed class Plugin : IDalamudPlugin
                             (config.AlwaysShowInCombat && inCombat) ||
                             (config.AlwaysShowWithHostileTarget && Enemy) ||
                             (config.AlwaysShowInDuties && utilities.InDuty()) || player.CurrentMp != player.MaxMp;
-        var hideForMeleeRangedDPS = (altJobType is MeleeDPS or PhysRangedDPS || (altJobType is NonCombatJob && jobID is PugilistID or LancerID or ArcherID)) && config.HideMpBarOnMeleeRanged;
+        var hideForMeleeRangedDPS = (altJobType is MeleeDPS or PhysRangedDPS || (altJobType is NonCombatJob && jobID is PugilistId or LancerId or ArcherId)) && config.HideMpBarOnMeleeRanged;
         var hideForGPBar = jobType is DiscipleOfTheLand && config.GPVisible;
-        HPBarWindow.IsOpen = shouldShowHPBar || !config.LockBar;
-        MPBarWindow.IsOpen = (shouldShowMPBar && !hideForMeleeRangedDPS && !hideForGPBar) || !config.LockBar;
+        HPBarWindow.IsOpen = (shouldShowHPBar && config.HPVisible) || !config.LockBar;
+        MPBarWindow.IsOpen = (shouldShowMPBar && !hideForMeleeRangedDPS && !hideForGPBar && config.MPVisible) || !config.LockBar;
         GPBarWindow.IsOpen = (jobType is DiscipleOfTheLand && (!config.HideOnFullResource || (player.CurrentGp != player.MaxGp)) && config.GPVisible) || !config.LockBar;
     }
 
@@ -473,13 +486,10 @@ public sealed class Plugin : IDalamudPlugin
         if (player is not null)
         {
             DevWindow.Print(window.WindowName + ": " + player.CurrentHp.ToString() + " / " + player.MaxHp.ToString());
-            var csPlayer = *(FFXIVClientStructs.FFXIV.Client.Game.Character.Character*)player.Address;
-            var csName = Dalamud.Memory.MemoryHelper.ReadStringNullTerminated((nint)csPlayer.GameObject.GetName());
-            var shieldValue = csPlayer.CharacterData.ShieldValue * csPlayer.CharacterData.MaxHealth / 100;
-            DevWindow.Print("Possible shield values for " + (csName ?? "unknown") + " of " + shieldValue);
-            DevWindow.Print("TargetId field: " + csPlayer.TargetId.ObjectID);
-            DevWindow.Print("GetTargetId method: " + csPlayer.GetTargetId());
+            var shieldValue = player.ShieldPercentage * player.MaxHp / 100;
+            DevWindow.Print("Possible shield values for " + (player.Name.TextValue ?? "unknown") + " of " + shieldValue);
         }
+        DevWindow.Print($"Window open? {window.IsOpen}");
         DevWindow.Print("Current Time: " + currentTime.ToString(cultureFormat));
         DevWindow.Print("RegenActive: " + window.RegenActive.ToString());
         DevWindow.Print("Progress: " + window.Progress.ToString(cultureFormat));
@@ -492,6 +502,125 @@ public sealed class Plugin : IDalamudPlugin
     }
 #endif
 
+    private unsafe void DrawNativeNodes()
+    {
+        if (!config.HPNativeUiVisible)
+        {
+            NativeUiDispose(ref hpTicker, ParamWidget, HPGaugeNodeId);
+        }
+        if (!config.MPNativeUiVisible)
+        {
+            NativeUiDispose(ref mpTicker, ParamWidget, MPGaugeNodeId);
+        }
+        if (!nativeHpBarCreationFailed && config.HPNativeUiVisible)
+        {
+            HandleNativeNode(HPGaugeNodeId,
+                ParamFrameImageNode,
+                hpTickerImageID,
+                config.HPNativeUiVisible,
+                HPBarWindow.Progress,
+                config.HPNativeUiColor,
+                ref nativeHpBarCreationFailed,
+                ref hpTicker);
+        }
+        if (!nativeMpBarCreationFailed && config.MPNativeUiVisible)
+        {
+            HandleNativeNode(MPGaugeNodeId,
+                ParamFrameImageNode,
+                mpTickerImageID,
+                config.MPNativeUiVisible,
+                MPBarWindow.Progress,
+                config.MPNativeUiColor,
+                ref nativeMpBarCreationFailed,
+                ref mpTicker);
+        }
+    }
+
+    private unsafe void HandleNativeNode(uint gaugeBarNodeId, uint frameImageId, uint tickerImageId, bool visibility, double progress, Vector4 Color, ref bool failed, ref AtkImageNode* tickerNode)
+    {
+        if (!utilities.IsAddonReady(ParamWidget) || ParamWidget->UldManager.LoadedState != AtkLoadState.Loaded || !ParamWidget->IsVisible)
+        {
+            return;
+        }
+        if (tickerNode is not null)
+        {
+            tickerNode->WrapMode = 1;
+            tickerNode->AtkResNode.SetWidth(progress > 0 ? (ushort)((progress * 152) + 4) : (ushort)0);
+            tickerNode->AtkResNode.MultiplyRed = (byte)(255 * Color.X);
+            tickerNode->AtkResNode.MultiplyGreen = (byte)(255 * Color.Y);
+            tickerNode->AtkResNode.MultiplyBlue = (byte)(255 * Color.Z);
+            tickerNode->AtkResNode.SetAlpha((byte)(255 * Color.W));
+            tickerNode->AtkResNode.ToggleVisibility(visibility);
+            return;
+        }
+        var gaugeBarNode = ParamWidget->GetNodeById(gaugeBarNodeId);
+        if (gaugeBarNode is null)
+        {
+            log.Error("Couldn't locate the gauge bar node {nodeId}.", gaugeBarNodeId);
+            return;
+        }
+        var gaugeBar = gaugeBarNode->GetComponent();
+        if (gaugeBar is null)
+        {
+            log.Error("Couldn't retrieve the ComponentBase of the gauge bar.");
+            return;
+        }
+        tickerNode = NativeUi.GetNodeByID<AtkImageNode>(&gaugeBar->UldManager, tickerImageId);
+        var frameImageNode = NativeUi.GetNodeByID<AtkImageNode>(&gaugeBar->UldManager, frameImageId);
+
+        if (frameImageNode is null)
+        {
+            log.Error("Couldn't retrieve the target ImageNode of the gauge bar.");
+            return;
+        }
+
+        if (tickerNode is null && !failed)
+        {
+            tickerNode = NativeUi.CreateImageNode(0,
+                pluginInterface.UiBuilder.LoadUld("ui/uld/parameter.uld"),
+                0,
+                tickerImageId,
+                "ui/uld/Parameter_Gauge_hr1.tex",
+                0,
+                gaugeBarNode->GetAsAtkComponentNode(),
+                (AtkResNode*)frameImageNode,
+                visibility);
+            if (tickerNode is null)
+            {
+                failed = true;
+            }
+        }
+    }
+
+    private unsafe void NativeUiDisposeListener(AddonEvent type, AddonArgs args)
+    {
+        var currentAddon = (AtkUnitBase*)args.Addon;
+        log.Debug("Listener dispose triggered");
+        NativeUiDispose(ref hpTicker, currentAddon, HPGaugeNodeId);
+        NativeUiDispose(ref mpTicker, currentAddon, MPGaugeNodeId);
+    }
+
+    private unsafe void NativeUiDispose(ref AtkImageNode* atkImageNode, AtkUnitBase* baseWidget, uint componentBaseId)
+    {
+        if (!utilities.IsAddonReady(baseWidget) && atkImageNode is not null)
+        {
+            log.Error("Couldn't dipose of nodes due to addon unavailability.");
+            return;
+        }
+        if (atkImageNode is not null)
+        {
+            NativeUi.UnlinkNode(atkImageNode, baseWidget->GetNodeById(componentBaseId)->GetComponent());
+            NativeUi.FreeImageComponents(ref atkImageNode);
+            atkImageNode = null;
+        }
+    }
+
+    private unsafe void NativeUiDispose()
+    {
+        NativeUiDispose(ref hpTicker, ParamWidget, HPGaugeNodeId);
+        NativeUiDispose(ref mpTicker, ParamWidget, MPGaugeNodeId);
+    }
+
     public void Dispose()
     {
         receiveActorUpdateHook?.Disable();
@@ -500,7 +629,9 @@ public sealed class Plugin : IDalamudPlugin
         DebugWindow.Dispose();
         WindowSystem.RemoveAllWindows();
         framework.Update -= OnFrameworkUpdate;
+        addonLifecycle.UnregisterListener(AddonEvent.PreFinalize, "_ParameterWidget", NativeUiDisposeListener);
         addonLifecycle.UnregisterListener(AddonEvent.PostUpdate, addonsLookup, CheckBarCollision);
+        NativeUiDispose();
         pluginInterface.UiBuilder.Draw -= DrawUI;
         clientState.TerritoryChanged -= TerritoryChanged;
         gameConfig.SystemChanged -= CheckResolutionChange;

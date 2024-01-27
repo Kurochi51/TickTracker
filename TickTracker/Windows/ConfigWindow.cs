@@ -14,6 +14,7 @@ public class ConfigWindow : Window
 {
     private readonly Vector4 defaultDarkGrey = new(0.246f, 0.262f, 0.270f, 1f); // #3F4345
     private readonly Vector4 defaultBlue = new(0.169f, 0.747f, 0.892f, 1f); // #2BBEE3
+    private readonly Vector4 defaultNativeBlue = new(0f, 0.570f, 0.855f, 1f);
     private readonly Vector4 defaultPink = new(0.753f, 0.271f, 0.482f, 1f); // #C0457B
     private readonly Vector4 defaultGreen = new(0.276f, 0.8f, 0.24f, 1f); // #46CC3D
     private readonly Vector4 defaultBlack = new(0f, 0f, 0f, 1f); // #000000
@@ -64,6 +65,9 @@ public class ConfigWindow : Window
         var disabled = !config.HPVisible;
 
         EditConfigProperty("Show HP Bar", config, c => c.HPVisible, (c, value) => c.HPVisible = value, checkbox: true);
+        EditConfigProperty("Use NativeUi HP Bar", config, c => c.HPNativeUiVisible, (c, value) => c.HPNativeUiVisible = value, checkbox: true);
+        ImGui.SameLine();
+        ImGuiComponents.HelpMarker("This will make the frame around the game's native HP Bar to fill up to represent the tick progress.");
         ImGui.Spacing();
         DrawOptionsHP(ColorEditFlags, disabled);
         ImGui.Spacing();
@@ -97,6 +101,9 @@ public class ConfigWindow : Window
         var disabled = !config.MPVisible;
 
         EditConfigProperty("Show MP Bar", config, c => c.MPVisible, (c, value) => c.MPVisible = value, checkbox: true);
+        EditConfigProperty("Use NativeUi MP Bar", config, c => c.MPNativeUiVisible, (c, value) => c.MPNativeUiVisible = value, checkbox: true);
+        ImGui.SameLine();
+        ImGuiComponents.HelpMarker("This will make the frame around the game's native MP Bar to fill up to represent the tick progress.");
         ImGui.BeginDisabled(disabled);
         EditConfigProperty("Hide MP bar on melee and ranged DPS", config, c => c.HideMpBarOnMeleeRanged, (c, value) => c.HideMpBarOnMeleeRanged = value, checkbox: true);
         ImGui.EndDisabled();
@@ -240,6 +247,21 @@ public class ConfigWindow : Window
         {
             ImGui.EndDisabled();
         }
+
+        if (!config.HPNativeUiVisible)
+        {
+            ImGui.BeginDisabled();
+        }
+
+        EditConfigProperty("HP Native UI Color", config, c => c.HPNativeUiColor, (c, value) => c.HPNativeUiColor = value, checkbox: false, button: false, colorEdit: true, flags);
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(resetButtonX);
+        EditConfigProperty("Reset##ResetHPNativeUIColor", config, c => c.HPNativeUiColor, (c, value) => c.HPNativeUiColor = value, checkbox: false, button: true, colorEdit: false, flags, defaultNativeBlue);
+
+        if (!config.HPNativeUiVisible)
+        {
+            ImGui.EndDisabled();
+        }
     }
 
     private void DrawOptionsMP(ImGuiColorEditFlags flags, bool disabled)
@@ -270,6 +292,21 @@ public class ConfigWindow : Window
         EditConfigProperty("Reset##ResetMPIconColor", config, c => c.MPIconColor, (c, value) => c.MPIconColor = value, checkbox: false, button: true, colorEdit: false, flags, defaultWhite);
 
         if (disabled)
+        {
+            ImGui.EndDisabled();
+        }
+
+        if (!config.MPNativeUiVisible)
+        {
+            ImGui.BeginDisabled();
+        }
+
+        EditConfigProperty("MP Native UI Color", config, c => c.MPNativeUiColor, (c, value) => c.MPNativeUiColor = value, checkbox: false, button: false, colorEdit: true, flags);
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(resetButtonX);
+        EditConfigProperty("Reset##ResetMPNativeUIColor", config, c => c.MPNativeUiColor, (c, value) => c.MPNativeUiColor = value, checkbox: false, button: true, colorEdit: false, flags, defaultNativeBlue);
+
+        if (!config.MPNativeUiVisible)
         {
             ImGui.EndDisabled();
         }

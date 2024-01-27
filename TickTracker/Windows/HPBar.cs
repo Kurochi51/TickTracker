@@ -20,12 +20,7 @@ public class HPBar : BarWindowBase
     public override void Draw()
     {
         UpdateWindow();
-        if (TickHalted)
-        {
-            Progress = PreviousProgress;
-        }
         DrawProgress(Progress, config.HPBarBackgroundColor, config.HPBarFillColor, config.HPBarBorderColor, config.HPIconColor);
-        PreviousProgress = Progress;
     }
 
     private void UpdateWindow()

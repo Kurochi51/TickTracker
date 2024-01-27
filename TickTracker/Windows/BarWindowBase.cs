@@ -51,6 +51,7 @@ public abstract class BarWindowBase : Window
     private readonly Vector2 invalidSize = new(0, 0);
     private readonly Vector2 barFillPosOffset = new(1, 1);
     private readonly Vector2 barFillSizeOffset = new(-1, 0);
+    private readonly Vector2 barWindowPadding = new(8, 14);
     private float currentFontSize;
 
     protected BarWindowBase(IClientState _clientState, IPluginLog _pluginLog, Utilities _utilities, Configuration _config, WindowType type, string name) : base(name)
@@ -85,7 +86,6 @@ public abstract class BarWindowBase : Window
             }
             Log.Debug("Size of icons changed.");
         }
-        var barWindowPadding = new Vector2(8, 14);
         Flags = DefaultFlags;
         if (config.LockBar)
         {

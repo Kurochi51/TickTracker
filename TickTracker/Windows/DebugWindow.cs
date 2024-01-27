@@ -2,6 +2,8 @@ using System;
 using System.Text;
 using System.Linq;
 using System.Numerics;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 
@@ -11,6 +13,7 @@ using Dalamud.Interface;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Utility.Raii;
+using Dalamud.Interface.ManagedFontAtlas;
 using TickTracker.Structs;
 
 namespace TickTracker.Windows;
@@ -35,6 +38,8 @@ public sealed class DebugWindow : Window, IDisposable
     public ConcurrentDictionary<uint, string> DisabledManaRegenDictionary { get; set; } = new();
 
     private readonly DalamudPluginInterface pluginInterface;
+    private readonly CancellationTokenSource cts;
+    private readonly CancellationToken cToken;
 
     private readonly List<string> healthRegenList = new();
     private readonly List<string> manaRegenList = new();
@@ -48,13 +53,15 @@ public sealed class DebugWindow : Window, IDisposable
     public DebugWindow(DalamudPluginInterface _pluginInterface) : base("DebugWindow")
     {
         pluginInterface = _pluginInterface;
+        cts = new CancellationTokenSource();
+        cToken = cts.Token;
 
         SizeConstraints = new WindowSizeConstraints
         {
             MinimumSize = new Vector2(400, 500),
             MaximumSize = Plugin.Resolution,
         };
-        pluginInterface.UiBuilder.AfterBuildFonts += QueueColumnWidthChange;
+        pluginInterface.UiBuilder.DefaultFontHandle.ImFontChanged += QueueColumnWidthChange;
     }
 
     public override void OnClose()
@@ -283,13 +290,19 @@ public sealed class DebugWindow : Window, IDisposable
         }
     }
 
-    private void QueueColumnWidthChange()
+    private async void QueueColumnWidthChange(IFontHandle handle)
     {
+        while (!handle.Available && !cToken.IsCancellationRequested)
+        {
+            await Task.Delay((int)TimeSpan.FromSeconds(1).TotalMilliseconds, cToken).ConfigureAwait(false);
+        }
         fontChange = true;
     }
 
     public void Dispose()
     {
-        pluginInterface.UiBuilder.AfterBuildFonts -= QueueColumnWidthChange;
+        pluginInterface.UiBuilder.DefaultFontHandle.ImFontChanged -= QueueColumnWidthChange;
+        cts.Cancel();
+        cts.Dispose();
     }
 }
