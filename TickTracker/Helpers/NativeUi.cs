@@ -87,61 +87,68 @@ public static unsafe class NativeUi
         IMemorySpace.Free(imageNode, (ulong)sizeof(AtkImageNode));
     }
 
-    private static AtkUldPartsList* CreateUldParts(uint UldPartsListID, UldWrapper uld, int partList)
+    private static AtkUldPartsList* CreateAtkUldPartsList(UldWrapper uld, int partListIndex, string texturePath)
     {
         if (!uld.Valid || uld.Uld is null)
         {
             return null;
         }
         var uldFile = uld.Uld;
-        var partCount = uldFile.Parts[partList].PartCount;
+        var uldPartList = uldFile.Parts[partListIndex];
+
         var atkPartsList = (AtkUldPartsList*)IMemorySpace.GetUISpace()->Malloc((ulong)sizeof(AtkUldPartsList), 8);
         if (atkPartsList is null)
         {
             return null;
         }
-        atkPartsList->Id = UldPartsListID;
-        atkPartsList->PartCount = partCount;
-        var atkUldParts = (AtkUldPart*)IMemorySpace.GetUISpace()->Malloc((ulong)(sizeof(AtkUldPart) * partCount), 8);
-        if (atkUldParts is null)
+        atkPartsList->Id = uldPartList.Id;
+        atkPartsList->PartCount = uldPartList.PartCount;
+        var atkUldPart = (AtkUldPart*)IMemorySpace.GetUISpace()->Malloc((ulong)sizeof(AtkUldPart) * atkPartsList->PartCount, 8);
+        if (atkUldPart is null)
         {
             IMemorySpace.Free(atkPartsList, (ulong)sizeof(AtkUldPartsList));
             return null;
         }
-        for (var i = 0; i < partCount; i++)
+        for (var i = 0; i < uldPartList.PartCount; i++)
         {
-            atkUldParts[i].U = uldFile.Parts[partList].Parts[i].U;
-            atkUldParts[i].V = uldFile.Parts[partList].Parts[i].V;
-            atkUldParts[i].Width = uldFile.Parts[partList].Parts[i].W;
-            atkUldParts[i].Height = uldFile.Parts[partList].Parts[i].H;
+            var part = uldPartList.Parts[i];
+            atkUldPart[i].U = part.U;
+            atkUldPart[i].V = part.V;
+            atkUldPart[i].Width = part.W;
+            atkUldPart[i].Height = part.H;
         }
-        atkPartsList->Parts = atkUldParts;
-        var atkUldAsset = (AtkUldAsset*)IMemorySpace.GetUISpace()->Malloc((ulong)(sizeof(AtkUldAsset) * partCount), 8);
+        atkPartsList->Parts = atkUldPart;
+
+        var atkUldAsset = (AtkUldAsset*)IMemorySpace.GetUISpace()->Malloc((ulong)(sizeof(AtkUldAsset) * atkPartsList->PartCount), 8);
         if (atkUldAsset is null)
         {
-            IMemorySpace.Free(atkUldParts, (ulong)(sizeof(AtkUldPart) * partCount));
+            IMemorySpace.Free(atkUldPart, (ulong)sizeof(AtkUldPart) * atkPartsList->PartCount);
             IMemorySpace.Free(atkPartsList, (ulong)sizeof(AtkUldPartsList));
             return null;
         }
-        for (var i = 0; i < partCount; ++i)
+
+        for (var i = 0; i < uldPartList.PartCount; i++)
         {
-            atkUldAsset->Id = NodeIdBase;
-            NodeIdBase += 16;
-            atkUldAsset->AtkTexture.Ctor();
-            atkUldParts[i].UldAsset = &atkUldAsset[i];
+            var partTextureId = uldPartList.Parts[i].TextureId;
+            atkUldAsset[i].Id = partTextureId;
+            atkUldAsset[i].AtkTexture.Ctor();
+            // Technically not a proper call, because the texturePath is blindly passed here
+            // Different parts can belong to different textures
+            atkUldAsset[i].AtkTexture.LoadTexture(texturePath);
+            atkPartsList->Parts[i].UldAsset = &atkUldAsset[i];
         }
 
         return atkPartsList;
     }
 
-    public static AtkImageNode* CreateImageNode(uint UldPartsListID, UldWrapper uld, int partList, uint ImageNodeID, string texturePath, ushort partIndex, AtkComponentNode* parent, AtkResNode* targetNode, bool visibility)
+    public static AtkImageNode* CreateImageNode(UldWrapper uld, int partListIndex, uint ImageNodeID, string texturePath, ushort partIndex, AtkComponentNode* parent, AtkResNode* targetNode, bool visibility)
     {
         var imageNode = IMemorySpace.GetUISpace()->Create<AtkImageNode>();
         if (imageNode is null)
         {
             return null;
         }
-        var atkPartList = CreateUldParts(UldPartsListID, uld, partList);
+        var atkPartList = CreateAtkUldPartsList(uld, partListIndex, texturePath);
         if (atkPartList is null)
         {
             IMemorySpace.Free(imageNode, (ulong)sizeof(AtkImageNode));

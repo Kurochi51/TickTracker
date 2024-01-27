@@ -23,6 +23,7 @@ using Dalamud.Game.ClientState.JobGauge.Types;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using TickTracker.Windows;
 using TickTracker.Helpers;
+using static Lumina.Data.Parsing.Uld.NodeData;
 
 namespace TickTracker;
 
@@ -99,6 +100,7 @@ public sealed class Plugin : IDalamudPlugin
     private Task? loadingTask;
     private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
     private unsafe AtkUnitBase* ParamWidget => (AtkUnitBase*)gameGui.GetAddonByName("_ParameterWidget");
+    private unsafe AtkUnitBase* ContentFinderAddon => (AtkUnitBase*)gameGui.GetAddonByName("ContentsFinder");
     private unsafe AtkImageNode* hpTicker, mpTicker;
 
     public Plugin(DalamudPluginInterface _pluginInterface,
@@ -499,6 +501,72 @@ public sealed class Plugin : IDalamudPlugin
         DevWindow.Print("Regen Value: " + regenValue.ToString(cultureFormat));
         DevWindow.Print("Fast Value: " + fastValue.ToString(cultureFormat));
         DevWindow.Print("Swapchain resolution: " + Resolution.X.ToString(cultureFormat) + "x" + Resolution.Y.ToString(cultureFormat));
+
+        var randomUld = pluginInterface.UiBuilder.LoadUld("ui/uld/Gacha.uld");
+        if (randomUld.Valid)
+        {
+            var uld = randomUld.Uld;
+            var partListCount = uld.Parts.Length;
+            var path = uld.FilePath.Path;
+            DevWindow.Print(path);
+            DevWindow.Print($"Gacha amount of PartLists? {partListCount}");
+            for (var i = 0; i < partListCount; i++)
+            {
+                var currentPartList = uld.Parts[i];
+                DevWindow.Print($"PartList {i} has {currentPartList.PartCount} parts");
+                for (var j = 0; j < currentPartList.PartCount; j++)
+                {
+                    var currentPart = currentPartList.Parts[j];
+                    DevWindow.Print($"Part texture id {currentPart.TextureId}");
+                }
+            }
+        }
+
+        if (!utilities.IsAddonReady(ParamWidget))
+        {
+            return;
+        }
+        var frameImageNode = NativeUi.GetNodeByID<AtkImageNode>(&ParamWidget->GetNodeById(HPGaugeNodeId)->GetComponent()->UldManager, mpTickerImageID);
+        if (frameImageNode is null)
+        {
+            return;
+        }
+        DevWindow.Print($"NodeId: {frameImageNode->AtkResNode.NodeID}\n" +
+            $"Uses partId of {frameImageNode->PartId}\n" +
+            $"Has {frameImageNode->PartsList->PartCount} Parts in PartsList?\n" +
+            $"With partsList id {frameImageNode->PartsList->Id}\n" +
+            $"Parts UldAsset id of {frameImageNode->PartsList->Parts->UldAsset->Id}\n");
+        for ( var i = 0; i < frameImageNode->PartsList->PartCount; i++)
+        {
+            var part = &frameImageNode->PartsList->Parts[i];
+            DevWindow.Print($"AtkUldPart {i} info: Part UldAsset AtkTexture - LoadState {part->UldAsset->AtkTexture.GetLoadState()}" +
+                $" ; Texture ready: {part->UldAsset->AtkTexture.IsTextureReady()}" +
+                $" ; Texture type: {part->UldAsset->AtkTexture.TextureType}" +
+                $" ; Texture.Resource version: {part->UldAsset->AtkTexture.Resource->Version}" +
+                $" ; Texture.Resource pathHash: {part->UldAsset->AtkTexture.Resource->TexPathHash}");
+        }
+
+        /*var contentFinderImageNode = ContentFinderAddon->GetImageNodeById(2);
+        if (contentFinderImageNode is null)
+        {
+            return;
+        }
+        DevWindow.Print(
+            // Seems to be the specific part in the given PartsList
+            $"Uses partId of {contentFinderImageNode->PartId}\n" +
+            // Amount of parts in the PartsList, said parts don't have to be from the same texture
+            $"Has {contentFinderImageNode->PartsList->PartCount} Parts in PartsList\n" +
+            // PartsList that has above counter, and below Parts
+            $"With partsList id {contentFinderImageNode->PartsList->Id}\n" +
+            // .tex Texture id? inside the parent .uld
+            // This seems to corespond with the Texture Id, therefor all parts loaded from the same texture have 
+            $"Parts UldAsset id of {contentFinderImageNode->PartsList->Parts->UldAsset->Id}\n" +
+            $"Texture something {contentFinderImageNode->PartsList->Parts->UldAsset->AtkTexture.Resource->IconID}");
+        for (var i = 0; i < contentFinderImageNode->PartsList->PartCount; i++)
+        {
+            var part = &contentFinderImageNode->PartsList->Parts[i];
+            DevWindow.Print($"AtkUldPart {i} info: Part Height {part->Height} Part Width {part->Width} Part U {part->U} part V {part->V} part UldAsset/Texture id {part->UldAsset->Id}");
+        }*/
     }
 #endif
 
@@ -576,8 +644,7 @@ public sealed class Plugin : IDalamudPlugin
 
         if (tickerNode is null && !failed)
         {
-            tickerNode = NativeUi.CreateImageNode(0,
-                pluginInterface.UiBuilder.LoadUld("ui/uld/parameter.uld"),
+            tickerNode = NativeUi.CreateImageNode(pluginInterface.UiBuilder.LoadUld("ui/uld/parameter.uld"),
                 0,
                 tickerImageId,
                 "ui/uld/Parameter_Gauge_hr1.tex",
