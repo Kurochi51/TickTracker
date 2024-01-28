@@ -11,6 +11,7 @@ public sealed class DevWindow : Window
 {
     private static readonly List<string> PrintLines = new();
     public int partId;
+    public int partListIndex;
 
     public DevWindow() : base("DevWindow")
     {
@@ -28,11 +29,13 @@ public sealed class DevWindow : Window
             ImGui.TextUnformatted(line);
         }
         PrintLines.Clear();
-        ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X / 2);
+        ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X / 3);
         if (ImGui.InputInt("ImageNode PartId", ref partId, 1))
         {
             partId = Math.Clamp(partId, 0, 6);
         }
+        ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X / 3);
+        ImGui.InputInt("ImageNode PartsList Index", ref partListIndex, 1);
     }
 
     public static void Print(string text)

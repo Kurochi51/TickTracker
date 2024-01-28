@@ -23,7 +23,6 @@ using Dalamud.Game.ClientState.JobGauge.Types;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using TickTracker.Windows;
 using TickTracker.Helpers;
-using static Lumina.Data.Parsing.Uld.NodeData;
 
 namespace TickTracker;
 
@@ -88,6 +87,8 @@ public sealed class Plugin : IDalamudPlugin
     private const float RegularTickInterval = 3, FastTickInterval = 1.5f;
     private const uint DiscipleOfTheLand = 32, PugilistId = 2, LancerId = 4, ArcherId = 5, HPGaugeNodeId = 3, MPGaugeNodeId = 4, ParamFrameImageNode = 4;
     private const byte NonCombatJob = 0, MeleeDPS = 3, PhysRangedDPS = 4;
+    private const string ParamWidgetUldPath = "ui/uld/parameter.uld";
+    private const string GatchaUldPath = "ui/uld/Gacha.uld";
 
     private readonly List<BarWindowBase> barWindows;
     private readonly uint mpTickerImageID = NativeUi.Get("TickerImageMP");
@@ -100,7 +101,6 @@ public sealed class Plugin : IDalamudPlugin
     private Task? loadingTask;
     private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
     private unsafe AtkUnitBase* ParamWidget => (AtkUnitBase*)gameGui.GetAddonByName("_ParameterWidget");
-    private unsafe AtkUnitBase* ContentFinderAddon => (AtkUnitBase*)gameGui.GetAddonByName("ContentsFinder");
     private unsafe AtkImageNode* hpTicker, mpTicker;
 
     public Plugin(DalamudPluginInterface _pluginInterface,
@@ -134,6 +134,8 @@ public sealed class Plugin : IDalamudPlugin
             throw new NotSupportedException("Hook not found in current game version. The plugin is non functional.");
         }
         receiveActorUpdateHook.Enable();
+
+        NativeUi.InitServices(_dataManager, log);
 
         config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         utilities = new Utilities(pluginInterface, config, condition, _dataManager, clientState, log);
@@ -502,33 +504,14 @@ public sealed class Plugin : IDalamudPlugin
         DevWindow.Print("Fast Value: " + fastValue.ToString(cultureFormat));
         DevWindow.Print("Swapchain resolution: " + Resolution.X.ToString(cultureFormat) + "x" + Resolution.Y.ToString(cultureFormat));
 
-        var randomUld = pluginInterface.UiBuilder.LoadUld("ui/uld/Gacha.uld");
-        if (randomUld.Valid)
-        {
-            var uld = randomUld.Uld;
-            var partListCount = uld.Parts.Length;
-            var path = uld.FilePath.Path;
-            DevWindow.Print(path);
-            DevWindow.Print($"Gacha amount of PartLists? {partListCount}");
-            for (var i = 0; i < partListCount; i++)
-            {
-                var currentPartList = uld.Parts[i];
-                DevWindow.Print($"PartList {i} has {currentPartList.PartCount} parts");
-                for (var j = 0; j < currentPartList.PartCount; j++)
-                {
-                    var currentPart = currentPartList.Parts[j];
-                    DevWindow.Print($"Part texture id {currentPart.TextureId}");
-                }
-            }
-        }
-
         if (!utilities.IsAddonReady(ParamWidget))
         {
             return;
         }
-        var frameImageNode = NativeUi.GetNodeByID<AtkImageNode>(&ParamWidget->GetNodeById(HPGaugeNodeId)->GetComponent()->UldManager, mpTickerImageID);
+        var frameImageNode = NativeUi.GetNodeByID<AtkImageNode>(&ParamWidget->GetNodeById(MPGaugeNodeId)->GetComponent()->UldManager, mpTickerImageID);
         if (frameImageNode is null)
         {
+            DevWindow.Print("Image Node is... null?");
             return;
         }
         DevWindow.Print($"NodeId: {frameImageNode->AtkResNode.NodeID}\n" +
@@ -619,6 +602,7 @@ public sealed class Plugin : IDalamudPlugin
             tickerNode->AtkResNode.MultiplyBlue = (byte)(255 * Color.Z);
             tickerNode->AtkResNode.SetAlpha((byte)(255 * Color.W));
             tickerNode->AtkResNode.ToggleVisibility(visibility);
+            tickerNode->PartId = (ushort)DevWindow.partId;
             return;
         }
         var gaugeBarNode = ParamWidget->GetNodeById(gaugeBarNodeId);
@@ -644,14 +628,19 @@ public sealed class Plugin : IDalamudPlugin
 
         if (tickerNode is null && !failed)
         {
-            tickerNode = NativeUi.CreateImageNode(pluginInterface.UiBuilder.LoadUld("ui/uld/parameter.uld"),
+            tickerNode = NativeUi.CreateCompleteImageNode(pluginInterface.UiBuilder.LoadUld(GatchaUldPath),
+                tickerImageId,
+                gaugeBarNode->GetAsAtkComponentNode(),
+                (AtkResNode*)frameImageNode,
+                visibility);
+            /*tickerNode = NativeUi.CreateImageNode(pluginInterface.UiBuilder.LoadUld("ui/uld/parameter.uld"),
                 0,
                 tickerImageId,
                 "ui/uld/Parameter_Gauge_hr1.tex",
                 0,
                 gaugeBarNode->GetAsAtkComponentNode(),
                 (AtkResNode*)frameImageNode,
-                visibility);
+                visibility);*/
             if (tickerNode is null)
             {
                 failed = true;

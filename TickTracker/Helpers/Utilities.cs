@@ -18,6 +18,7 @@ using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Interface.Windowing;
 using TickTracker.Enums;
 using TickTracker.Windows;
+using Lumina.Data.Files;
 
 namespace TickTracker.Helpers;
 
