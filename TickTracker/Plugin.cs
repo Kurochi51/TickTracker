@@ -32,26 +32,32 @@ public sealed class Plugin : IDalamudPlugin
     /// <summary>
     /// A <see cref="List{T}"/> of addons to fetch for collision checks.
     /// </summary>
-    private readonly List<string> addonsLookup = new()
-    {
+    private readonly List<string> addonsLookup =
+    [
         "Talk",
         "ActionDetail",
         "ItemDetail",
         "Inventory",
         "Character",
-    };
+    ];
     /// <summary>
     /// A <see cref="HashSet{T}" /> of Status IDs that trigger HP regen
     /// </summary>
-    private HashSet<uint> healthRegenSet = new();
+    private HashSet<uint> healthRegenSet = [];
     /// <summary>
     /// A <see cref="HashSet{T}" /> of Status IDs that trigger MP regen
     /// </summary>
-    private HashSet<uint> manaRegenSet = new();
+    private HashSet<uint> manaRegenSet = [];
     /// <summary>
     /// A <see cref="HashSet{T}" /> of Status IDs that stop HP regen
     /// </summary>
-    private HashSet<uint> disabledHealthRegenSet = new();
+    private HashSet<uint> disabledHealthRegenSet = [];
+
+    // FrozenSet my beloved ;-;
+    private readonly HashSet<uint> meleeAndRangedDPS = [];
+    private readonly HashSet<uint> discipleOfTheLand = [];
+    private readonly HashSet<string> meleeAndRangedAbbreviations = ["PGL", "LNC", "ARC", "MNK", "DRG", "BRD", "ROG", "NIN", "MCH", "SAM", "DNC", "RPR"];
+    private readonly HashSet<string> discipleOfTheLandAbbreviations = ["MIN", "BTN", "FSH"];
 
     // Function that triggers when client receives a network packet with an update for nearby actors
     private unsafe delegate void ReceiveActorUpdateDelegate(uint objectId, uint* packetData, byte unkByte);
@@ -86,8 +92,7 @@ public sealed class Plugin : IDalamudPlugin
     private const string CommandName = "/tick";
 
     private const float RegularTickInterval = 3, FastTickInterval = 1.5f;
-    private const uint DiscipleOfTheLand = 32, PugilistId = 2, LancerId = 4, ArcherId = 5, HPGaugeNodeId = 3, MPGaugeNodeId = 4, ParamFrameImageNode = 4;
-    private const byte NonCombatJob = 0, MeleeDPS = 3, PhysRangedDPS = 4;
+    private const uint HPGaugeNodeId = 3, MPGaugeNodeId = 4, ParamFrameImageNode = 4;
     private const string ParamWidgetUldPath = "ui/uld/parameter.uld";
 
     private readonly List<BarWindowBase> barWindows;
@@ -171,7 +176,7 @@ public sealed class Plugin : IDalamudPlugin
         addonLifecycle.RegisterListener(AddonEvent.PostUpdate, addonsLookup, CheckBarCollision);
         addonLifecycle.RegisterListener(AddonEvent.PreFinalize, "_ParameterWidget", NativeUiDisposeListener);
 
-        _ = Task.Run(InitializeLuminaSheet);
+        _ = Task.Run(InitializeLuminaSheets);
         InitializeResolution();
     }
 
@@ -318,32 +323,57 @@ public sealed class Plugin : IDalamudPlugin
         window.Progress = (currentTime - window.Tick) / RegularTickInterval;
     }
 
-    private void InitializeLuminaSheet()
+    private void InitializeLuminaSheets()
     {
-        var statusSheet = utilities.RetrieveSheet<Lumina.Excel.GeneratedSheets.Status>();
-        if (statusSheet is null)
+        var statusSheet = utilities.GetSheet<Lumina.Excel.GeneratedSheets.Status>();
+        var jobSheet = utilities.GetSheet<Lumina.Excel.GeneratedSheets.ClassJob>();
+        if (statusSheet is null || jobSheet is null)
         {
             return;
         }
-        List<int> bannedStatus = new() { 135, 307, 751, 1419, 1465, 1730, 2326 };
+        foreach (var row in jobSheet)
+        {
+            var name = row.Abbreviation.ToDalamudString().TextValue;
+            if (meleeAndRangedAbbreviations.Contains(name))
+            {
+                meleeAndRangedDPS.Add(row.RowId);
+                continue;
+            }
+            if (discipleOfTheLandAbbreviations.Contains(name))
+            {
+                discipleOfTheLand.Add(row.RowId);
+            }
+        }
+        List<int> bannedStatus = [135, 307, 751, 1419, 1465, 1730, 2326];
         var filteredSheet = statusSheet.Where(s => !bannedStatus.Exists(rowId => rowId == s.RowId));
-        var disabledHealthRegenBag = new ConcurrentBag<uint>();
-        var healthRegenBag = new ConcurrentBag<uint>();
-        var manaRegenBag = new ConcurrentBag<uint>();
+        ParseStatusSheet(filteredSheet, out var disabledHealthRegenBag, out var healthRegenBag, out var manaRegenBag);
+        healthRegenSet = [.. healthRegenBag];
+        manaRegenSet = [.. manaRegenBag];
+        disabledHealthRegenSet = [.. disabledHealthRegenBag];
+        nullSheet = false;
+        log.Debug("HP regen list generated with {HPcount} status effects.", healthRegenSet.Count);
+        log.Debug("MP regen list generated with {MPcount} status effects.", manaRegenSet.Count);
+    }
+
+    private void ParseStatusSheet(IEnumerable<Lumina.Excel.GeneratedSheets.Status> sheet, out ConcurrentBag<uint> disabledHealthRegenBag, out ConcurrentBag<uint> healthRegenBag, out ConcurrentBag<uint> manaRegenBag)
+    {
+        var bag1 = new ConcurrentBag<uint>();
+        var bag2 = new ConcurrentBag<uint>();
+        var bag3 = new ConcurrentBag<uint>();
         var parallelOptions = new ParallelOptions
         {
             MaxDegreeOfParallelism = Environment.ProcessorCount / 2, // Surely no one will cause an access issue by using an 128 core CPU hahaha
         };
-        Parallel.ForEach(filteredSheet, parallelOptions, stat =>
+        Parallel.ForEach(sheet, parallelOptions, stat =>
         {
             var text = stat.Description.ToDalamudString().TextValue;
-            if (string.IsNullOrWhiteSpace(text))
+            if (text.IsNullOrWhitespace())
             {
                 return;
             }
             if (Utilities.WholeKeywordMatch(text, utilities.RegenNullKeywords) && Utilities.WholeKeywordMatch(text, utilities.HealthKeywords))
             {
-                disabledHealthRegenBag.Add(stat.RowId);
+                bag1.Add(stat.RowId);
                 DebugWindow.DisabledHealthRegenDictionary.TryAdd(stat.RowId, stat.Name);
             }
             if (Utilities.WholeKeywordMatch(text, utilities.RegenNullKeywords) && Utilities.WholeKeywordMatch(text, utilities.ManaKeywords))
@@ -354,22 +384,19 @@ public sealed class Plugin : IDalamudPlugin
             {
                 if (Utilities.KeywordMatch(text, utilities.HealthKeywords))
                 {
-                    healthRegenBag.Add(stat.RowId);
+                    bag2.Add(stat.RowId);
                     DebugWindow.HealthRegenDictionary.TryAdd(stat.RowId, stat.Name);
                 }
                 if (Utilities.KeywordMatch(text, utilities.ManaKeywords))
                 {
-                    manaRegenBag.Add(stat.RowId);
+                    bag3.Add(stat.RowId);
                     DebugWindow.ManaRegenDictionary.TryAdd(stat.RowId, stat.Name);
                 }
             }
         });
-        healthRegenSet = healthRegenBag.ToHashSet();
-        manaRegenSet = manaRegenBag.ToHashSet();
-        disabledHealthRegenSet = disabledHealthRegenBag.ToHashSet();
-        nullSheet = false;
-        log.Debug("HP regen list generated with {HPcount} status effects.", healthRegenSet.Count);
-        log.Debug("MP regen list generated with {MPcount} status effects.", manaRegenSet.Count);
+        disabledHealthRegenBag = bag1;
+        healthRegenBag = bag2;
+        manaRegenBag = bag3;
     }
 
     /// <summary>
@@ -427,11 +454,11 @@ public sealed class Plugin : IDalamudPlugin
         return true;
     }
 
-    private void UpdateBarState(PlayerCharacter player)
+    private unsafe void UpdateBarState(PlayerCharacter player)
     {
-        var jobType = player.ClassJob.GameData?.ClassJobCategory.Row ?? 0;
-        var jobID = player.ClassJob.Id;
-        var altJobType = player.ClassJob.GameData?.Unknown44 ?? 0;
+        var jobId = ((FFXIVClientStructs.FFXIV.Client.Game.Character.Character*)player.Address)->CharacterData.ClassJob;
+        var althideForMeleeRangedDPS = meleeAndRangedDPS.Contains(jobId);
+        var isDiscipleOfTheLand = discipleOfTheLand.Contains(jobId);
         var Enemy = player.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
         var inCombat = condition[ConditionFlag.InCombat];
         var shouldShowHPBar = !config.HideOnFullResource ||
@@ -442,11 +469,10 @@ public sealed class Plugin : IDalamudPlugin
                             (config.AlwaysShowInCombat && inCombat) ||
                             (config.AlwaysShowWithHostileTarget && Enemy) ||
                             (config.AlwaysShowInDuties && utilities.InDuty()) || player.CurrentMp != player.MaxMp;
-        var hideForMeleeRangedDPS = (altJobType is MeleeDPS or PhysRangedDPS || (altJobType is NonCombatJob && jobID is PugilistId or LancerId or ArcherId)) && config.HideMpBarOnMeleeRanged;
-        var hideForGPBar = jobType is DiscipleOfTheLand && config.GPVisible;
+        var hideForGPBar = isDiscipleOfTheLand && config.GPVisible;
         HPBarWindow.IsOpen = (shouldShowHPBar && config.HPVisible) || !config.LockBar;
-        MPBarWindow.IsOpen = (shouldShowMPBar && !hideForMeleeRangedDPS && !hideForGPBar && config.MPVisible) || !config.LockBar;
-        GPBarWindow.IsOpen = (jobType is DiscipleOfTheLand && (!config.HideOnFullResource || (player.CurrentGp != player.MaxGp)) && config.GPVisible) || !config.LockBar;
+        MPBarWindow.IsOpen = (shouldShowMPBar && !althideForMeleeRangedDPS && !hideForGPBar && config.MPVisible) || !config.LockBar;
+        GPBarWindow.IsOpen = (isDiscipleOfTheLand && (!config.HideOnFullResource || (player.CurrentGp != player.MaxGp)) && config.GPVisible) || !config.LockBar;
     }
 
     private void TerritoryChanged(ushort e)
@@ -513,31 +539,37 @@ public sealed class Plugin : IDalamudPlugin
         DevWindow.Print("Regen Value: " + regenValue.ToString(cultureFormat));
         DevWindow.Print("Fast Value: " + fastValue.ToString(cultureFormat));
         DevWindow.Print("Swapchain resolution: " + Resolution.X.ToString(cultureFormat) + "x" + Resolution.Y.ToString(cultureFormat));
+        return;
+        foreach (var rowId in meleeAndRangedDPS)
+        {
+            DevWindow.Print($"Melee or ranged DPS id: {rowId}");
+        }
+        foreach (var rowId in discipleOfTheLand)
+        {
+            DevWindow.Print($"Disciple of the Land id: {rowId}");
+        }
+
         if (!utilities.IsAddonReady(ParamWidget))
         {
             return;
         }
-        if(mpTickerNode.imageNode is not null)
+        if (mpTickerNode.imageNode is null)
         {
-            DevWindow.partListIndex = Math.Clamp(DevWindow.partListIndex, 0, mpTickerNode.atkUldPartsListsAvailable - 1);
-            DevWindow.partId = Math.Clamp(DevWindow.partId, 0, (int)mpTickerNode.imageNode->PartsList->PartCount - 1);
-            mpTickerNode.ChangePartsList(DevWindow.partListIndex);
-            mpTickerNode.imageNode->PartId = (ushort)DevWindow.partId;
-        }
-        var frameImageNode = NativeUi.GetNodeByID<AtkImageNode>(&ParamWidget->GetNodeById(MPGaugeNodeId)->GetComponent()->UldManager, mpTickerImageID);
-        if (frameImageNode is null)
-        {
-            DevWindow.Print("Image Node is... null?");
+            DevWindow.Print("Image Node is null");
             return;
         }
-        DevWindow.Print($"NodeId: {frameImageNode->AtkResNode.NodeID}\n" +
-            $"Has {frameImageNode->PartsList->PartCount} Parts\n" +
-            $"Current partsList: {frameImageNode->PartsList->Id}\n" +
-            $"Current part: {frameImageNode->PartId}\n");
-        for (var i = 0; i < frameImageNode->PartsList->PartCount; i++)
+        DevWindow.partListIndex = Math.Clamp(DevWindow.partListIndex, 0, mpTickerNode.atkUldPartsListsAvailable - 1);
+        DevWindow.partId = Math.Clamp(DevWindow.partId, 0, (int)mpTickerNode.imageNode->PartsList->PartCount - 1);
+        mpTickerNode.ChangePartsList(DevWindow.partListIndex);
+        mpTickerNode.imageNode->PartId = (ushort)DevWindow.partId;
+        DevWindow.Print($"NodeId: {mpTickerNode.imageNode->AtkResNode.NodeID}\n" +
+            $"Has {mpTickerNode.imageNode->PartsList->PartCount} Parts\n" +
+            $"Current partsList: {mpTickerNode.imageNode->PartsList->Id}\n" +
+            $"Current part: {mpTickerNode.imageNode->PartId}\n");
+        for (var i = 0; i < mpTickerNode.imageNode->PartsList->PartCount; i++)
         {
-            DevWindow.Print($"Part {i} Texture id: {frameImageNode->PartsList->Parts[i].UldAsset->Id}" +
-                $" ; Texture.Resource version: {frameImageNode->PartsList->Parts[i].UldAsset->AtkTexture.Resource->Version}");
+            DevWindow.Print($"Part {i.ToString(cultureFormat)} Texture id: {mpTickerNode.imageNode->PartsList->Parts[i].UldAsset->Id}" +
+                $" ; Texture.Resource version: {mpTickerNode.imageNode->PartsList->Parts[i].UldAsset->AtkTexture.Resource->Version}");
         }
     }
 #endif

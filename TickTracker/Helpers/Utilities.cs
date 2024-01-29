@@ -24,7 +24,7 @@ namespace TickTracker.Helpers;
 /// <summary>
 ///     A class that contains different helper functions necessary for this plugin's operation
 /// </summary>
-public partial class Utilities
+public partial class Utilities(DalamudPluginInterface _pluginInterface, Configuration _config, ICondition _condition, IDataManager _dataManager, IClientState _clientState, IPluginLog _pluginLog)
 {
     /// <summary>
     ///     A set of words that indicate regeneration
@@ -75,25 +75,15 @@ public partial class Utilities
         "stopped",
     };
 
-    private readonly DalamudPluginInterface pluginInterface;
-    private readonly ICondition condition;
-    private readonly IDataManager dataManager;
-    private readonly IClientState clientState;
-    private readonly IPluginLog log;
-    private readonly Configuration config;
+    private readonly DalamudPluginInterface pluginInterface = _pluginInterface;
+    private readonly Configuration config = _config;
+    private readonly ICondition condition = _condition;
+    private readonly IDataManager dataManager = _dataManager;
+    private readonly IClientState clientState = _clientState;
+    private readonly IPluginLog log = _pluginLog;
 
     private const float OffsetX = 10f;
     private const float OffsetY = 25f;
-
-    public Utilities(DalamudPluginInterface _pluginInterface, Configuration _config, ICondition _condition, IDataManager _dataManager, IClientState _clientState, IPluginLog _pluginLog)
-    {
-        pluginInterface = _pluginInterface;
-        config = _config;
-        condition = _condition;
-        dataManager = _dataManager;
-        clientState = _clientState;
-        log = _pluginLog;
-    }
 
     /// <summary>
     ///     Indicates if the <paramref name="window"/> is allowed to be drawn
@@ -201,7 +191,7 @@ public partial class Utilities
     /// or <see cref="TerritoryIntendedUseType.Diadem"/>, otherwise <see langword="false"/>.</returns>
     public bool InIgnoredInstances()
     {
-        var territory = RetrieveSheet<TerritoryType>()?.GetRow(clientState.TerritoryType);
+        var territory = GetSheet<TerritoryType>()?.GetRow(clientState.TerritoryType);
         if (territory is null)
         {
             return false;
@@ -308,7 +298,7 @@ public partial class Utilities
     ///     Attempt to retrieve an <see cref="ExcelSheet{T}"/>, optionally in a specific <paramref name="language"/>.
     /// </summary>
     /// <returns><see cref="ExcelSheet{T}"/> or <see langword="null"/> if <see cref="IDataManager.GetExcelSheet{T}(ClientLanguage)"/> returns an invalid sheet.</returns>
-    public ExcelSheet<T>? RetrieveSheet<T>(ClientLanguage language = ClientLanguage.English) where T : ExcelRow
+    public ExcelSheet<T>? GetSheet<T>(ClientLanguage language = ClientLanguage.English) where T : ExcelRow
     {
         try
         {

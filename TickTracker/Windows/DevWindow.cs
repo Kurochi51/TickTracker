@@ -9,7 +9,7 @@ namespace TickTracker.Windows;
 
 public sealed class DevWindow : Window
 {
-    private static readonly List<string> PrintLines = new();
+    private static readonly List<string> PrintLines = [];
     public int partId { get; set; }
     public int partListIndex { get; set; }
     public string uldPath { get; set; } = string.Empty;
@@ -38,7 +38,7 @@ public sealed class DevWindow : Window
         {
             partListIndex = pListIndex;
         }
-        if(ImGui.InputTextWithHint("Uld", "Uld Path...", ref uld,200,ImGuiInputTextFlags.EnterReturnsTrue))
+        if (ImGui.InputTextWithHint("Uld", "Uld Path...", ref uld, 200, ImGuiInputTextFlags.EnterReturnsTrue))
         {
             uldPath = uld;
         }

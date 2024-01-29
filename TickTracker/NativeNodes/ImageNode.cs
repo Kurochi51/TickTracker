@@ -26,7 +26,7 @@ public sealed unsafe class ImageNode : IDisposable
     private readonly PartsData[]? uldPartsListArray;
     private readonly AtkUldPartsList*[] atkUldPartsListArray;
 
-    private readonly Dictionary<uint, string> textureDictionary = new();
+    private readonly Dictionary<uint, string> textureDictionary = [];
     private Vector2 nodePosition = new(-1, -1);
     private AtkResNode* imageNodeParent;
 
@@ -351,6 +351,8 @@ public sealed unsafe class ImageNode : IDisposable
         IMemorySpace.Free(imageNode->PartsList, (ulong)sizeof(AtkUldPartsList));
         imageNode->AtkResNode.Destroy(free: false);
         IMemorySpace.Free(imageNode, (ulong)sizeof(AtkImageNode));
+        imageNode = null;
+        imageNodeParent = null;
     }
 
     private void FreeResources()
