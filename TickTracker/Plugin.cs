@@ -513,14 +513,17 @@ public sealed class Plugin : IDalamudPlugin
         DevWindow.Print("Regen Value: " + regenValue.ToString(cultureFormat));
         DevWindow.Print("Fast Value: " + fastValue.ToString(cultureFormat));
         DevWindow.Print("Swapchain resolution: " + Resolution.X.ToString(cultureFormat) + "x" + Resolution.Y.ToString(cultureFormat));
-        DevWindow.partListIndex = Math.Clamp(DevWindow.partListIndex, 0, mpTickerNode.atkUldPartsListsAvailable - 1);
-        DevWindow.partId = Math.Clamp(DevWindow.partId, 0, (int)mpTickerNode.imageNode->PartsList->PartCount - 1);
         if (!utilities.IsAddonReady(ParamWidget))
         {
             return;
         }
-        mpTickerNode.ChangePartsList(DevWindow.partListIndex);
-        mpTickerNode.imageNode->PartId = (ushort)DevWindow.partId;
+        if(mpTickerNode.imageNode is not null)
+        {
+            DevWindow.partListIndex = Math.Clamp(DevWindow.partListIndex, 0, mpTickerNode.atkUldPartsListsAvailable - 1);
+            DevWindow.partId = Math.Clamp(DevWindow.partId, 0, (int)mpTickerNode.imageNode->PartsList->PartCount - 1);
+            mpTickerNode.ChangePartsList(DevWindow.partListIndex);
+            mpTickerNode.imageNode->PartId = (ushort)DevWindow.partId;
+        }
         var frameImageNode = NativeUi.GetNodeByID<AtkImageNode>(&ParamWidget->GetNodeById(MPGaugeNodeId)->GetComponent()->UldManager, mpTickerImageID);
         if (frameImageNode is null)
         {
