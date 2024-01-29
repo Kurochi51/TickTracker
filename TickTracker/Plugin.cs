@@ -23,6 +23,7 @@ using Dalamud.Game.ClientState.JobGauge.Types;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using TickTracker.Windows;
 using TickTracker.Helpers;
+using TickTracker.NativeNodes;
 
 namespace TickTracker;
 
@@ -88,11 +89,12 @@ public sealed class Plugin : IDalamudPlugin
     private const uint DiscipleOfTheLand = 32, PugilistId = 2, LancerId = 4, ArcherId = 5, HPGaugeNodeId = 3, MPGaugeNodeId = 4, ParamFrameImageNode = 4;
     private const byte NonCombatJob = 0, MeleeDPS = 3, PhysRangedDPS = 4;
     private const string ParamWidgetUldPath = "ui/uld/parameter.uld";
-    private const string GatchaUldPath = "ui/uld/Gacha.uld";
 
     private readonly List<BarWindowBase> barWindows;
-    private readonly uint mpTickerImageID = NativeUi.Get("TickerImageMP");
     private readonly uint hpTickerImageID = NativeUi.Get("TickerImageHP");
+    private readonly uint mpTickerImageID = NativeUi.Get("TickerImageMP");
+    private readonly ImageNode hpTickerNode;
+    private readonly ImageNode mpTickerNode;
 
     private double syncValue, regenValue, fastValue;
     private bool finishedLoading, nativeHpBarCreationFailed, nativeMpBarCreationFailed;
@@ -101,7 +103,6 @@ public sealed class Plugin : IDalamudPlugin
     private Task? loadingTask;
     private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
     private unsafe AtkUnitBase* ParamWidget => (AtkUnitBase*)gameGui.GetAddonByName("_ParameterWidget");
-    private unsafe AtkImageNode* hpTicker, mpTicker;
 
     public Plugin(DalamudPluginInterface _pluginInterface,
         IClientState _clientState,
@@ -135,7 +136,16 @@ public sealed class Plugin : IDalamudPlugin
         }
         receiveActorUpdateHook.Enable();
 
-        NativeUi.InitServices(_dataManager, log);
+        var tickerUld = pluginInterface.UiBuilder.LoadUld(ParamWidgetUldPath);
+        hpTickerNode = new ImageNode(_dataManager, log, tickerUld)
+        {
+            NodeID = hpTickerImageID,
+        };
+        mpTickerNode = new ImageNode(_dataManager, log, tickerUld)
+        {
+            NodeID = mpTickerImageID,
+        };
+        tickerUld.Dispose();
 
         config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         utilities = new Utilities(pluginInterface, config, condition, _dataManager, clientState, log);
@@ -503,11 +513,14 @@ public sealed class Plugin : IDalamudPlugin
         DevWindow.Print("Regen Value: " + regenValue.ToString(cultureFormat));
         DevWindow.Print("Fast Value: " + fastValue.ToString(cultureFormat));
         DevWindow.Print("Swapchain resolution: " + Resolution.X.ToString(cultureFormat) + "x" + Resolution.Y.ToString(cultureFormat));
-
+        DevWindow.partListIndex = Math.Clamp(DevWindow.partListIndex, 0, mpTickerNode.atkUldPartsListsAvailable - 1);
+        DevWindow.partId = Math.Clamp(DevWindow.partId, 0, (int)mpTickerNode.imageNode->PartsList->PartCount - 1);
         if (!utilities.IsAddonReady(ParamWidget))
         {
             return;
         }
+        mpTickerNode.ChangePartsList(DevWindow.partListIndex);
+        mpTickerNode.imageNode->PartId = (ushort)DevWindow.partId;
         var frameImageNode = NativeUi.GetNodeByID<AtkImageNode>(&ParamWidget->GetNodeById(MPGaugeNodeId)->GetComponent()->UldManager, mpTickerImageID);
         if (frameImageNode is null)
         {
@@ -515,41 +528,14 @@ public sealed class Plugin : IDalamudPlugin
             return;
         }
         DevWindow.Print($"NodeId: {frameImageNode->AtkResNode.NodeID}\n" +
-            $"Uses partId of {frameImageNode->PartId}\n" +
-            $"Has {frameImageNode->PartsList->PartCount} Parts in PartsList?\n" +
-            $"With partsList id {frameImageNode->PartsList->Id}\n" +
-            $"Parts UldAsset id of {frameImageNode->PartsList->Parts->UldAsset->Id}\n");
-        for ( var i = 0; i < frameImageNode->PartsList->PartCount; i++)
+            $"Has {frameImageNode->PartsList->PartCount} Parts\n" +
+            $"Current partsList: {frameImageNode->PartsList->Id}\n" +
+            $"Current part: {frameImageNode->PartId}\n");
+        for (var i = 0; i < frameImageNode->PartsList->PartCount; i++)
         {
-            var part = &frameImageNode->PartsList->Parts[i];
-            DevWindow.Print($"AtkUldPart {i} info: Part UldAsset AtkTexture - LoadState {part->UldAsset->AtkTexture.GetLoadState()}" +
-                $" ; Texture ready: {part->UldAsset->AtkTexture.IsTextureReady()}" +
-                $" ; Texture type: {part->UldAsset->AtkTexture.TextureType}" +
-                $" ; Texture.Resource version: {part->UldAsset->AtkTexture.Resource->Version}" +
-                $" ; Texture.Resource pathHash: {part->UldAsset->AtkTexture.Resource->TexPathHash}");
+            DevWindow.Print($"Part {i} Texture id: {frameImageNode->PartsList->Parts[i].UldAsset->Id}" +
+                $" ; Texture.Resource version: {frameImageNode->PartsList->Parts[i].UldAsset->AtkTexture.Resource->Version}");
         }
-
-        /*var contentFinderImageNode = ContentFinderAddon->GetImageNodeById(2);
-        if (contentFinderImageNode is null)
-        {
-            return;
-        }
-        DevWindow.Print(
-            // Seems to be the specific part in the given PartsList
-            $"Uses partId of {contentFinderImageNode->PartId}\n" +
-            // Amount of parts in the PartsList, said parts don't have to be from the same texture
-            $"Has {contentFinderImageNode->PartsList->PartCount} Parts in PartsList\n" +
-            // PartsList that has above counter, and below Parts
-            $"With partsList id {contentFinderImageNode->PartsList->Id}\n" +
-            // .tex Texture id? inside the parent .uld
-            // This seems to corespond with the Texture Id, therefor all parts loaded from the same texture have 
-            $"Parts UldAsset id of {contentFinderImageNode->PartsList->Parts->UldAsset->Id}\n" +
-            $"Texture something {contentFinderImageNode->PartsList->Parts->UldAsset->AtkTexture.Resource->IconID}");
-        for (var i = 0; i < contentFinderImageNode->PartsList->PartCount; i++)
-        {
-            var part = &contentFinderImageNode->PartsList->Parts[i];
-            DevWindow.Print($"AtkUldPart {i} info: Part Height {part->Height} Part Width {part->Width} Part U {part->U} part V {part->V} part UldAsset/Texture id {part->UldAsset->Id}");
-        }*/
     }
 #endif
 
@@ -557,124 +543,88 @@ public sealed class Plugin : IDalamudPlugin
     {
         if (!config.HPNativeUiVisible)
         {
-            NativeUiDispose(ref hpTicker, ParamWidget, HPGaugeNodeId);
+            hpTickerNode.DestroyNode();
         }
         if (!config.MPNativeUiVisible)
         {
-            NativeUiDispose(ref mpTicker, ParamWidget, MPGaugeNodeId);
+            mpTickerNode.DestroyNode();
         }
         if (!nativeHpBarCreationFailed && config.HPNativeUiVisible)
         {
-            HandleNativeNode(HPGaugeNodeId,
+            HandleNativeNode(hpTickerNode,
+                HPGaugeNodeId,
                 ParamFrameImageNode,
-                hpTickerImageID,
                 config.HPNativeUiVisible,
                 HPBarWindow.Progress,
                 config.HPNativeUiColor,
-                ref nativeHpBarCreationFailed,
-                ref hpTicker);
+                ref nativeHpBarCreationFailed);
         }
         if (!nativeMpBarCreationFailed && config.MPNativeUiVisible)
         {
-            HandleNativeNode(MPGaugeNodeId,
+            HandleNativeNode(mpTickerNode,
+                MPGaugeNodeId,
                 ParamFrameImageNode,
-                mpTickerImageID,
                 config.MPNativeUiVisible,
                 MPBarWindow.Progress,
                 config.MPNativeUiColor,
-                ref nativeMpBarCreationFailed,
-                ref mpTicker);
+                ref nativeMpBarCreationFailed);
         }
     }
 
-    private unsafe void HandleNativeNode(uint gaugeBarNodeId, uint frameImageId, uint tickerImageId, bool visibility, double progress, Vector4 Color, ref bool failed, ref AtkImageNode* tickerNode)
+    private unsafe void HandleNativeNode(ImageNode tickerNode, uint gaugeBarNodeId, uint frameImageId, bool visibility, double progress, Vector4 Color, ref bool failed)
     {
         if (!utilities.IsAddonReady(ParamWidget) || ParamWidget->UldManager.LoadedState != AtkLoadState.Loaded || !ParamWidget->IsVisible)
         {
             return;
         }
-        if (tickerNode is not null)
+        if (tickerNode.imageNode is not null)
         {
-            tickerNode->WrapMode = 1;
-            tickerNode->AtkResNode.SetWidth(progress > 0 ? (ushort)((progress * 152) + 4) : (ushort)0);
-            tickerNode->AtkResNode.MultiplyRed = (byte)(255 * Color.X);
-            tickerNode->AtkResNode.MultiplyGreen = (byte)(255 * Color.Y);
-            tickerNode->AtkResNode.MultiplyBlue = (byte)(255 * Color.Z);
-            tickerNode->AtkResNode.SetAlpha((byte)(255 * Color.W));
-            tickerNode->AtkResNode.ToggleVisibility(visibility);
-            tickerNode->PartId = (ushort)DevWindow.partId;
+            tickerNode.imageNode->AtkResNode.SetWidth(progress > 0 ? (ushort)((progress * 152) + 4) : (ushort)0);
+            tickerNode.ChangeNodeColorAndAlpha(Color);
+            tickerNode.imageNode->AtkResNode.ToggleVisibility(visibility);
             return;
         }
         var gaugeBarNode = ParamWidget->GetNodeById(gaugeBarNodeId);
         if (gaugeBarNode is null)
         {
             log.Error("Couldn't locate the gauge bar node {nodeId}.", gaugeBarNodeId);
+            failed = true;
             return;
         }
         var gaugeBar = gaugeBarNode->GetComponent();
         if (gaugeBar is null)
         {
             log.Error("Couldn't retrieve the ComponentBase of the gauge bar.");
+            failed = true;
             return;
         }
-        tickerNode = NativeUi.GetNodeByID<AtkImageNode>(&gaugeBar->UldManager, tickerImageId);
         var frameImageNode = NativeUi.GetNodeByID<AtkImageNode>(&gaugeBar->UldManager, frameImageId);
 
         if (frameImageNode is null)
         {
             log.Error("Couldn't retrieve the target ImageNode of the gauge bar.");
+            failed = true;
             return;
         }
 
-        if (tickerNode is null && !failed)
+        if (tickerNode.imageNode is null && !failed)
         {
-            tickerNode = NativeUi.CreateCompleteImageNode(pluginInterface.UiBuilder.LoadUld(GatchaUldPath),
-                tickerImageId,
-                gaugeBarNode->GetAsAtkComponentNode(),
-                (AtkResNode*)frameImageNode,
-                visibility);
-            /*tickerNode = NativeUi.CreateImageNode(pluginInterface.UiBuilder.LoadUld("ui/uld/parameter.uld"),
-                0,
-                tickerImageId,
-                "ui/uld/Parameter_Gauge_hr1.tex",
-                0,
-                gaugeBarNode->GetAsAtkComponentNode(),
-                (AtkResNode*)frameImageNode,
-                visibility);*/
-            if (tickerNode is null)
+            tickerNode.CreateCompleteImageNode(0, gaugeBarNode, (AtkResNode*)frameImageNode);
+            if (tickerNode.imageNode is null)
             {
+                log.Error("ImageNode could not be created.");
                 failed = true;
+                return;
             }
+            tickerNode.imageNode->AtkResNode.SetWidth(160);
+            tickerNode.imageNode->AtkResNode.SetHeight(20);
         }
     }
 
     private unsafe void NativeUiDisposeListener(AddonEvent type, AddonArgs args)
     {
-        var currentAddon = (AtkUnitBase*)args.Addon;
-        log.Debug("Listener dispose triggered");
-        NativeUiDispose(ref hpTicker, currentAddon, HPGaugeNodeId);
-        NativeUiDispose(ref mpTicker, currentAddon, MPGaugeNodeId);
-    }
-
-    private unsafe void NativeUiDispose(ref AtkImageNode* atkImageNode, AtkUnitBase* baseWidget, uint componentBaseId)
-    {
-        if (!utilities.IsAddonReady(baseWidget) && atkImageNode is not null)
-        {
-            log.Error("Couldn't dipose of nodes due to addon unavailability.");
-            return;
-        }
-        if (atkImageNode is not null)
-        {
-            NativeUi.UnlinkNode(atkImageNode, baseWidget->GetNodeById(componentBaseId)->GetComponent());
-            NativeUi.FreeImageComponents(ref atkImageNode);
-            atkImageNode = null;
-        }
-    }
-
-    private unsafe void NativeUiDispose()
-    {
-        NativeUiDispose(ref hpTicker, ParamWidget, HPGaugeNodeId);
-        NativeUiDispose(ref mpTicker, ParamWidget, MPGaugeNodeId);
+        hpTickerNode.Dispose();
+        mpTickerNode.Dispose();
     }
 
     public void Dispose()
@@ -687,7 +637,8 @@ public sealed class Plugin : IDalamudPlugin
         framework.Update -= OnFrameworkUpdate;
         addonLifecycle.UnregisterListener(AddonEvent.PreFinalize, "_ParameterWidget", NativeUiDisposeListener);
         addonLifecycle.UnregisterListener(AddonEvent.PostUpdate, addonsLookup, CheckBarCollision);
-        NativeUiDispose();
+        hpTickerNode.Dispose();
+        mpTickerNode.Dispose();
         pluginInterface.UiBuilder.Draw -= DrawUI;
         clientState.TerritoryChanged -= TerritoryChanged;
         gameConfig.SystemChanged -= CheckResolutionChange;

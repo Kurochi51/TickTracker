@@ -10,8 +10,8 @@ namespace TickTracker.Windows;
 public sealed class DevWindow : Window
 {
     private static readonly List<string> PrintLines = new();
-    public int partId;
-    public int partListIndex;
+    public int partId { get; set; }
+    public int partListIndex { get; set; }
 
     public DevWindow() : base("DevWindow")
     {
@@ -24,18 +24,23 @@ public sealed class DevWindow : Window
 
     public override void Draw()
     {
+        var pId = partId;
+        var pListIndex = partListIndex;
+        ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X / 3);
+        if (ImGui.InputInt("ImageNode PartId", ref pId, 1))
+        {
+            partId = pId;
+        }
+        ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X / 3);
+        if (ImGui.InputInt("ImageNode PartsList Index", ref pListIndex, 1))
+        {
+            partListIndex = pListIndex;
+        }
         foreach (var line in PrintLines)
         {
             ImGui.TextUnformatted(line);
         }
         PrintLines.Clear();
-        ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X / 3);
-        if (ImGui.InputInt("ImageNode PartId", ref partId, 1))
-        {
-            partId = Math.Clamp(partId, 0, 6);
-        }
-        ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X / 3);
-        ImGui.InputInt("ImageNode PartsList Index", ref partListIndex, 1);
     }
 
     public static void Print(string text)
