@@ -185,7 +185,7 @@ public class ConfigWindow : Window
         EditConfigProperty("Always show in combat", config, c => c.AlwaysShowInCombat, (c, value) => c.AlwaysShowInCombat = value, checkbox: true);
         ImGui.Unindent();
 
-        EditConfigProperty("Show only in combat", config, c => c.HideOutOfCombat, (c, value) => c.HideOutOfCombat = value, checkbox: true);
+        EditConfigProperty("Show only in combat", config, c => c.ShowOnlyInCombat, (c, value) => c.ShowOnlyInCombat = value, checkbox: true);
 
         ImGui.Indent();
         EditConfigProperty("Always show while in duties", config, c => c.AlwaysShowInDuties, (c, value) => c.AlwaysShowInDuties = value, checkbox: true);
@@ -364,7 +364,7 @@ public class ConfigWindow : Window
         }
 
         ImGui.PushItemWidth(ImGui.GetContentRegionMax().X / 3.5f);
-        if (ImGui.DragInt($"##{label1}", ref x, 1, minValue, (int)Plugin.Resolution.X, "%d", ImGuiSliderFlags.AlwaysClamp))
+        if (ImGui.DragInt($"##{label1}", ref x, 1, minValue, (int)TickTracker.Resolution.X, "%d", ImGuiSliderFlags.AlwaysClamp))
         {
             vector.X = x;
             change = true;
@@ -373,7 +373,7 @@ public class ConfigWindow : Window
         ImGui.SameLine();
 
         ImGui.PushItemWidth(ImGui.GetContentRegionMax().X / 3.5f);
-        if (ImGui.DragInt($"##{label2}", ref y, 1, minValue, (int)Plugin.Resolution.Y, "%d", ImGuiSliderFlags.AlwaysClamp))
+        if (ImGui.DragInt($"##{label2}", ref y, 1, minValue, (int)TickTracker.Resolution.Y, "%d", ImGuiSliderFlags.AlwaysClamp))
         {
             vector.Y = y;
             change = true;

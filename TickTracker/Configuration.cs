@@ -9,7 +9,7 @@ public class Configuration : IPluginConfiguration
 {
     public int Version { get; set; } = 0;
     public bool LockBar { get; set; } = false;
-    public bool HideOutOfCombat { get; set; } = false;
+    public bool ShowOnlyInCombat { get; set; } = false;
     public bool AlwaysShowInDuties { get; set; } = false;
     public bool AlwaysShowWithHostileTarget { get; set; } = false;
     public bool AlwaysShowInCombat { get; set; } = false;

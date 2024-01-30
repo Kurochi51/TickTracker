@@ -59,7 +59,7 @@ public sealed class DebugWindow : Window, IDisposable
         SizeConstraints = new WindowSizeConstraints
         {
             MinimumSize = new Vector2(400, 500),
-            MaximumSize = Plugin.Resolution,
+            MaximumSize = TickTracker.Resolution,
         };
         pluginInterface.UiBuilder.DefaultFontHandle.ImFontChanged += QueueColumnWidthChange;
     }

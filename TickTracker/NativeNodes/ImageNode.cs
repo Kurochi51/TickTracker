@@ -2,6 +2,7 @@ using System;
 using System.Numerics;
 using System.Collections.Generic;
 
+using Lumina.Data.Files;
 using Dalamud.Interface;
 using Dalamud.Plugin.Services;
 using static Lumina.Data.Parsing.Uld.UldRoot;
@@ -17,14 +18,13 @@ public sealed unsafe class ImageNode : IDisposable
     public NodeType Type { get; } = NodeType.Image;
     public NodeFlags NodeFlags { get; set; } = NodeFlags.AnchorTop | NodeFlags.AnchorLeft | NodeFlags.Enabled | NodeFlags.Visible | NodeFlags.EmitsEvents;
     public uint DrawFlags { get; set; } = 1;
-    public AtkImageNode* imageNode { get; private set; }
+    public AtkImageNode* imageNode { get; private set; } = null;
     public int atkUldPartsListsAvailable { get; init; }
     private bool isDisposed;
 
     private readonly IDataManager dataManager;
     private readonly IPluginLog log;
-    private readonly PartsData[]? uldPartsListArray;
-    private readonly AtkUldPartsList*[] atkUldPartsListArray;
+    private readonly PartsData[] uldPartsListArray;
 
     private readonly Dictionary<uint, string> textureDictionary = [];
     private Vector2 nodePosition = new(-1, -1);
@@ -35,33 +35,29 @@ public sealed unsafe class ImageNode : IDisposable
         dataManager = _dataManager;
         log = _log;
 
-        ParseUld(uld, out var uldPartsListAmount, out uldPartsListArray);
-        atkUldPartsListsAvailable = uldPartsListAmount;
-        atkUldPartsListArray = new AtkUldPartsList*[uldPartsListAmount];
-        CreateAtkUldPartsListArray();
-    }
-
-    private void ParseUld(UldWrapper uld, out int uldPartsListAmount, out PartsData[]? uldPartsListArray)
-    {
-        uldPartsListAmount = 0;
-        uldPartsListArray = null;
         if (!uld.Valid || uld.Uld is null)
         {
-            return;
+            throw new ArgumentException("UldWrapper provided isn't valid or it has a null UldFile",nameof(uld));
         }
-        uldPartsListAmount = uld.Uld.Parts.Length;
-        uldPartsListArray = uld.Uld.Parts;
+        ParseUld(uld.Uld, out var uldPartsListAmount, out uldPartsListArray);
+        atkUldPartsListsAvailable = uldPartsListAmount;
+    }
+
+    private void ParseUld(UldFile uld, out int uldPartsListAmount, out PartsData[] uldPartsListArray)
+    {
+        uldPartsListAmount = uld.Parts.Length;
+        uldPartsListArray = uld.Parts;
 
         textureDictionary.Clear();
-        for (var i = 0; i < uld.Uld.AssetData.Length; i++)
+        for (var i = 0; i < uld.AssetData.Length; i++)
         {
-            var rawTexturePath = uld.Uld.AssetData[i].Path;
+            var rawTexturePath = uld.AssetData[i].Path;
             if (rawTexturePath is null)
             {
                 continue;
             }
 
-            var textureId = uld.Uld.AssetData[i].Id;
+            var textureId = uld.AssetData[i].Id;
             var texturePath = new string(rawTexturePath, 0, rawTexturePath.Length).Trim('\0').Trim();
             var hqTexturePath = texturePath.Replace(".tex", "_hr1.tex", StringComparison.Ordinal);
 
@@ -76,12 +72,20 @@ public sealed unsafe class ImageNode : IDisposable
         }
     }
 
-    private void CreateAtkUldPartsListArray()
+    /// <summary>
+    /// Creates a complete <see cref="AtkUldPartsList*[]"/> from the provided <see cref="UldWrapper"/>.
+    /// </summary>
+    /// <remarks>
+    /// <b>Must be disposed with <see cref="FreeResources(AtkUldPartsList*[])"/></b>
+    /// </remarks>
+    /// <returns></returns>
+    public AtkUldPartsList*[]? CreateAtkUldPartsListArray()
     {
-        if (textureDictionary.Count is 0 || uldPartsListArray is null)
+        if (textureDictionary.Count is 0 || uldPartsListArray is [])
         {
-            return;
+            return null;
         }
+        var atkUldPartsListArray = new AtkUldPartsList*[atkUldPartsListsAvailable];
         for (var i = 0; i < atkUldPartsListArray.Length; i++)
         {
             var currentAtkPartsList = (AtkUldPartsList*)IMemorySpace.GetUISpace()->Malloc((ulong)sizeof(AtkUldPartsList), 8);
@@ -96,7 +100,7 @@ public sealed unsafe class ImageNode : IDisposable
                     IMemorySpace.Free(atkUldPartsListArray[j]->Parts, (ulong)(sizeof(AtkUldPart) * atkUldPartsListArray[j]->PartCount));
                     IMemorySpace.Free(atkUldPartsListArray[j], (ulong)sizeof(AtkUldPartsList));
                 }
-                return;
+                return null;
             }
             currentAtkPartsList->Id = uldPartsListArray[i].Id;
             currentAtkPartsList->PartCount = uldPartsListArray[i].PartCount;
@@ -113,7 +117,7 @@ public sealed unsafe class ImageNode : IDisposable
                     IMemorySpace.Free(atkUldPartsListArray[j]->Parts, (ulong)(sizeof(AtkUldPart) * atkUldPartsListArray[j]->PartCount));
                     IMemorySpace.Free(atkUldPartsListArray[j], (ulong)sizeof(AtkUldPartsList));
                 }
-                return;
+                return null;
             }
             currentAtkPartsList->Parts = currentAtkPartList;
             if (!PopulatePartsList(ref currentAtkPartsList, uldPartsListArray[i]))
@@ -129,10 +133,11 @@ public sealed unsafe class ImageNode : IDisposable
                     IMemorySpace.Free(atkUldPartsListArray[j]->Parts, (ulong)(sizeof(AtkUldPart) * atkUldPartsListArray[j]->PartCount));
                     IMemorySpace.Free(atkUldPartsListArray[j], (ulong)sizeof(AtkUldPartsList));
                 }
-                return;
+                return null;
             }
             atkUldPartsListArray[i] = currentAtkPartsList;
         }
+        return atkUldPartsListArray;
     }
 
     private bool PopulatePartsList(ref AtkUldPartsList* currentPartsList, PartsData currentUldPartsList)
@@ -171,8 +176,8 @@ public sealed unsafe class ImageNode : IDisposable
             log.Error("Memory for the node AtkUldPartsList could not be allocated.");
             return null;
         }
-        imageNodePartsList->PartCount = atkUldPartsListArray[partsListIndex]->PartCount;
-        imageNodePartsList->Id = atkUldPartsListArray[partsListIndex]->Id;
+        imageNodePartsList->PartCount = uldPartsListArray[partsListIndex].PartCount;
+        imageNodePartsList->Id = uldPartsListArray[partsListIndex].Id;
         var imageNodePartList = (AtkUldPart*)IMemorySpace.GetUISpace()->Malloc((ulong)(sizeof(AtkUldPart) * imageNodePartsList->PartCount), 8);
         if (imageNodePartList is null)
         {
@@ -196,11 +201,11 @@ public sealed unsafe class ImageNode : IDisposable
                 return null;
             }
 
-            imageNodePartsList->Parts[i].U = atkUldPartsListArray[partsListIndex]->Parts[i].U;
-            imageNodePartsList->Parts[i].V = atkUldPartsListArray[partsListIndex]->Parts[i].V;
-            imageNodePartsList->Parts[i].Width = atkUldPartsListArray[partsListIndex]->Parts[i].Width;
-            imageNodePartsList->Parts[i].Height = atkUldPartsListArray[partsListIndex]->Parts[i].Height;
-            currentAsset->Id = atkUldPartsListArray[partsListIndex]->Parts[i].UldAsset->Id;
+            imageNodePartsList->Parts[i].U = uldPartsListArray[partsListIndex].Parts[i].U;
+            imageNodePartsList->Parts[i].V = uldPartsListArray[partsListIndex].Parts[i].V;
+            imageNodePartsList->Parts[i].Width = uldPartsListArray[partsListIndex].Parts[i].W;
+            imageNodePartsList->Parts[i].Height = uldPartsListArray[partsListIndex].Parts[i].H;
+            currentAsset->Id = uldPartsListArray[partsListIndex].Parts[i].TextureId;
             currentAsset->AtkTexture.Ctor();
             if (textureDictionary.TryGetValue(currentAsset->Id, out var texturePath))
             {
@@ -225,7 +230,7 @@ public sealed unsafe class ImageNode : IDisposable
     {
         DestroyNode();
         imageNode = IMemorySpace.GetUISpace()->Create<AtkImageNode>();
-        if (imageNode is null || partsListIndex > atkUldPartsListArray.Length - 1)
+        if (imageNode is null || partsListIndex > uldPartsListArray.Length - 1)
         {
             log.Error("Memory for the node could not be allocated or index is out of bounds.");
             return;
@@ -304,7 +309,7 @@ public sealed unsafe class ImageNode : IDisposable
 
     public void ChangePartsList(int partsListIndex, ushort partId = 0)
     {
-        if (partsListIndex > atkUldPartsListArray.Length - 1)
+        if (partsListIndex > uldPartsListArray.Length - 1)
         {
             log.Error("partsListIndex out of bounds");
             return;
@@ -355,7 +360,11 @@ public sealed unsafe class ImageNode : IDisposable
         imageNodeParent = null;
     }
 
-    private void FreeResources()
+    /// <summary>
+    /// Release a <see cref="AtkUldPartsList*[]"/> created by <see cref="CreateAtkUldPartsListArray"/> of your instance of <see cref="ImageNode"/>.
+    /// </summary>
+    /// <param name="atkUldPartsListArray"></param>
+    public void FreeResources(AtkUldPartsList*[] atkUldPartsListArray)
     {
         for (var i = 0; i < atkUldPartsListArray.Length; i++)
         {
@@ -381,7 +390,6 @@ public sealed unsafe class ImageNode : IDisposable
         {
             DestroyNode();
         }
-        FreeResources();
         isDisposed = true;
     }
 }

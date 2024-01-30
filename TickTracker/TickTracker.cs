@@ -27,7 +27,7 @@ using TickTracker.NativeNodes;
 
 namespace TickTracker;
 
-public sealed class Plugin : IDalamudPlugin
+public sealed class TickTracker : IDalamudPlugin
 {
     /// <summary>
     /// A <see cref="List{T}"/> of addons to fetch for collision checks.
@@ -109,7 +109,7 @@ public sealed class Plugin : IDalamudPlugin
     private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
     private unsafe AtkUnitBase* ParamWidget => (AtkUnitBase*)gameGui.GetAddonByName("_ParameterWidget");
 
-    public Plugin(DalamudPluginInterface _pluginInterface,
+    public TickTracker(DalamudPluginInterface _pluginInterface,
         IClientState _clientState,
         IFramework _framework,
         IGameGui _gameGui,
@@ -154,7 +154,10 @@ public sealed class Plugin : IDalamudPlugin
 
         config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         utilities = new Utilities(pluginInterface, config, condition, _dataManager, clientState, log);
-
+#if DEBUG
+        DevWindow = new DevWindow(pluginInterface, _dataManager, log, gameGui, utilities);
+        WindowSystem.AddWindow(DevWindow);
+#endif
         InitializeWindows();
 
         var barWindowList = new List<BarWindowBase>();
@@ -162,7 +165,7 @@ public sealed class Plugin : IDalamudPlugin
         {
             barWindowList.Add(window);
         }
-        barWindows = barWindowList.Count > 0 ? barWindowList : Enumerable.Empty<BarWindowBase>().ToList();
+        barWindows = barWindowList is not [] ? barWindowList : Enumerable.Empty<BarWindowBase>().ToList();
 
         commandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
@@ -187,10 +190,6 @@ public sealed class Plugin : IDalamudPlugin
         HPBarWindow = new HPBar(clientState, log, utilities, config);
         MPBarWindow = new MPBar(clientState, log, utilities, config);
         GPBarWindow = new GPBar(clientState, log, utilities, config);
-#if DEBUG
-        DevWindow = new DevWindow();
-        WindowSystem.AddWindow(DevWindow);
-#endif
         WindowSystem.AddWindow(ConfigWindow);
         WindowSystem.AddWindow(HPBarWindow);
         WindowSystem.AddWindow(MPBarWindow);
@@ -226,7 +225,7 @@ public sealed class Plugin : IDalamudPlugin
         }
         unsafe
         {
-            if (!PluginEnabled(player) || utilities.InCutscene() || player.IsDead)
+            if (utilities.InCutscene() || player.IsDead)
             {
                 HPBarWindow.IsOpen = MPBarWindow.IsOpen = GPBarWindow.IsOpen = false;
                 return;
@@ -236,7 +235,6 @@ public sealed class Plugin : IDalamudPlugin
                 HPBarWindow.IsOpen = MPBarWindow.IsOpen = GPBarWindow.IsOpen = false;
                 return;
             }
-            DrawNativeNodes();
         }
         UpdateBarState(player);
         var now = (DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds;
@@ -433,46 +431,72 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
-    private bool PluginEnabled(PlayerCharacter player)
-    {
-        var target = player.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
-        var inCombat = condition[ConditionFlag.InCombat];
-
-        if (condition[ConditionFlag.InDuelingArea])
-        {
-            return false;
-        }
-        if (config.HideOutOfCombat && !inCombat)
-        {
-            var showingBecauseInDuty = config.AlwaysShowInDuties && utilities.InDuty();
-            var showingBecauseHasTarget = config.AlwaysShowWithHostileTarget && target;
-            if (!(showingBecauseInDuty || showingBecauseHasTarget))
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-
     private unsafe void UpdateBarState(PlayerCharacter player)
     {
-        var jobId = ((FFXIVClientStructs.FFXIV.Client.Game.Character.Character*)player.Address)->CharacterData.ClassJob;
+        var jobId = player.ClassJob.Id;
         var althideForMeleeRangedDPS = meleeAndRangedDPS.Contains(jobId);
         var isDiscipleOfTheLand = discipleOfTheLand.Contains(jobId);
         var Enemy = player.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
         var inCombat = condition[ConditionFlag.InCombat];
-        var shouldShowHPBar = !config.HideOnFullResource ||
-                            (config.AlwaysShowInCombat && inCombat) ||
-                            (config.AlwaysShowWithHostileTarget && Enemy) ||
-                            (config.AlwaysShowInDuties && utilities.InDuty()) || player.CurrentHp != player.MaxHp;
-        var shouldShowMPBar = !config.HideOnFullResource ||
-                            (config.AlwaysShowInCombat && inCombat) ||
-                            (config.AlwaysShowWithHostileTarget && Enemy) ||
-                            (config.AlwaysShowInDuties && utilities.InDuty()) || player.CurrentMp != player.MaxMp;
+        var inDuelingArea = condition[ConditionFlag.InDuelingArea];
+
+        var shouldShowHPBar = ShowBar(inCombat, player.CurrentHp == player.MaxHp, Enemy);
+        var shouldShowMPBar = ShowBar(inCombat, player.CurrentMp == player.MaxMp, Enemy);
+
+        if (inDuelingArea)
+        {
+            shouldShowHPBar = false;
+            shouldShowMPBar = false;
+        }
+
         var hideForGPBar = isDiscipleOfTheLand && config.GPVisible;
-        HPBarWindow.IsOpen = (shouldShowHPBar && config.HPVisible) || !config.LockBar;
-        MPBarWindow.IsOpen = (shouldShowMPBar && !althideForMeleeRangedDPS && !hideForGPBar && config.MPVisible) || !config.LockBar;
-        GPBarWindow.IsOpen = (isDiscipleOfTheLand && (!config.HideOnFullResource || (player.CurrentGp != player.MaxGp)) && config.GPVisible) || !config.LockBar;
+        HPBarWindow.IsOpen = !config.LockBar || (shouldShowHPBar && config.HPVisible);
+        MPBarWindow.IsOpen = !config.LockBar || (shouldShowMPBar && !althideForMeleeRangedDPS && !hideForGPBar && config.MPVisible);
+        GPBarWindow.IsOpen = !config.LockBar || (isDiscipleOfTheLand && (!config.HideOnFullResource || (player.CurrentGp != player.MaxGp)) && config.GPVisible && !inDuelingArea);
+        if (utilities.IsAddonReady(ParamWidget) && ParamWidget->UldManager.LoadedState is AtkLoadState.Loaded && ParamWidget->IsVisible)
+        {
+            DrawNativeNodes(shouldShowHPBar && config.HPNativeUiVisible, shouldShowMPBar && config.MPNativeUiVisible);
+        }
+    }
+
+    private bool ShowBar(bool inCombat, bool fullResource, bool Enemy)
+    {
+        var showBar = true;
+        if (inCombat)
+        {
+            if (config.HideOnFullResource && fullResource)
+            {
+                showBar = config.AlwaysShowInCombat
+                    || config.ShowOnlyInCombat
+                    || (config.AlwaysShowInDuties && utilities.InDuty())
+                    || (config.AlwaysShowWithHostileTarget && Enemy);
+            }
+            if (config.ShowOnlyInCombat)
+            {
+                if (config.AlwaysShowInDuties && utilities.InDuty())
+                {
+                    showBar = true;
+                }
+                if (config.AlwaysShowWithHostileTarget && Enemy)
+                {
+                    showBar = true;
+                }
+            }
+        }
+        else
+        {
+            if (config.HideOnFullResource && fullResource)
+            {
+                showBar = (config.AlwaysShowInDuties && utilities.InDuty())
+                    || (config.AlwaysShowWithHostileTarget && Enemy);
+            }
+            if (config.ShowOnlyInCombat)
+            {
+                showBar = (config.AlwaysShowInDuties && utilities.InDuty())
+                    || (config.AlwaysShowWithHostileTarget && Enemy);
+            }
+        }
+        return showBar;
     }
 
     private void TerritoryChanged(ushort e)
@@ -522,6 +546,7 @@ public sealed class Plugin : IDalamudPlugin
     private unsafe void DevWindowThings(PlayerCharacter? player, double currentTime, BarWindowBase window)
     {
         DevWindow.IsOpen = true;
+        return;
         var cultureFormat = System.Globalization.CultureInfo.InvariantCulture;
         if (player is not null)
         {
@@ -539,42 +564,10 @@ public sealed class Plugin : IDalamudPlugin
         DevWindow.Print("Regen Value: " + regenValue.ToString(cultureFormat));
         DevWindow.Print("Fast Value: " + fastValue.ToString(cultureFormat));
         DevWindow.Print("Swapchain resolution: " + Resolution.X.ToString(cultureFormat) + "x" + Resolution.Y.ToString(cultureFormat));
-        return;
-        foreach (var rowId in meleeAndRangedDPS)
-        {
-            DevWindow.Print($"Melee or ranged DPS id: {rowId}");
-        }
-        foreach (var rowId in discipleOfTheLand)
-        {
-            DevWindow.Print($"Disciple of the Land id: {rowId}");
-        }
-
-        if (!utilities.IsAddonReady(ParamWidget))
-        {
-            return;
-        }
-        if (mpTickerNode.imageNode is null)
-        {
-            DevWindow.Print("Image Node is null");
-            return;
-        }
-        DevWindow.partListIndex = Math.Clamp(DevWindow.partListIndex, 0, mpTickerNode.atkUldPartsListsAvailable - 1);
-        DevWindow.partId = Math.Clamp(DevWindow.partId, 0, (int)mpTickerNode.imageNode->PartsList->PartCount - 1);
-        mpTickerNode.ChangePartsList(DevWindow.partListIndex);
-        mpTickerNode.imageNode->PartId = (ushort)DevWindow.partId;
-        DevWindow.Print($"NodeId: {mpTickerNode.imageNode->AtkResNode.NodeID}\n" +
-            $"Has {mpTickerNode.imageNode->PartsList->PartCount} Parts\n" +
-            $"Current partsList: {mpTickerNode.imageNode->PartsList->Id}\n" +
-            $"Current part: {mpTickerNode.imageNode->PartId}\n");
-        for (var i = 0; i < mpTickerNode.imageNode->PartsList->PartCount; i++)
-        {
-            DevWindow.Print($"Part {i.ToString(cultureFormat)} Texture id: {mpTickerNode.imageNode->PartsList->Parts[i].UldAsset->Id}" +
-                $" ; Texture.Resource version: {mpTickerNode.imageNode->PartsList->Parts[i].UldAsset->AtkTexture.Resource->Version}");
-        }
     }
 #endif
 
-    private unsafe void DrawNativeNodes()
+    private unsafe void DrawNativeNodes(bool hpVisible, bool mpVisible)
     {
         if (!config.HPNativeUiVisible)
         {
@@ -589,7 +582,7 @@ public sealed class Plugin : IDalamudPlugin
             HandleNativeNode(hpTickerNode,
                 HPGaugeNodeId,
                 ParamFrameImageNode,
-                config.HPNativeUiVisible,
+                hpVisible,
                 HPBarWindow.Progress,
                 config.HPNativeUiColor,
                 ref nativeHpBarCreationFailed);
@@ -599,7 +592,7 @@ public sealed class Plugin : IDalamudPlugin
             HandleNativeNode(mpTickerNode,
                 MPGaugeNodeId,
                 ParamFrameImageNode,
-                config.MPNativeUiVisible,
+                mpVisible,
                 MPBarWindow.Progress,
                 config.MPNativeUiColor,
                 ref nativeMpBarCreationFailed);
@@ -608,10 +601,6 @@ public sealed class Plugin : IDalamudPlugin
 
     private unsafe void HandleNativeNode(ImageNode tickerNode, uint gaugeBarNodeId, uint frameImageId, bool visibility, double progress, Vector4 Color, ref bool failed)
     {
-        if (!utilities.IsAddonReady(ParamWidget) || ParamWidget->UldManager.LoadedState != AtkLoadState.Loaded || !ParamWidget->IsVisible)
-        {
-            return;
-        }
         if (tickerNode.imageNode is not null)
         {
             tickerNode.imageNode->AtkResNode.SetWidth(progress > 0 ? (ushort)((progress * 152) + 4) : (ushort)0);
@@ -633,7 +622,7 @@ public sealed class Plugin : IDalamudPlugin
             failed = true;
             return;
         }
-        var frameImageNode = NativeUi.GetNodeByID<AtkImageNode>(&gaugeBar->UldManager, frameImageId);
+        var frameImageNode = NativeUi.GetNodeByID<AtkImageNode>(&gaugeBar->UldManager, frameImageId, NodeType.Image);
 
         if (frameImageNode is null)
         {
@@ -647,7 +636,7 @@ public sealed class Plugin : IDalamudPlugin
             tickerNode.CreateCompleteImageNode(0, gaugeBarNode, (AtkResNode*)frameImageNode);
             if (tickerNode.imageNode is null)
             {
-                log.Error("ImageNode could not be created.");
+                log.Error("ImageNode {id} could not be created.",tickerNode.NodeID);
                 failed = true;
                 return;
             }
@@ -658,12 +647,15 @@ public sealed class Plugin : IDalamudPlugin
 
     private unsafe void NativeUiDisposeListener(AddonEvent type, AddonArgs args)
     {
-        hpTickerNode.Dispose();
-        mpTickerNode.Dispose();
+        hpTickerNode.DestroyNode();
+        mpTickerNode.DestroyNode();
     }
 
     public void Dispose()
     {
+#if DEBUG
+        DevWindow.Dispose();
+#endif
         receiveActorUpdateHook?.Disable();
         receiveActorUpdateHook?.Dispose();
         commandManager.RemoveHandler(CommandName);
