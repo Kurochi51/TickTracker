@@ -86,7 +86,7 @@ public sealed class DevWindow : Window, IDisposable
         ImGui.InputInt("ImageNode X", ref nodeX);
         ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X / 5);
         ImGui.InputInt("ImageNode Y", ref nodeY);
-        if(ImGui.Button("Change Coords"))
+        if (ImGui.Button("Change Coords"))
         {
             devNode?.SetNodePosition(nodeX, nodeY);
         }
@@ -167,7 +167,7 @@ public sealed class DevWindow : Window, IDisposable
 
     public unsafe void Dispose()
     {
-        if(devNode is not null && devNode.imageNode is not null)
+        if (devNode is not null && devNode.imageNode is not null)
         {
             NativeUi.UnlinkFromRoot((AtkResNode*)devNode.imageNode, NameplateAddon);
             devNode.Dispose();

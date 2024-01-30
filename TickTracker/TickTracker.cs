@@ -636,7 +636,7 @@ public sealed class TickTracker : IDalamudPlugin
             tickerNode.CreateCompleteImageNode(0, gaugeBarNode, (AtkResNode*)frameImageNode);
             if (tickerNode.imageNode is null)
             {
-                log.Error("ImageNode {id} could not be created.",tickerNode.NodeID);
+                log.Error("ImageNode {id} could not be created.", tickerNode.NodeID);
                 failed = true;
                 return;
             }

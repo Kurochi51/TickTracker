@@ -37,7 +37,7 @@ public sealed unsafe class ImageNode : IDisposable
 
         if (!uld.Valid || uld.Uld is null)
         {
-            throw new ArgumentException("UldWrapper provided isn't valid or it has a null UldFile",nameof(uld));
+            throw new ArgumentException("UldWrapper provided isn't valid or it has a null UldFile", nameof(uld));
         }
         ParseUld(uld.Uld, out var uldPartsListAmount, out uldPartsListArray);
         atkUldPartsListsAvailable = uldPartsListAmount;
