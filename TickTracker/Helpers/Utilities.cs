@@ -1,6 +1,8 @@
 using System;
 using System.Linq;
+using System.Timers;
 using System.Numerics;
+using System.Threading;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Collections.Generic;
@@ -292,6 +294,52 @@ public partial class Utilities(DalamudPluginInterface _pluginInterface, Configur
             loading = condition[ConditionFlag.BetweenAreas] || condition[ConditionFlag.BetweenAreas51];
         }
         loadingTimer.Reset();
+    }
+
+    public async Task<bool> CheckIPC(double msInterval, System.Action func, CancellationToken cToken)
+    {
+        try
+        {
+            func.DynamicInvoke();
+            return true;
+        }
+        catch
+        {
+            var timer = new System.Timers.Timer();
+            timer.Interval = msInterval;
+            timer.AutoReset = true;
+            timer.Elapsed += timerCheck;
+            timer.Start();
+            var ipcAvailable = false;
+
+            void timerCheck(object? sender, ElapsedEventArgs e)
+            {
+                if (cToken.IsCancellationRequested)
+                {
+                    timer.Stop();
+                    return;
+                }
+                try
+                {
+                    func.DynamicInvoke();
+                    ipcAvailable = true;
+                    timer.Stop();
+                }
+                catch
+                {
+                    log.Warning("IPC not available.");
+                    ipcAvailable = false;
+                }
+            }
+
+            while (timer.Enabled && !cToken.IsCancellationRequested)
+            {
+                await Task.Delay((int)msInterval, cToken).ConfigureAwait(false);
+            }
+            timer.Dispose();
+
+            return ipcAvailable;
+        }
     }
 
     /// <summary>

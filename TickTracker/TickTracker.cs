@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Numerics;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
@@ -24,6 +25,7 @@ using Dalamud.Game.ClientState.Objects.SubKinds;
 using TickTracker.Windows;
 using TickTracker.Helpers;
 using TickTracker.NativeNodes;
+using TickTracker.IPC;
 
 namespace TickTracker;
 
@@ -77,6 +79,8 @@ public sealed class TickTracker : IDalamudPlugin
     private readonly IPluginLog log;
     private readonly IGameConfig gameConfig;
     private readonly IAddonLifecycle addonLifecycle;
+    private PenumbraIpc? penumbraIpc;
+    private bool penumbraAvailable;
 
     private ConfigWindow ConfigWindow { get; set; } = null!;
     private DebugWindow DebugWindow { get; set; } = null!;
@@ -90,7 +94,6 @@ public sealed class TickTracker : IDalamudPlugin
 
     public WindowSystem WindowSystem { get; } = new("TickTracker");
     private const string CommandName = "/tick";
-
     private const float RegularTickInterval = 3, FastTickInterval = 1.5f;
     private const uint HPGaugeNodeId = 3, MPGaugeNodeId = 4, ParamFrameImageNode = 4;
     private const string ParamWidgetUldPath = "ui/uld/parameter.uld";
@@ -100,6 +103,7 @@ public sealed class TickTracker : IDalamudPlugin
     private readonly uint mpTickerImageID = NativeUi.Get("TickerImageMP");
     private readonly ImageNode hpTickerNode;
     private readonly ImageNode mpTickerNode;
+    private readonly CancellationTokenSource cts;
 
     private double syncValue, regenValue, fastValue;
     private bool finishedLoading, nativeHpBarCreationFailed, nativeMpBarCreationFailed;
@@ -140,6 +144,7 @@ public sealed class TickTracker : IDalamudPlugin
             throw new NotSupportedException("Hook not found in current game version. The plugin is non functional.");
         }
         receiveActorUpdateHook.Enable();
+        cts = new CancellationTokenSource();
 
         var tickerUld = pluginInterface.UiBuilder.LoadUld(ParamWidgetUldPath);
         hpTickerNode = new ImageNode(_dataManager, log, tickerUld)
@@ -158,6 +163,7 @@ public sealed class TickTracker : IDalamudPlugin
         DevWindow = new DevWindow(pluginInterface, _dataManager, log, gameGui, utilities);
         WindowSystem.AddWindow(DevWindow);
 #endif
+        PenumbraCheck();
         InitializeWindows();
 
         var barWindowList = new List<BarWindowBase>();
@@ -171,16 +177,32 @@ public sealed class TickTracker : IDalamudPlugin
         {
             HelpMessage = "Open or close Tick Tracker's config window.",
         });
-        pluginInterface.UiBuilder.Draw += DrawUI;
-        pluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
-        framework.Update += OnFrameworkUpdate;
-        clientState.TerritoryChanged += TerritoryChanged;
-        gameConfig.SystemChanged += CheckResolutionChange;
-        addonLifecycle.RegisterListener(AddonEvent.PostUpdate, addonsLookup, CheckBarCollision);
-        addonLifecycle.RegisterListener(AddonEvent.PreFinalize, "_ParameterWidget", NativeUiDisposeListener);
 
-        _ = Task.Run(InitializeLuminaSheets);
+        RegisterEvents();
+        _ = Task.Run(InitializeLuminaSheets, cts.Token);
         InitializeResolution();
+    }
+
+    private void PenumbraCheck()
+    {
+        foreach (var plo in pluginInterface.InstalledPlugins.Where(gon => gon.Name.Contains("Penumbra", StringComparison.OrdinalIgnoreCase)))
+        {
+            if (plo.IsLoaded)
+            {
+                penumbraIpc = new PenumbraIpc(pluginInterface, log);
+                return;
+            }
+            _ = Task.Run(async () =>
+            {
+                penumbraAvailable = await utilities.CheckIPC(TimeSpan.FromSeconds(30).TotalMilliseconds,
+                    () => pluginInterface.GetIpcSubscriber<bool>("Penumbra.GetEnabledState").InvokeFunc(),
+                    cts.Token).ConfigureAwait(false);
+                if (penumbraAvailable)
+                {
+                    penumbraIpc = new PenumbraIpc(pluginInterface, log);
+                }
+            }, cts.Token);
+        }
     }
 
     private void InitializeWindows()
@@ -195,6 +217,17 @@ public sealed class TickTracker : IDalamudPlugin
         WindowSystem.AddWindow(MPBarWindow);
         WindowSystem.AddWindow(GPBarWindow);
         WindowSystem.AddWindow(DebugWindow);
+    }
+
+    private void RegisterEvents()
+    {
+        pluginInterface.UiBuilder.Draw += DrawUI;
+        pluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
+        framework.Update += OnFrameworkUpdate;
+        clientState.TerritoryChanged += TerritoryChanged;
+        gameConfig.SystemChanged += CheckResolutionChange;
+        addonLifecycle.RegisterListener(AddonEvent.PostUpdate, addonsLookup, CheckBarCollision);
+        addonLifecycle.RegisterListener(AddonEvent.PreFinalize, "_ParameterWidget", NativeUiDisposeListener);
     }
 
     /// <summary>
@@ -453,6 +486,12 @@ public sealed class TickTracker : IDalamudPlugin
         HPBarWindow.IsOpen = !config.LockBar || (shouldShowHPBar && config.HPVisible);
         MPBarWindow.IsOpen = !config.LockBar || (shouldShowMPBar && !althideForMeleeRangedDPS && !hideForGPBar && config.MPVisible);
         GPBarWindow.IsOpen = !config.LockBar || (isDiscipleOfTheLand && (!config.HideOnFullResource || (player.CurrentGp != player.MaxGp)) && config.GPVisible && !inDuelingArea);
+        if (penumbraAvailable && penumbraIpc!.NativeUiBanned)
+        {
+            hpTickerNode.DestroyNode();
+            mpTickerNode.DestroyNode();
+            return;
+        }
         if (utilities.IsAddonReady(ParamWidget) && ParamWidget->UldManager.LoadedState is AtkLoadState.Loaded && ParamWidget->IsVisible)
         {
             DrawNativeNodes(shouldShowHPBar && config.HPNativeUiVisible, shouldShowMPBar && config.MPNativeUiVisible);
@@ -501,7 +540,7 @@ public sealed class TickTracker : IDalamudPlugin
 
     private void TerritoryChanged(ushort e)
     {
-        loadingTask = Task.Run(async () => await utilities.Loading(1000).ConfigureAwait(false));
+        loadingTask = Task.Run(async () => await utilities.Loading(1000).ConfigureAwait(false), cts.Token);
     }
 
     /// <summary>
@@ -543,10 +582,14 @@ public sealed class TickTracker : IDalamudPlugin
     }
 
 #if DEBUG
+
     private unsafe void DevWindowThings(PlayerCharacter? player, double currentTime, BarWindowBase window)
     {
         DevWindow.IsOpen = true;
-        return;
+        if (penumbraAvailable && penumbraIpc is not null)
+        {
+            DevWindow.Print(nameof(penumbraIpc.NativeUiBanned) + " is " + penumbraIpc.NativeUiBanned);
+        }
         var cultureFormat = System.Globalization.CultureInfo.InvariantCulture;
         if (player is not null)
         {
@@ -622,7 +665,7 @@ public sealed class TickTracker : IDalamudPlugin
             failed = true;
             return;
         }
-        var frameImageNode = NativeUi.GetNodeByID<AtkImageNode>(&gaugeBar->UldManager, frameImageId, NodeType.Image);
+        var frameImageNode = NativeUi.GetNodeByID(&gaugeBar->UldManager, frameImageId);
 
         if (frameImageNode is null)
         {
@@ -633,7 +676,7 @@ public sealed class TickTracker : IDalamudPlugin
 
         if (tickerNode.imageNode is null && !failed)
         {
-            tickerNode.CreateCompleteImageNode(0, gaugeBarNode, (AtkResNode*)frameImageNode);
+            tickerNode.CreateCompleteImageNode(0, gaugeBarNode, frameImageNode);
             if (tickerNode.imageNode is null)
             {
                 log.Error("ImageNode {id} could not be created.", tickerNode.NodeID);
@@ -656,6 +699,9 @@ public sealed class TickTracker : IDalamudPlugin
 #if DEBUG
         DevWindow.Dispose();
 #endif
+        cts.Cancel();
+        cts.Dispose();
+        penumbraIpc?.Dispose();
         receiveActorUpdateHook?.Disable();
         receiveActorUpdateHook?.Dispose();
         commandManager.RemoveHandler(CommandName);

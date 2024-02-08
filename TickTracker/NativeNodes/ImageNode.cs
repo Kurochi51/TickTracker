@@ -301,6 +301,7 @@ public sealed unsafe class ImageNode : IDisposable
         {
             return;
         }
+        imageNode->AtkResNode.Color = Dalamud.Utility.Numerics.VectorExtensions.ToByteColor(Color);
         imageNode->AtkResNode.MultiplyRed = (byte)(255 * Color.X);
         imageNode->AtkResNode.MultiplyGreen = (byte)(255 * Color.Y);
         imageNode->AtkResNode.MultiplyBlue = (byte)(255 * Color.Z);

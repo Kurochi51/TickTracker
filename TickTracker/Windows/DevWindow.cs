@@ -109,8 +109,6 @@ public sealed class DevWindow : Window, IDisposable
             InspectNodeStuff();
             return;
         }
-        var baseNode = NameplateAddon->GetNodeById(2);
-        var attachNode = NameplateAddon->GetNodeById(2)->GetComponent()->GetImageNodeById(9);
         if (devNode.imageNode is null)
         {
             devNode.CreateCompleteImageNode(0);

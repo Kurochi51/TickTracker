@@ -12,6 +12,8 @@ indent_style = space
 indent_size = 4
 
 # disable redundant style warnings
+MA0051.maximum_lines_per_method = 80
+MA0051.skip_local_functions = true
 
 # .NET diagnostic warnings
 dotnet_diagnostic.CS8524.severity = suggestion
