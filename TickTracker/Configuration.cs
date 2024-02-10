@@ -16,8 +16,9 @@ public class Configuration : IPluginConfiguration
     public bool HPVisible { get; set; } = true;
     public bool HPNativeUiVisible { get; set; } = false;
     public bool MPVisible { get; set; } = true;
-    public bool MPNativeUiVisible { get; set; }
+    public bool MPNativeUiVisible { get; set; } = false;
     public bool GPVisible { get; set; } = true;
+    public bool GPNativeUiVisible { get; set; } = false;
     public bool HideOnFullResource { get; set; } = false;
     public bool DisableCollisionInCombat { get; set; } = false;
     public bool CollisionDetection { get; set; } = false;
@@ -44,6 +45,7 @@ public class Configuration : IPluginConfiguration
     public Vector4 GPBarBackgroundColor { get; set; } = new(0f, 0f, 0f, 1f);
     public Vector4 GPBarFillColor { get; set; } = new(0.169f, 0.747f, 0.892f, 1f);
     public Vector4 GPBarBorderColor { get; set; } = new(0.246f, 0.262f, 0.270f, 1f);
+    public Vector4 GPNativeUiColor { get; set; } = new(0f, 0.570f, 0.855f, 1f);
     public Vector4 GPIconColor { get; set; } = new(1f, 1f, 1f, 1f);
 
     public void Save(DalamudPluginInterface pi) => pi.SavePluginConfig(this);

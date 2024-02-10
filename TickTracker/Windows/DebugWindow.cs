@@ -290,7 +290,7 @@ public sealed class DebugWindow : Window, IDisposable
         }
     }
 
-    private async void QueueColumnWidthChange(IFontHandle handle)
+    private async void QueueColumnWidthChange(IFontHandle handle, ILockedImFont lockedFont)
     {
         while (!handle.Available && !cToken.IsCancellationRequested)
         {

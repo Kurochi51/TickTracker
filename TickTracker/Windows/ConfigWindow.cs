@@ -7,6 +7,7 @@ using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility.Raii;
+using TickTracker.IPC;
 
 namespace TickTracker.Windows;
 
@@ -23,16 +24,20 @@ public class ConfigWindow : Window
     private readonly DalamudPluginInterface pluginInterface;
     private readonly DebugWindow debugWindow;
     private readonly Configuration config;
+    private readonly PenumbraIpc? penumbraIpc;
+
+    private bool nativeDisabled;
 
     private const ImGuiColorEditFlags ColorEditFlags = ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar;
 
-    public ConfigWindow(DalamudPluginInterface _pluginInterface, Configuration _config, DebugWindow _debugWindow) : base("TickTracker Settings")
+    public ConfigWindow(DalamudPluginInterface _pluginInterface, Configuration _config, DebugWindow _debugWindow, PenumbraIpc? _penumbraIpc) : base("TickTracker Settings")
     {
         Size = new Vector2(320, 390);
         Flags = ImGuiWindowFlags.NoResize;
         pluginInterface = _pluginInterface;
         config = _config;
         debugWindow = _debugWindow;
+        penumbraIpc = _penumbraIpc;
     }
 
     public override void OnClose()
@@ -42,6 +47,7 @@ public class ConfigWindow : Window
 
     public override void Draw()
     {
+        nativeDisabled = penumbraIpc is not null && penumbraIpc.NativeUiBanned;
         EditConfigProperty("Lock bar size and position", config, c => c.LockBar, (c, value) => c.LockBar = value, checkbox: true);
         using (var child = ImRaii.Child("TabBarChild", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y - (36f * ImGuiHelpers.GlobalScale)), border: false))
         {
@@ -65,9 +71,11 @@ public class ConfigWindow : Window
         var disabled = !config.HPVisible;
 
         EditConfigProperty("Show HP Bar", config, c => c.HPVisible, (c, value) => c.HPVisible = value, checkbox: true);
+        ImGui.BeginDisabled(nativeDisabled);
         EditConfigProperty("Use NativeUi HP Bar", config, c => c.HPNativeUiVisible, (c, value) => c.HPNativeUiVisible = value, checkbox: true);
         ImGui.SameLine();
         ImGuiComponents.HelpMarker("This will make the frame around the game's native HP Bar to fill up to represent the tick progress.");
+        ImGui.EndDisabled();
         ImGui.Spacing();
         DrawOptionsHP(ColorEditFlags, disabled);
         ImGui.Spacing();
@@ -101,9 +109,11 @@ public class ConfigWindow : Window
         var disabled = !config.MPVisible;
 
         EditConfigProperty("Show MP Bar", config, c => c.MPVisible, (c, value) => c.MPVisible = value, checkbox: true);
+        ImGui.BeginDisabled(nativeDisabled);
         EditConfigProperty("Use NativeUi MP Bar", config, c => c.MPNativeUiVisible, (c, value) => c.MPNativeUiVisible = value, checkbox: true);
         ImGui.SameLine();
         ImGuiComponents.HelpMarker("This will make the frame around the game's native MP Bar to fill up to represent the tick progress.");
+        ImGui.EndDisabled();
         ImGui.BeginDisabled(disabled);
         EditConfigProperty("Hide MP bar on melee and ranged DPS", config, c => c.HideMpBarOnMeleeRanged, (c, value) => c.HideMpBarOnMeleeRanged = value, checkbox: true);
         ImGui.EndDisabled();
@@ -143,6 +153,11 @@ public class ConfigWindow : Window
         EditConfigProperty("Show GP Bar", config, c => c.GPVisible, (c, value) => c.GPVisible = value, checkbox: true);
         ImGui.SameLine();
         ImGuiComponents.HelpMarker("Only shown while a Disciple of Land job is active or bars are unlocked.");
+        ImGui.BeginDisabled(nativeDisabled);
+        EditConfigProperty("Use NativeUi GP Bar", config, c => c.GPNativeUiVisible, (c, value) => c.GPNativeUiVisible = value, checkbox: true);
+        ImGui.SameLine();
+        ImGuiComponents.HelpMarker("This will make the frame around the game's native GP Bar to fill up to represent the tick progress.");
+        ImGui.EndDisabled();
         ImGui.Spacing();
 
         DrawOptionsGP(ColorEditFlags, disabled);
@@ -340,6 +355,21 @@ public class ConfigWindow : Window
         EditConfigProperty("Reset##ResetGPIconColor", config, c => c.GPIconColor, (c, value) => c.GPIconColor = value, checkbox: false, button: true, colorEdit: false, flags, defaultWhite);
 
         if (disabled)
+        {
+            ImGui.EndDisabled();
+        }
+
+        if (!config.GPNativeUiVisible)
+        {
+            ImGui.BeginDisabled();
+        }
+
+        EditConfigProperty("GP Native UI Color", config, c => c.GPNativeUiColor, (c, value) => c.GPNativeUiColor = value, checkbox: false, button: false, colorEdit: true, flags);
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(resetButtonX);
+        EditConfigProperty("Reset##ResetGPNativeUIColor", config, c => c.GPNativeUiColor, (c, value) => c.GPNativeUiColor = value, checkbox: false, button: true, colorEdit: false, flags, defaultNativeBlue);
+
+        if (!config.GPNativeUiVisible)
         {
             ImGui.EndDisabled();
         }

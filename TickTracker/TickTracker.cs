@@ -55,7 +55,7 @@ public sealed class TickTracker : IDalamudPlugin
     /// </summary>
     private HashSet<uint> disabledHealthRegenSet = [];
 
-    // FrozenSet my beloved ;-;
+    // FrozenSet my beloved Q_Q
     private readonly HashSet<uint> meleeAndRangedDPS = [];
     private readonly HashSet<uint> discipleOfTheLand = [];
     private readonly HashSet<string> meleeAndRangedAbbreviations = ["PGL", "LNC", "ARC", "MNK", "DRG", "BRD", "ROG", "NIN", "MCH", "SAM", "DNC", "RPR"];
@@ -95,18 +95,18 @@ public sealed class TickTracker : IDalamudPlugin
     public WindowSystem WindowSystem { get; } = new("TickTracker");
     private const string CommandName = "/tick";
     private const float RegularTickInterval = 3, FastTickInterval = 1.5f;
-    private const uint HPGaugeNodeId = 3, MPGaugeNodeId = 4, ParamFrameImageNode = 4;
+    private const uint PrimaryGaugeNodeID = 3, SecondaryGaugeNodeID = 4, ParamFrameImageNode = 4;
     private const string ParamWidgetUldPath = "ui/uld/parameter.uld";
 
     private readonly List<BarWindowBase> barWindows;
-    private readonly uint hpTickerImageID = NativeUi.Get("TickerImageHP");
-    private readonly uint mpTickerImageID = NativeUi.Get("TickerImageMP");
-    private readonly ImageNode hpTickerNode;
-    private readonly ImageNode mpTickerNode;
+    private readonly uint primaryTickerImageID = NativeUi.Get("TickerImagePrimary");
+    private readonly uint secondaryTickerImageID = NativeUi.Get("TickerImageSecondary");
+    private readonly ImageNode primaryTickerNode;
+    private readonly ImageNode secondaryTickerNode;
     private readonly CancellationTokenSource cts;
 
     private double syncValue, regenValue, fastValue;
-    private bool finishedLoading, nativeHpBarCreationFailed, nativeMpBarCreationFailed;
+    private bool finishedLoading, primaryNodeCreationFailed, secondaryNodeCreationFailed;
     private bool syncAvailable = true, nullSheet = true;
     private uint lastHPValue, lastMPValue, lastGPValue;
     private Task? loadingTask;
@@ -147,13 +147,13 @@ public sealed class TickTracker : IDalamudPlugin
         cts = new CancellationTokenSource();
 
         var tickerUld = pluginInterface.UiBuilder.LoadUld(ParamWidgetUldPath);
-        hpTickerNode = new ImageNode(_dataManager, log, tickerUld)
+        primaryTickerNode = new ImageNode(_dataManager, log, tickerUld)
         {
-            NodeID = hpTickerImageID,
+            NodeID = primaryTickerImageID,
         };
-        mpTickerNode = new ImageNode(_dataManager, log, tickerUld)
+        secondaryTickerNode = new ImageNode(_dataManager, log, tickerUld)
         {
-            NodeID = mpTickerImageID,
+            NodeID = secondaryTickerImageID,
         };
         tickerUld.Dispose();
 
@@ -185,8 +185,13 @@ public sealed class TickTracker : IDalamudPlugin
 
     private void PenumbraCheck()
     {
-        foreach (var plo in pluginInterface.InstalledPlugins.Where(gon => gon.Name.Contains("Penumbra", StringComparison.OrdinalIgnoreCase)))
+        try
         {
+            var plo = pluginInterface.InstalledPlugins.SingleOrDefault(gon => gon.InternalName.Equals("Penumbra", StringComparison.Ordinal));
+            if (plo is null)
+            {
+                return;
+            }
             if (plo.IsLoaded)
             {
                 penumbraIpc = new PenumbraIpc(pluginInterface, log);
@@ -203,12 +208,21 @@ public sealed class TickTracker : IDalamudPlugin
                 }
             }, cts.Token);
         }
+        catch (Exception ex)
+        {
+            if (ex.Message.Contains("Penumbra API out of date", StringComparison.OrdinalIgnoreCase))
+            {
+                log.Error(ex.Message);
+                return;
+            }
+            log.Error("Too many plogons for safe consumption. {ex}", ex.Message);
+        }
     }
 
     private void InitializeWindows()
     {
         DebugWindow = new DebugWindow(pluginInterface);
-        ConfigWindow = new ConfigWindow(pluginInterface, config, DebugWindow);
+        ConfigWindow = new ConfigWindow(pluginInterface, config, DebugWindow, penumbraIpc);
         HPBarWindow = new HPBar(clientState, log, utilities, config);
         MPBarWindow = new MPBar(clientState, log, utilities, config);
         GPBarWindow = new GPBar(clientState, log, utilities, config);
@@ -269,7 +283,6 @@ public sealed class TickTracker : IDalamudPlugin
                 return;
             }
         }
-        UpdateBarState(player);
         var now = (DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds;
         if (syncAvailable)
         {
@@ -295,6 +308,7 @@ public sealed class TickTracker : IDalamudPlugin
             loadingTask = null;
         }
         ProcessTicks(now, player);
+        UpdateBarState(player);
     }
 
     private void ProcessTicks(double currentTime, PlayerCharacter player)
@@ -472,29 +486,32 @@ public sealed class TickTracker : IDalamudPlugin
         var Enemy = player.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
         var inCombat = condition[ConditionFlag.InCombat];
         var inDuelingArea = condition[ConditionFlag.InDuelingArea];
-
-        var shouldShowHPBar = ShowBar(inCombat, player.CurrentHp == player.MaxHp, Enemy);
-        var shouldShowMPBar = ShowBar(inCombat, player.CurrentMp == player.MaxMp, Enemy);
-
-        if (inDuelingArea)
-        {
-            shouldShowHPBar = false;
-            shouldShowMPBar = false;
-        }
-
         var hideForGPBar = isDiscipleOfTheLand && config.GPVisible;
+
+        var shouldShowHPBar = ShowBar(inCombat, player.CurrentHp == player.MaxHp, Enemy) && !inDuelingArea;
+        var shouldShowMPBar = ShowBar(inCombat, player.CurrentMp == player.MaxMp, Enemy) && !inDuelingArea && !althideForMeleeRangedDPS;
+        var shouldShowGPBar = isDiscipleOfTheLand && (!config.HideOnFullResource || player.CurrentGp != player.MaxGp) && !inDuelingArea;
+        
         HPBarWindow.IsOpen = !config.LockBar || (shouldShowHPBar && config.HPVisible);
-        MPBarWindow.IsOpen = !config.LockBar || (shouldShowMPBar && !althideForMeleeRangedDPS && !hideForGPBar && config.MPVisible);
-        GPBarWindow.IsOpen = !config.LockBar || (isDiscipleOfTheLand && (!config.HideOnFullResource || (player.CurrentGp != player.MaxGp)) && config.GPVisible && !inDuelingArea);
-        if (penumbraAvailable && penumbraIpc!.NativeUiBanned)
+        MPBarWindow.IsOpen = !config.LockBar || (shouldShowMPBar && config.MPVisible && !hideForGPBar);
+        GPBarWindow.IsOpen = !config.LockBar || (shouldShowGPBar && config.GPVisible);
+        if (penumbraAvailable && penumbraIpc is not null && penumbraIpc.NativeUiBanned)
         {
-            hpTickerNode.DestroyNode();
-            mpTickerNode.DestroyNode();
+            if(primaryTickerNode.imageNode is not null)
+            {
+                primaryTickerNode.DestroyNode();
+            }
+            if(secondaryTickerNode.imageNode is not null)
+            {
+                secondaryTickerNode.DestroyNode();
+            }
             return;
         }
         if (utilities.IsAddonReady(ParamWidget) && ParamWidget->UldManager.LoadedState is AtkLoadState.Loaded && ParamWidget->IsVisible)
         {
-            DrawNativeNodes(shouldShowHPBar && config.HPNativeUiVisible, shouldShowMPBar && config.MPNativeUiVisible);
+            DrawNativeNodes(shouldShowHPBar,
+                shouldShowMPBar && !isDiscipleOfTheLand,
+                shouldShowGPBar);
         }
     }
 
@@ -610,35 +627,50 @@ public sealed class TickTracker : IDalamudPlugin
     }
 #endif
 
-    private unsafe void DrawNativeNodes(bool hpVisible, bool mpVisible)
+    private unsafe void DrawNativeNodes(bool hpVisible, bool mpVisible, bool gpVisible)
     {
         if (!config.HPNativeUiVisible)
         {
-            hpTickerNode.DestroyNode();
+            primaryTickerNode.DestroyNode();
         }
-        if (!config.MPNativeUiVisible)
+        else if (!primaryNodeCreationFailed)
         {
-            mpTickerNode.DestroyNode();
-        }
-        if (!nativeHpBarCreationFailed && config.HPNativeUiVisible)
-        {
-            HandleNativeNode(hpTickerNode,
-                HPGaugeNodeId,
+            HandleNativeNode(primaryTickerNode,
+                PrimaryGaugeNodeID,
                 ParamFrameImageNode,
                 hpVisible,
                 HPBarWindow.Progress,
                 config.HPNativeUiColor,
-                ref nativeHpBarCreationFailed);
+                ref primaryNodeCreationFailed);
         }
-        if (!nativeMpBarCreationFailed && config.MPNativeUiVisible)
+
+        if (!config.MPNativeUiVisible && !config.GPNativeUiVisible)
         {
-            HandleNativeNode(mpTickerNode,
-                MPGaugeNodeId,
-                ParamFrameImageNode,
-                mpVisible,
-                MPBarWindow.Progress,
-                config.MPNativeUiColor,
-                ref nativeMpBarCreationFailed);
+            secondaryTickerNode.DestroyNode();
+        }
+        else if (secondaryNodeCreationFailed)
+        {
+            return;
+        }
+        if (!gpVisible)
+        {
+            HandleNativeNode(secondaryTickerNode,
+            SecondaryGaugeNodeID,
+            ParamFrameImageNode,
+            mpVisible && config.MPNativeUiVisible,
+            MPBarWindow.Progress,
+            config.MPNativeUiColor,
+            ref secondaryNodeCreationFailed);
+        }
+        if (!mpVisible)
+        {
+            HandleNativeNode(secondaryTickerNode,
+            SecondaryGaugeNodeID,
+            ParamFrameImageNode,
+            gpVisible && config.GPNativeUiVisible,
+            GPBarWindow.Progress,
+            config.GPNativeUiColor,
+            ref secondaryNodeCreationFailed);
         }
     }
 
@@ -646,6 +678,19 @@ public sealed class TickTracker : IDalamudPlugin
     {
         if (tickerNode.imageNode is not null)
         {
+            if (!visibility)
+            {
+                if (tickerNode.imageNode->AtkResNode.Width is not 0)
+                {
+                    tickerNode.imageNode->AtkResNode.SetWidth(0);
+                }
+                if (tickerNode.imageNode->AtkResNode.IsVisible)
+                {
+                    tickerNode.imageNode->AtkResNode.ToggleVisibility(visibility);
+                }
+                return;
+            }
+            progress = Math.Clamp(progress, 0, 1);
             tickerNode.imageNode->AtkResNode.SetWidth(progress > 0 ? (ushort)((progress * 152) + 4) : (ushort)0);
             tickerNode.ChangeNodeColorAndAlpha(Color);
             tickerNode.imageNode->AtkResNode.ToggleVisibility(visibility);
@@ -690,8 +735,8 @@ public sealed class TickTracker : IDalamudPlugin
 
     private unsafe void NativeUiDisposeListener(AddonEvent type, AddonArgs args)
     {
-        hpTickerNode.DestroyNode();
-        mpTickerNode.DestroyNode();
+        primaryTickerNode.DestroyNode();
+        secondaryTickerNode.DestroyNode();
     }
 
     public void Dispose()
@@ -710,8 +755,8 @@ public sealed class TickTracker : IDalamudPlugin
         framework.Update -= OnFrameworkUpdate;
         addonLifecycle.UnregisterListener(AddonEvent.PreFinalize, "_ParameterWidget", NativeUiDisposeListener);
         addonLifecycle.UnregisterListener(AddonEvent.PostUpdate, addonsLookup, CheckBarCollision);
-        hpTickerNode.Dispose();
-        mpTickerNode.Dispose();
+        primaryTickerNode.Dispose();
+        secondaryTickerNode.Dispose();
         pluginInterface.UiBuilder.Draw -= DrawUI;
         clientState.TerritoryChanged -= TerritoryChanged;
         gameConfig.SystemChanged -= CheckResolutionChange;

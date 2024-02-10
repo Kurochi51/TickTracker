@@ -1,6 +1,7 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
+using System.Globalization;
+using System.Collections.Generic;
 
 using Dalamud.Plugin;
 using Dalamud.Plugin.Ipc;
@@ -39,17 +40,17 @@ public sealed class PenumbraIpc : IDisposable
         }
     }
 
-    private int penumbraApiVersion
+    private (int Breaking, int FeatureLevel) penumbraApiVersion
     {
         get
         {
             try
             {
-                return apiVersions.InvokeFunc().Breaking;
+                return apiVersions.InvokeFunc();
             }
             catch
             {
-                return 0;
+                return (0, 0);
             }
         }
     }
@@ -60,9 +61,13 @@ public sealed class PenumbraIpc : IDisposable
 
         apiVersions = _pluginInterface.GetIpcSubscriber<(int, int)>("Penumbra.ApiVersions");
 
-        if (penumbraApiVersion != 4)
+        if (penumbraApiVersion.Breaking is not 4)
         {
-            throw new NotSupportedException("Penumbra API out of date.");
+            throw new NotSupportedException("Penumbra API out of date. Version " + penumbraApiVersion.Breaking.ToString(CultureInfo.InvariantCulture));
+        }
+        if(penumbraApiVersion.FeatureLevel is not 0 or 23)
+        {
+            log.Debug("Penumbra API Feature Level {ver}", penumbraApiVersion.FeatureLevel);
         }
 
         penumbraModsState = _pluginInterface.GetIpcSubscriber<bool>("Penumbra.GetEnabledState");
@@ -114,6 +119,7 @@ public sealed class PenumbraIpc : IDisposable
             {
                 continue;
             }
+            // Inheritance bool arg is flipped
             var modDetails = modSettings.InvokeFunc(collection, mod.modDirectory, mod.modName, false);
             if (modDetails.status is not PenumbraApiEc.Success || !modDetails.settings.HasValue)
             {
