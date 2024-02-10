@@ -65,7 +65,7 @@ public sealed class PenumbraIpc : IDisposable
         {
             throw new NotSupportedException("Penumbra API out of date. Version " + penumbraApiVersion.Breaking.ToString(CultureInfo.InvariantCulture));
         }
-        if(penumbraApiVersion.FeatureLevel is not 0 or 23)
+        if (penumbraApiVersion.FeatureLevel is not 0 or 23)
         {
             log.Debug("Penumbra API Feature Level {ver}", penumbraApiVersion.FeatureLevel);
         }

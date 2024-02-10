@@ -491,17 +491,17 @@ public sealed class TickTracker : IDalamudPlugin
         var shouldShowHPBar = ShowBar(inCombat, player.CurrentHp == player.MaxHp, Enemy) && !inDuelingArea;
         var shouldShowMPBar = ShowBar(inCombat, player.CurrentMp == player.MaxMp, Enemy) && !inDuelingArea && !althideForMeleeRangedDPS;
         var shouldShowGPBar = isDiscipleOfTheLand && (!config.HideOnFullResource || player.CurrentGp != player.MaxGp) && !inDuelingArea;
-        
+
         HPBarWindow.IsOpen = !config.LockBar || (shouldShowHPBar && config.HPVisible);
         MPBarWindow.IsOpen = !config.LockBar || (shouldShowMPBar && config.MPVisible && !hideForGPBar);
         GPBarWindow.IsOpen = !config.LockBar || (shouldShowGPBar && config.GPVisible);
         if (penumbraAvailable && penumbraIpc is not null && penumbraIpc.NativeUiBanned)
         {
-            if(primaryTickerNode.imageNode is not null)
+            if (primaryTickerNode.imageNode is not null)
             {
                 primaryTickerNode.DestroyNode();
             }
-            if(secondaryTickerNode.imageNode is not null)
+            if (secondaryTickerNode.imageNode is not null)
             {
                 secondaryTickerNode.DestroyNode();
             }
