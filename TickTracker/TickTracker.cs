@@ -19,7 +19,6 @@ using Dalamud.Game.Command;
 using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using Dalamud.Game.ClientState.Conditions;
-using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.JobGauge.Types;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using TickTracker.Windows;
@@ -79,8 +78,6 @@ public sealed class TickTracker : IDalamudPlugin
     private readonly IPluginLog log;
     private readonly IGameConfig gameConfig;
     private readonly IAddonLifecycle addonLifecycle;
-    private PenumbraIpc? penumbraIpc;
-    private bool penumbraAvailable;
 
     private ConfigWindow ConfigWindow { get; set; } = null!;
     private DebugWindow DebugWindow { get; set; } = null!;
@@ -106,10 +103,11 @@ public sealed class TickTracker : IDalamudPlugin
     private readonly CancellationTokenSource cts;
 
     private double syncValue, regenValue, fastValue;
-    private bool finishedLoading, primaryNodeCreationFailed, secondaryNodeCreationFailed;
+    private bool finishedLoading, primaryNodeCreationFailed, secondaryNodeCreationFailed, penumbraAvailable;
     private bool syncAvailable = true, nullSheet = true;
     private uint lastHPValue, lastMPValue, lastGPValue;
     private Task? loadingTask;
+    private PenumbraIpc? penumbraIpc;
     private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
     private unsafe AtkUnitBase* ParamWidget => (AtkUnitBase*)gameGui.GetAddonByName("_ParameterWidget");
 
@@ -483,7 +481,7 @@ public sealed class TickTracker : IDalamudPlugin
         var jobId = player.ClassJob.Id;
         var althideForMeleeRangedDPS = meleeAndRangedDPS.Contains(jobId);
         var isDiscipleOfTheLand = discipleOfTheLand.Contains(jobId);
-        var Enemy = player.TargetObject?.ObjectKind == ObjectKind.BattleNpc;
+        var Enemy = player.TargetObject?.ObjectKind == Dalamud.Game.ClientState.Objects.Enums.ObjectKind.BattleNpc;
         var inCombat = condition[ConditionFlag.InCombat];
         var inDuelingArea = condition[ConditionFlag.InDuelingArea];
         var hideForGPBar = isDiscipleOfTheLand && config.GPVisible;
@@ -599,7 +597,6 @@ public sealed class TickTracker : IDalamudPlugin
     }
 
 #if DEBUG
-
     private unsafe void DevWindowThings(PlayerCharacter? player, double currentTime, BarWindowBase window)
     {
         DevWindow.IsOpen = true;
@@ -607,13 +604,13 @@ public sealed class TickTracker : IDalamudPlugin
         {
             DevWindow.Print(nameof(penumbraIpc.NativeUiBanned) + " is " + penumbraIpc.NativeUiBanned);
         }
-        var cultureFormat = System.Globalization.CultureInfo.InvariantCulture;
         if (player is not null)
         {
             DevWindow.Print(window.WindowName + ": " + player.CurrentHp.ToString() + " / " + player.MaxHp.ToString());
             var shieldValue = player.ShieldPercentage * player.MaxHp / 100;
             DevWindow.Print("Possible shield values for " + (player.Name.TextValue ?? "unknown") + " of " + shieldValue);
         }
+        var cultureFormat = System.Globalization.CultureInfo.InvariantCulture;
         DevWindow.Print($"Window open? {window.IsOpen}");
         DevWindow.Print("Current Time: " + currentTime.ToString(cultureFormat));
         DevWindow.Print("RegenActive: " + window.RegenActive.ToString());

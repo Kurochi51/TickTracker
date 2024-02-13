@@ -50,6 +50,16 @@ public sealed class DevWindow : Window, IDisposable
 
     public override void Draw()
     {
+        //ImageNodeStuff();
+        foreach (var line in PrintLines)
+        {
+            ImGui.TextUnformatted(line);
+        }
+        PrintLines.Clear();
+    }
+
+    private unsafe void ImageNodeStuff()
+    {
         var pId = partId;
         var pListIndex = partListIndex;
         var uld = uldPath;
@@ -90,16 +100,6 @@ public sealed class DevWindow : Window, IDisposable
         {
             devNode?.SetNodePosition(nodeX, nodeY);
         }
-        ImageNodeStuff();
-        foreach (var line in PrintLines)
-        {
-            ImGui.TextUnformatted(line);
-        }
-        PrintLines.Clear();
-    }
-
-    private unsafe void ImageNodeStuff()
-    {
         if (devNode is null || !utilities.IsAddonReady(NameplateAddon))
         {
             return;

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Ipc;
 using Dalamud.Plugin.Services;
+using Dalamud.Game.ClientState.Objects.Types;
 
 namespace TickTracker.IPC;
 
@@ -119,8 +120,8 @@ public sealed class PenumbraIpc : IDisposable
             {
                 continue;
             }
-            // Inheritance bool arg is flipped
-            var modDetails = modSettings.InvokeFunc(collection, mod.modDirectory, mod.modName, false);
+            // Inheritance bool arg4 is flipped
+            var modDetails = modSettings.InvokeFunc(collection, mod.modDirectory, mod.modName, arg4: false);
             if (modDetails.status is not PenumbraApiEc.Success || !modDetails.settings.HasValue)
             {
                 log.Error("Failed to retrieve mod details. {stat}", modDetails.status);
