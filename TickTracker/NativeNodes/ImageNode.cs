@@ -26,7 +26,7 @@ public sealed unsafe class ImageNode : IDisposable
     private readonly IPluginLog log;
     private readonly PartsData[] uldPartsListArray;
 
-    private readonly Dictionary<uint, string> textureDictionary = [];
+    private readonly Dictionary<uint, string> textureDictionary = new();
     private Vector2 nodePosition = new(-1, -1);
     private AtkResNode* imageNodeParent;
 

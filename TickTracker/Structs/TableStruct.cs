@@ -1,11 +1,13 @@
 using System.Numerics;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
+
 using Dalamud.Utility;
 
 namespace TickTracker.Structs;
 
-// What do you mean passing 8 arguments in 3 different functions twice is unhinged and should be a struct instead.
-public struct TableStruct
+[StructLayout(LayoutKind.Auto)]
+public record struct TableStruct
 {
     /// <summary>
     ///     The ID of the table that's used by ImGui.

@@ -41,10 +41,10 @@ public sealed class DebugWindow : Window, IDisposable
     private readonly CancellationTokenSource cts;
     private readonly CancellationToken cToken;
 
-    private readonly List<string> healthRegenList = [];
-    private readonly List<string> manaRegenList = [];
-    private readonly List<string> disabledHealthRegenList = [];
-    private readonly List<string> disabledManaRegenList = [];
+    private readonly List<string> healthRegenList = new();
+    private readonly List<string> manaRegenList = new();
+    private readonly List<string> disabledHealthRegenList = new();
+    private readonly List<string> disabledManaRegenList = new();
 
     private const ImGuiTableFlags TableFlags = ImGuiTableFlags.ScrollY | ImGuiTableFlags.PreciseWidths | ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersOuter;
     private TableStruct disabledRegenTable, regenTable;

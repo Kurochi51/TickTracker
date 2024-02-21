@@ -33,32 +33,32 @@ public sealed class TickTracker : IDalamudPlugin
     /// <summary>
     /// A <see cref="List{T}"/> of addons to fetch for collision checks.
     /// </summary>
-    private readonly List<string> addonsLookup =
-    [
+    private readonly List<string> addonsLookup = new()
+    {
         "Talk",
         "ActionDetail",
         "ItemDetail",
         "Inventory",
         "Character",
-    ];
+    };
     /// <summary>
     /// A <see cref="HashSet{T}" /> of Status IDs that trigger HP regen
     /// </summary>
-    private HashSet<uint> healthRegenSet = [];
+    private HashSet<uint> healthRegenSet = new();
     /// <summary>
     /// A <see cref="HashSet{T}" /> of Status IDs that trigger MP regen
     /// </summary>
-    private HashSet<uint> manaRegenSet = [];
+    private HashSet<uint> manaRegenSet = new();
     /// <summary>
     /// A <see cref="HashSet{T}" /> of Status IDs that stop HP regen
     /// </summary>
-    private HashSet<uint> disabledHealthRegenSet = [];
+    private HashSet<uint> disabledHealthRegenSet = new();
 
     // FrozenSet my beloved Q_Q
-    private readonly HashSet<uint> meleeAndRangedDPS = [];
-    private readonly HashSet<uint> discipleOfTheLand = [];
-    private readonly HashSet<string> meleeAndRangedAbbreviations = ["PGL", "LNC", "ARC", "MNK", "DRG", "BRD", "ROG", "NIN", "MCH", "SAM", "DNC", "RPR"];
-    private readonly HashSet<string> discipleOfTheLandAbbreviations = ["MIN", "BTN", "FSH"];
+    private readonly HashSet<uint> meleeAndRangedDPS = new();
+    private readonly HashSet<uint> discipleOfTheLand = new();
+    private readonly HashSet<string> meleeAndRangedAbbreviations = new(StringComparer.OrdinalIgnoreCase) { "PGL", "LNC", "ARC", "MNK", "DRG", "BRD", "ROG", "NIN", "MCH", "SAM", "DNC", "RPR" };
+    private readonly HashSet<string> discipleOfTheLandAbbreviations = new(StringComparer.OrdinalIgnoreCase) { "MIN", "BTN", "FSH" };
 
     // Function that triggers when client receives a network packet with an update for nearby actors
     private unsafe delegate void ReceiveActorUpdateDelegate(uint objectId, uint* packetData, byte unkByte);
@@ -387,12 +387,12 @@ public sealed class TickTracker : IDalamudPlugin
                 discipleOfTheLand.Add(row.RowId);
             }
         }
-        List<int> bannedStatus = [135, 307, 751, 1419, 1465, 1730, 2326];
+        List<int> bannedStatus = new() { 135, 307, 751, 1419, 1465, 1730, 2326 };
         var filteredSheet = statusSheet.Where(s => !bannedStatus.Exists(rowId => rowId == s.RowId));
         ParseStatusSheet(filteredSheet, out var disabledHealthRegenBag, out var healthRegenBag, out var manaRegenBag);
-        healthRegenSet = [.. healthRegenBag];
-        manaRegenSet = [.. manaRegenBag];
-        disabledHealthRegenSet = [.. disabledHealthRegenBag];
+        healthRegenSet = healthRegenBag.ToHashSet();
+        manaRegenSet = manaRegenBag.ToHashSet();
+        disabledHealthRegenSet = disabledHealthRegenBag.ToHashSet();
         nullSheet = false;
         log.Debug("HP regen list generated with {HPcount} status effects.", healthRegenSet.Count);
         log.Debug("MP regen list generated with {MPcount} status effects.", manaRegenSet.Count);

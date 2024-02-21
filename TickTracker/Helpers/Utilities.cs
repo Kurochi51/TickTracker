@@ -26,7 +26,7 @@ namespace TickTracker.Helpers;
 /// <summary>
 ///     A class that contains different helper functions necessary for this plugin's operation
 /// </summary>
-public partial class Utilities(DalamudPluginInterface _pluginInterface, Configuration _config, ICondition _condition, IDataManager _dataManager, IClientState _clientState, IPluginLog _pluginLog)
+public partial class Utilities
 {
     /// <summary>
     ///     A set of words that indicate regeneration
@@ -77,15 +77,30 @@ public partial class Utilities(DalamudPluginInterface _pluginInterface, Configur
         "stopped",
     };
 
-    private readonly DalamudPluginInterface pluginInterface = _pluginInterface;
-    private readonly Configuration config = _config;
-    private readonly ICondition condition = _condition;
-    private readonly IDataManager dataManager = _dataManager;
-    private readonly IClientState clientState = _clientState;
-    private readonly IPluginLog log = _pluginLog;
+    private readonly DalamudPluginInterface pluginInterface;
+    private readonly Configuration config;
+    private readonly ICondition condition;
+    private readonly IDataManager dataManager;
+    private readonly IClientState clientState;
+    private readonly IPluginLog log;
 
     private const float OffsetX = 10f;
     private const float OffsetY = 25f;
+
+    public Utilities(DalamudPluginInterface _pluginInterface,
+        Configuration _config,
+        ICondition _condition,
+        IDataManager _dataManager,
+        IClientState _clientState,
+        IPluginLog _pluginLog)
+    {
+        pluginInterface = _pluginInterface;
+        config = _config;
+        condition = _condition;
+        dataManager = _dataManager;
+        clientState = _clientState;
+        log = _pluginLog;
+    }
 
     /// <summary>
     ///     Indicates if the <paramref name="window"/> is allowed to be drawn

@@ -25,7 +25,7 @@ public sealed class DevWindow : Window, IDisposable
     private readonly uint devNodeImageId = NativeUi.Get("DevNode");
 
     private const string GatchaUldPath = "ui/uld/Gacha.uld";
-    private static readonly List<string> PrintLines = [];
+    private static readonly List<string> PrintLines = new();
     public int partId { get; set; }
     public int partListIndex { get; set; }
     public string uldPath { get; set; } = GatchaUldPath;
@@ -50,7 +50,7 @@ public sealed class DevWindow : Window, IDisposable
 
     public override void Draw()
     {
-        //ImageNodeStuff();
+        ImageNodeStuff();
         foreach (var line in PrintLines)
         {
             ImGui.TextUnformatted(line);
