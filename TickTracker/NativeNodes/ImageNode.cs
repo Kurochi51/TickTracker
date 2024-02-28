@@ -239,6 +239,7 @@ public sealed unsafe class ImageNode : IDisposable
         if (atkPartsList is null)
         {
             IMemorySpace.Free(imageNode, (ulong)sizeof(AtkImageNode));
+            log.Error("Could not create AtkUldPartsList for image node.");
             return;
         }
         if (parent is not null && targetNode is null)
@@ -337,7 +338,7 @@ public sealed unsafe class ImageNode : IDisposable
     }
 
     /// <summary>
-    /// Destroys the current <see cref="imageNode"/>.
+    /// Destroys the current <see cref="AtkImageNode"/>, if it exists.
     /// </summary>
     public void DestroyNode()
     {

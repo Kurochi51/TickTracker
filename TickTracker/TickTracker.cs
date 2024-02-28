@@ -507,9 +507,8 @@ public sealed class TickTracker : IDalamudPlugin
         }
         if (utilities.IsAddonReady(ParamWidget) && ParamWidget->UldManager.LoadedState is AtkLoadState.Loaded && ParamWidget->IsVisible)
         {
-            DrawNativeNodes(shouldShowHPBar,
-                shouldShowMPBar && !isDiscipleOfTheLand,
-                shouldShowGPBar);
+            DrawNativePrimary(shouldShowHPBar);
+            DrawNativeSecondary(shouldShowMPBar && !isDiscipleOfTheLand, shouldShowGPBar);
         }
     }
 
@@ -624,29 +623,33 @@ public sealed class TickTracker : IDalamudPlugin
     }
 #endif
 
-    private unsafe void DrawNativeNodes(bool hpVisible, bool mpVisible, bool gpVisible)
+    private unsafe void DrawNativePrimary(bool hpVisible)
     {
-        if (!config.HPNativeUiVisible)
+        if (!config.HPNativeUiVisible || primaryNodeCreationFailed)
         {
-            primaryTickerNode.DestroyNode();
+            if (primaryTickerNode.imageNode is not null)
+            {
+                primaryTickerNode.DestroyNode();
+            }
+            return;
         }
-        else if (!primaryNodeCreationFailed)
-        {
-            HandleNativeNode(primaryTickerNode,
-                PrimaryGaugeNodeID,
-                ParamFrameImageNode,
-                hpVisible,
-                HPBarWindow.Progress,
-                config.HPNativeUiColor,
-                ref primaryNodeCreationFailed);
-        }
+        HandleNativeNode(primaryTickerNode,
+            PrimaryGaugeNodeID,
+            ParamFrameImageNode,
+            hpVisible,
+            HPBarWindow.Progress,
+            config.HPNativeUiColor,
+            ref primaryNodeCreationFailed);
+    }
 
-        if (!config.MPNativeUiVisible && !config.GPNativeUiVisible)
+    private unsafe void DrawNativeSecondary(bool mpVisible, bool gpVisible)
+    {
+        if ((!config.MPNativeUiVisible && !config.GPNativeUiVisible) || secondaryNodeCreationFailed)
         {
-            secondaryTickerNode.DestroyNode();
-        }
-        else if (secondaryNodeCreationFailed)
-        {
+            if (secondaryTickerNode.imageNode is not null)
+            {
+                secondaryTickerNode.DestroyNode();
+            }
             return;
         }
         if (!gpVisible)
