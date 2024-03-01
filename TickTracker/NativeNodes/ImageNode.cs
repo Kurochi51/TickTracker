@@ -27,6 +27,7 @@ public sealed unsafe class ImageNode : IDisposable
     private readonly PartsData[] uldPartsListArray;
 
     private readonly Dictionary<uint, string> textureDictionary = new();
+    private readonly Dictionary<uint, string> hqTextureDictionary = new();
     private Vector2 nodePosition = new(-1, -1);
     private AtkResNode* imageNodeParent;
 
@@ -49,6 +50,7 @@ public sealed unsafe class ImageNode : IDisposable
         uldPartsListArray = uld.Parts;
 
         textureDictionary.Clear();
+        hqTextureDictionary.Clear();
         for (var i = 0; i < uld.AssetData.Length; i++)
         {
             var rawTexturePath = uld.AssetData[i].Path;
@@ -61,13 +63,13 @@ public sealed unsafe class ImageNode : IDisposable
             var texturePath = new string(rawTexturePath, 0, rawTexturePath.Length).Trim('\0').Trim();
             var hqTexturePath = texturePath.Replace(".tex", "_hr1.tex", StringComparison.Ordinal);
 
-            if (dataManager.FileExists(hqTexturePath))
-            {
-                textureDictionary.Add(textureId, hqTexturePath);
-            }
-            else if (dataManager.FileExists(texturePath))
+            if (dataManager.FileExists(texturePath))
             {
                 textureDictionary.Add(textureId, texturePath);
+            }
+            if (dataManager.FileExists(hqTexturePath))
+            {
+                hqTextureDictionary.Add(textureId, hqTexturePath);
             }
         }
     }
@@ -79,9 +81,9 @@ public sealed unsafe class ImageNode : IDisposable
     /// <b>Must be disposed with <see cref="FreeResources(AtkUldPartsList*[])"/></b>
     /// </remarks>
     /// <returns></returns>
-    public AtkUldPartsList*[]? CreateAtkUldPartsListArray()
+    public AtkUldPartsList*[]? CreateAtkUldPartsListArray(bool hqTexture = true)
     {
-        if (textureDictionary.Count is 0 || uldPartsListArray is [])
+        if (uldPartsListArray is [] || (textureDictionary.Count is 0 && !hqTexture) || (hqTextureDictionary.Count is 0 && hqTexture))
         {
             return null;
         }
@@ -120,7 +122,7 @@ public sealed unsafe class ImageNode : IDisposable
                 return null;
             }
             currentAtkPartsList->Parts = currentAtkPartList;
-            if (!PopulatePartsList(ref currentAtkPartsList, uldPartsListArray[i]))
+            if (!PopulatePartsList(ref currentAtkPartsList, uldPartsListArray[i], hqTexture))
             {
                 IMemorySpace.Free(currentAtkPartList, (ulong)(sizeof(AtkUldPart) * currentAtkPartsList->PartCount));
                 IMemorySpace.Free(currentAtkPartsList, (ulong)sizeof(AtkUldPartsList));
@@ -140,7 +142,7 @@ public sealed unsafe class ImageNode : IDisposable
         return atkUldPartsListArray;
     }
 
-    private bool PopulatePartsList(ref AtkUldPartsList* currentPartsList, PartsData currentUldPartsList)
+    private bool PopulatePartsList(ref AtkUldPartsList* currentPartsList, PartsData currentUldPartsList, bool hqTexture)
     {
         for (var i = 0; i < currentPartsList->PartCount; i++)
         {
@@ -159,7 +161,11 @@ public sealed unsafe class ImageNode : IDisposable
             currentPartsList->Parts[i].Height = currentUldPartsList.Parts[i].H;
             currentAsset->Id = currentUldPartsList.Parts[i].TextureId;
             currentAsset->AtkTexture.Ctor();
-            if (textureDictionary.TryGetValue(currentAsset->Id, out var texturePath))
+            if (hqTexture && hqTextureDictionary.TryGetValue(currentAsset->Id, out var hqTexturePath))
+            {
+                currentAsset->AtkTexture.LoadTexture(hqTexturePath);
+            }
+            else if (!hqTexture && textureDictionary.TryGetValue(currentAsset->Id, out var texturePath))
             {
                 currentAsset->AtkTexture.LoadTexture(texturePath);
             }
@@ -168,7 +174,7 @@ public sealed unsafe class ImageNode : IDisposable
         return true;
     }
 
-    private AtkUldPartsList* GetImagePartsList(int partsListIndex)
+    private AtkUldPartsList* GetImagePartsList(int partsListIndex, bool hqTexture)
     {
         var imageNodePartsList = (AtkUldPartsList*)IMemorySpace.GetUISpace()->Malloc((ulong)sizeof(AtkUldPartsList), 8);
         if (imageNodePartsList is null)
@@ -207,7 +213,11 @@ public sealed unsafe class ImageNode : IDisposable
             imageNodePartsList->Parts[i].Height = uldPartsListArray[partsListIndex].Parts[i].H;
             currentAsset->Id = uldPartsListArray[partsListIndex].Parts[i].TextureId;
             currentAsset->AtkTexture.Ctor();
-            if (textureDictionary.TryGetValue(currentAsset->Id, out var texturePath))
+            if (hqTexture && hqTextureDictionary.TryGetValue(currentAsset->Id, out var hqTexturePath))
+            {
+                currentAsset->AtkTexture.LoadTexture(hqTexturePath);
+            }
+            else if (!hqTexture && textureDictionary.TryGetValue(currentAsset->Id, out var texturePath))
             {
                 currentAsset->AtkTexture.LoadTexture(texturePath);
             }
@@ -226,7 +236,7 @@ public sealed unsafe class ImageNode : IDisposable
     /// <param name="partsListIndex">The index of the <see cref="AtkUldPartsList"/> to fetch from the <see cref="atkUldPartsListArray"/></param>
     /// <param name="parent">Optional <see cref="AtkComponentNode"/> that can be used to attach the created <see cref="imageNode"/></param>
     /// <param name="targetNode">The <see cref="AtkResNode"/> after the desired position to place our <see cref="imageNode"/></param>
-    public void CreateCompleteImageNode(int partsListIndex, AtkResNode* parent = null, AtkResNode* targetNode = null)
+    public void CreateCompleteImageNode(int partsListIndex, bool hqTexture = false, AtkResNode* parent = null, AtkResNode* targetNode = null)
     {
         DestroyNode();
         imageNode = IMemorySpace.GetUISpace()->Create<AtkImageNode>();
@@ -235,7 +245,7 @@ public sealed unsafe class ImageNode : IDisposable
             log.Error("Memory for the node could not be allocated or index is out of bounds.");
             return;
         }
-        var atkPartsList = GetImagePartsList(partsListIndex);
+        var atkPartsList = GetImagePartsList(partsListIndex, hqTexture);
         if (atkPartsList is null)
         {
             IMemorySpace.Free(imageNode, (ulong)sizeof(AtkImageNode));
@@ -309,14 +319,14 @@ public sealed unsafe class ImageNode : IDisposable
         imageNode->AtkResNode.SetAlpha((byte)(255 * Color.W));
     }
 
-    public void ChangePartsList(int partsListIndex, ushort partId = 0)
+    public void ChangePartsList(int partsListIndex, bool hqTexture = false, ushort partId = 0)
     {
         if (partsListIndex > uldPartsListArray.Length - 1)
         {
             log.Error("partsListIndex out of bounds");
             return;
         }
-        var desiredPartsList = GetImagePartsList(partsListIndex);
+        var desiredPartsList = GetImagePartsList(partsListIndex, hqTexture);
         if (desiredPartsList is null)
         {
             log.Error("The desired partsList could not be created");

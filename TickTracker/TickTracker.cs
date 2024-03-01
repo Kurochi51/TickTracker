@@ -710,9 +710,8 @@ public sealed class TickTracker : IDalamudPlugin
             failed = true;
             return;
         }
-        var frameImageNode = NativeUi.GetNodeByID(&gaugeBar->UldManager, frameImageId);
-
-        if (frameImageNode is null)
+        var frameResNode = NativeUi.GetNodeByID(&gaugeBar->UldManager, frameImageId);
+        if (frameResNode is null || frameResNode->GetAsAtkImageNode() is null)
         {
             log.Error("Couldn't retrieve the target ImageNode of the gauge bar.");
             failed = true;
@@ -721,7 +720,9 @@ public sealed class TickTracker : IDalamudPlugin
 
         if (tickerNode.imageNode is null && !failed)
         {
-            tickerNode.CreateCompleteImageNode(0, gaugeBarNode, frameImageNode);
+            var frameImageNode = frameResNode->GetAsAtkImageNode();
+            var hq = frameImageNode->PartsList->Parts[frameImageNode->PartId].UldAsset->AtkTexture.Resource->Version == 2;
+            tickerNode.CreateCompleteImageNode(0, hq, gaugeBarNode, frameResNode);
             if (tickerNode.imageNode is null)
             {
                 log.Error("ImageNode {id} could not be created.", tickerNode.NodeID);
