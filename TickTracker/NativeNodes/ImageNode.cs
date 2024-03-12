@@ -8,6 +8,7 @@ using Dalamud.Interface;
 using Dalamud.Plugin.Services;
 using static Lumina.Data.Parsing.Uld.UldRoot;
 using FFXIVClientStructs.FFXIV.Component.GUI;
+using FFXIVClientStructs.FFXIV.Client.Graphics;
 using FFXIVClientStructs.FFXIV.Client.System.Memory;
 using TickTracker.Helpers;
 
@@ -27,8 +28,8 @@ public sealed unsafe class ImageNode : IDisposable
     private readonly IPluginLog log;
     private readonly PartsData[] uldPartsListArray;
 
-    private readonly Dictionary<uint, string> textureDictionary = new();
-    private readonly Dictionary<uint, string> hqTextureDictionary = new();
+    private readonly Dictionary<uint, string> textureDictionary = [];
+    private readonly Dictionary<uint, string> hqTextureDictionary = [];
     private Vector2 nodePosition = new(-1, -1);
     private AtkResNode* imageNodeParent;
 
@@ -314,12 +315,22 @@ public sealed unsafe class ImageNode : IDisposable
         {
             return;
         }
+        if (ColorEquals(imageNode->AtkResNode.Color, Dalamud.Utility.Numerics.VectorExtensions.ToByteColor(Color)))
+        {
+            return;
+        }
         imageNode->AtkResNode.Color = Dalamud.Utility.Numerics.VectorExtensions.ToByteColor(Color);
         imageNode->AtkResNode.MultiplyRed = (byte)(255 * Color.X);
         imageNode->AtkResNode.MultiplyGreen = (byte)(255 * Color.Y);
         imageNode->AtkResNode.MultiplyBlue = (byte)(255 * Color.Z);
         imageNode->AtkResNode.SetAlpha((byte)(255 * Color.W));
     }
+
+    public static bool ColorEquals(ByteColor nodeColor, ByteColor comparisonColor)
+        => nodeColor.R == comparisonColor.R
+        && nodeColor.G == comparisonColor.G
+        && nodeColor.B == comparisonColor.B
+        && nodeColor.A == comparisonColor.A;
 
     public void ChangePartsList(int partsListIndex, bool hqTexture = false, ushort partId = 0)
     {

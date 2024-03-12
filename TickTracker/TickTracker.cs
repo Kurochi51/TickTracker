@@ -3,6 +3,7 @@ using System.Linq;
 using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 
@@ -31,34 +32,27 @@ namespace TickTracker;
 public sealed class TickTracker : IDalamudPlugin
 {
     /// <summary>
-    /// A <see cref="List{T}"/> of addons to fetch for collision checks.
+    /// A <see cref="FrozenSet{T}"/> of addons to fetch for collision checks.
     /// </summary>
-    private readonly List<string> addonsLookup = new()
-    {
-        "Talk",
-        "ActionDetail",
-        "ItemDetail",
-        "Inventory",
-        "Character",
-    };
+    private readonly FrozenSet<string> addonsLookup = Utilities.CreateFrozenSet(["Talk", "ActionDetail", "ItemDetail", "Inventory", "Character"]);
     /// <summary>
-    /// A <see cref="HashSet{T}" /> of Status IDs that trigger HP regen
+    /// A <see cref="FrozenSet{T}" /> of Status IDs that trigger HP regen
     /// </summary>
-    private HashSet<uint> healthRegenSet = new();
+    private FrozenSet<uint> healthRegenSet = FrozenSet<uint>.Empty;
     /// <summary>
-    /// A <see cref="HashSet{T}" /> of Status IDs that trigger MP regen
+    /// A <see cref="FrozenSet{T}" /> of Status IDs that trigger MP regen
     /// </summary>
-    private HashSet<uint> manaRegenSet = new();
+    private FrozenSet<uint> manaRegenSet = FrozenSet<uint>.Empty;
     /// <summary>
-    /// A <see cref="HashSet{T}" /> of Status IDs that stop HP regen
+    /// A <see cref="FrozenSet{T}" /> of Status IDs that stop HP regen
     /// </summary>
-    private HashSet<uint> disabledHealthRegenSet = new();
+    private FrozenSet<uint> disabledHealthRegenSet = FrozenSet<uint>.Empty;
 
-    // FrozenSet my beloved Q_Q
-    private readonly HashSet<uint> meleeAndRangedDPS = new();
-    private readonly HashSet<uint> discipleOfTheLand = new();
-    private readonly HashSet<string> meleeAndRangedAbbreviations = new(StringComparer.OrdinalIgnoreCase) { "PGL", "LNC", "ARC", "MNK", "DRG", "BRD", "ROG", "NIN", "MCH", "SAM", "DNC", "RPR" };
-    private readonly HashSet<string> discipleOfTheLandAbbreviations = new(StringComparer.OrdinalIgnoreCase) { "MIN", "BTN", "FSH" };
+    private readonly FrozenSet<string> meleeAndRangedAbbreviations = Utilities.CreateFrozenSet(
+        ["PGL", "LNC", "ARC", "MNK", "DRG", "BRD", "ROG", "NIN", "MCH", "SAM", "DNC", "RPR"]);
+    private readonly FrozenSet<string> discipleOfTheLandAbbreviations = Utilities.CreateFrozenSet(["MIN", "BTN", "FSH"]);
+    private FrozenSet<uint> meleeAndRangedDPS = FrozenSet<uint>.Empty;
+    private FrozenSet<uint> discipleOfTheLand = FrozenSet<uint>.Empty;
 
     // Function that triggers when client receives a network packet with an update for nearby actors
     private unsafe delegate void ReceiveActorUpdateDelegate(uint objectId, uint* packetData, byte unkByte);
@@ -95,7 +89,7 @@ public sealed class TickTracker : IDalamudPlugin
     private const uint PrimaryGaugeNodeID = 3, SecondaryGaugeNodeID = 4, ParamFrameImageNode = 4;
     private const string ParamWidgetUldPath = "ui/uld/parameter.uld";
 
-    private readonly List<BarWindowBase> barWindows;
+    private readonly FrozenSet<BarWindowBase> barWindows;
     private readonly uint primaryTickerImageID = NativeUi.Get("TickerImagePrimary");
     private readonly uint secondaryTickerImageID = NativeUi.Get("TickerImageSecondary");
     private readonly ImageNode primaryTickerNode;
@@ -169,7 +163,7 @@ public sealed class TickTracker : IDalamudPlugin
         {
             barWindowList.Add(window);
         }
-        barWindows = barWindowList is not [] ? barWindowList : Enumerable.Empty<BarWindowBase>().ToList();
+        barWindows = barWindowList is not [] ? barWindowList.ToFrozenSet() : FrozenSet<BarWindowBase>.Empty;
 
         commandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
@@ -368,37 +362,41 @@ public sealed class TickTracker : IDalamudPlugin
 
     private void InitializeLuminaSheets()
     {
-        var statusSheet = utilities.GetSheet<Lumina.Excel.GeneratedSheets.Status>();
-        var jobSheet = utilities.GetSheet<Lumina.Excel.GeneratedSheets.ClassJob>();
+        var statusSheet = utilities.GetSheet<Lumina.Excel.GeneratedSheets2.Status>();
+        var jobSheet = utilities.GetSheet<Lumina.Excel.GeneratedSheets2.ClassJob>();
         if (statusSheet is null || jobSheet is null)
         {
             return;
         }
+        var bag1 = new HashSet<uint>();
+        var bag2 = new HashSet<uint>();
         foreach (var row in jobSheet)
         {
             var name = row.Abbreviation.ToDalamudString().TextValue;
             if (meleeAndRangedAbbreviations.Contains(name))
             {
-                meleeAndRangedDPS.Add(row.RowId);
+                bag1.Add(row.RowId);
                 continue;
             }
             if (discipleOfTheLandAbbreviations.Contains(name))
             {
-                discipleOfTheLand.Add(row.RowId);
+                bag2.Add(row.RowId);
             }
         }
-        List<int> bannedStatus = new() { 135, 307, 751, 1419, 1465, 1730, 2326 };
-        var filteredSheet = statusSheet.Where(s => !bannedStatus.Exists(rowId => rowId == s.RowId));
+        meleeAndRangedDPS = bag1.ToFrozenSet();
+        discipleOfTheLand = bag2.ToFrozenSet();
+        var bannedStatus = Utilities.CreateFrozenSet<uint>([135, 307, 751, 1419, 1465, 1730, 2326]);
+        var filteredSheet = statusSheet.Where(s => !bannedStatus.Contains(s.RowId));
         ParseStatusSheet(filteredSheet, out var disabledHealthRegenBag, out var healthRegenBag, out var manaRegenBag);
-        healthRegenSet = healthRegenBag.ToHashSet();
-        manaRegenSet = manaRegenBag.ToHashSet();
-        disabledHealthRegenSet = disabledHealthRegenBag.ToHashSet();
+        healthRegenSet = healthRegenBag.ToFrozenSet();
+        manaRegenSet = manaRegenBag.ToFrozenSet();
+        disabledHealthRegenSet = disabledHealthRegenBag.ToFrozenSet();
         nullSheet = false;
         log.Debug("HP regen list generated with {HPcount} status effects.", healthRegenSet.Count);
         log.Debug("MP regen list generated with {MPcount} status effects.", manaRegenSet.Count);
     }
 
-    private void ParseStatusSheet(IEnumerable<Lumina.Excel.GeneratedSheets.Status> sheet, out ConcurrentBag<uint> disabledHealthRegenBag, out ConcurrentBag<uint> healthRegenBag, out ConcurrentBag<uint> manaRegenBag)
+    private void ParseStatusSheet(IEnumerable<Lumina.Excel.GeneratedSheets2.Status> sheet, out ConcurrentBag<uint> disabledHealthRegenBag, out ConcurrentBag<uint> healthRegenBag, out ConcurrentBag<uint> manaRegenBag)
     {
         var bag1 = new ConcurrentBag<uint>();
         var bag2 = new ConcurrentBag<uint>();

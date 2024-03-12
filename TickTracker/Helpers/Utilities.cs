@@ -5,11 +5,12 @@ using System.Numerics;
 using System.Threading;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 using Lumina.Excel;
-using Lumina.Excel.GeneratedSheets;
+using Lumina.Excel.GeneratedSheets2;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using Dalamud;
@@ -26,81 +27,47 @@ namespace TickTracker.Helpers;
 /// <summary>
 ///     A class that contains different helper functions necessary for this plugin's operation
 /// </summary>
-public partial class Utilities
+public partial class Utilities(DalamudPluginInterface _pluginInterface,
+    Configuration _config,
+    ICondition _condition,
+    IDataManager _dataManager,
+    IClientState _clientState,
+    IPluginLog _pluginLog)
 {
     /// <summary>
     ///     A set of words that indicate regeneration
     /// </summary>
-    public IEnumerable<string> RegenKeywords { get; } = new[]
-    {
-        "regenerating",
-        "restoring",
-        "restore",
-        "recovering",
-    };
+    public FrozenSet<string> RegenKeywords { get; } = CreateFrozenSet(["regenerating", "restoring", "restore", "recovering"]);
 
     /// <summary>
     ///     A set of words that indicate an effect over time
     /// </summary>
-    public IEnumerable<string> TimeKeywords { get; } = new[]
-    {
-        "gradually",
-        "over time",
-    };
+    public FrozenSet<string> TimeKeywords { get; } = CreateFrozenSet(["gradually", "over time"]);
 
     /// <summary>
     ///     A set of words that indicate health
     /// </summary>
-    public IEnumerable<string> HealthKeywords { get; } = new[]
-    {
-        "hp",
-        "health",
-    };
+    public FrozenSet<string> HealthKeywords { get; } = CreateFrozenSet(["hp", "health"]);
 
     /// <summary>
     ///     A set of words that indicate mana
     /// </summary>
-    public IEnumerable<string> ManaKeywords { get; } = new[]
-    {
-        "mp",
-        "mana",
-    };
+    public FrozenSet<string> ManaKeywords { get; } = CreateFrozenSet(["mp", "mana"]);
 
     /// <summary>
     ///     A set of words that indicate the halt of regen
     /// </summary>
-    public IEnumerable<string> RegenNullKeywords { get; } = new[]
-    {
-        "null",
-        "nullified",
-        "stop",
-        "stopped",
-    };
+    public FrozenSet<string> RegenNullKeywords { get; } = CreateFrozenSet(["null", "nullified", "stop", "stopped"]);
 
-    private readonly DalamudPluginInterface pluginInterface;
-    private readonly Configuration config;
-    private readonly ICondition condition;
-    private readonly IDataManager dataManager;
-    private readonly IClientState clientState;
-    private readonly IPluginLog log;
+    private readonly DalamudPluginInterface pluginInterface = _pluginInterface;
+    private readonly Configuration config = _config;
+    private readonly ICondition condition = _condition;
+    private readonly IDataManager dataManager = _dataManager;
+    private readonly IClientState clientState = _clientState;
+    private readonly IPluginLog log = _pluginLog;
 
     private const float OffsetX = 10f;
     private const float OffsetY = 25f;
-
-    public Utilities(DalamudPluginInterface _pluginInterface,
-        Configuration _config,
-        ICondition _condition,
-        IDataManager _dataManager,
-        IClientState _clientState,
-        IPluginLog _pluginLog)
-    {
-        pluginInterface = _pluginInterface;
-        config = _config;
-        condition = _condition;
-        dataManager = _dataManager;
-        clientState = _clientState;
-        log = _pluginLog;
-    }
 
     /// <summary>
     ///     Indicates if the <paramref name="window"/> is allowed to be drawn
@@ -400,6 +367,14 @@ public partial class Utilities
             };
         }
     }
+
+    /// <summary>
+    ///     Function that returns a <see cref="FrozenSet{T}"/> from the provided <see cref="IEnumerable{T}"/> <paramref name="collection"/>.
+    /// <para>This is used mostly to remove some boilerplate.</para>
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static FrozenSet<T> CreateFrozenSet<T>(IEnumerable<T> collection)
+        => collection.ToFrozenSet();
 
     [System.Text.RegularExpressions.GeneratedRegex("\\W+", System.Text.RegularExpressions.RegexOptions.Compiled, 500)]
     private static partial System.Text.RegularExpressions.Regex KeywordsRegex();
