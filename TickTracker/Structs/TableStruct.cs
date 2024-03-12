@@ -1,6 +1,7 @@
 using System.Numerics;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 
 using Dalamud.Utility;
 
@@ -46,8 +47,7 @@ public record struct TableStruct
     ///     Check if every property is properly populated before the <see langword="struct"/> is accessed to create the table.
     /// </summary>
     public readonly bool IsValid()
-    {
-        return !Id.IsNullOrWhitespace()
+        => !Id.IsNullOrWhitespace()
             && !Column1Header.IsNullOrWhitespace()
             && !Column2Header.IsNullOrWhitespace()
             && Column1Width != 0
@@ -55,7 +55,6 @@ public record struct TableStruct
             && Column1Content != null
             && Column2Content != null
             && Size.HasValue;
-    }
 
     /// <summary>
     ///     Assign the <paramref name="newSize"/> to the struct's Size if it's not populated, or is different than <paramref name="newSize"/>.

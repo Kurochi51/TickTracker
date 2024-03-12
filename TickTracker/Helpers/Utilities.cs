@@ -175,6 +175,7 @@ public partial class Utilities
     ///     Check the <paramref name="text"/> for elements from <paramref name="keywords"/>.
     /// </summary>
     /// <returns><see langword="true"/> if <paramref name="text"/> contains any element, otherwise <see langword="false"/>.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool KeywordMatch(string text, IEnumerable<string> keywords)
         => keywords.Any(k => text.Contains(k, StringComparison.OrdinalIgnoreCase));
 
@@ -195,17 +196,15 @@ public partial class Utilities
     ///     Checks the player's <see cref="ConditionFlag" /> for BoundByDuty
     /// </summary>
     /// <returns><see langword="true"/> if any matching flag is set, otherwise <see langword="false"/>.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool InDuty()
-    {
-        var dutyBound = condition[ConditionFlag.BoundByDuty] || condition[ConditionFlag.BoundByDuty56] || condition[ConditionFlag.BoundByDuty95];
-        return dutyBound && !InIgnoredInstances();
-    }
+        => (condition[ConditionFlag.BoundByDuty] || condition[ConditionFlag.BoundByDuty56] || condition[ConditionFlag.BoundByDuty95])
+        && !InIgnoredInstances();
 
     /// <summary>
     ///     Checks the current <see cref="TerritoryType.TerritoryIntendedUse"/> for a match against specific areas.
     /// </summary>
-    /// <returns><see langword="true"/> if <see cref="TerritoryIntendedUseType.IslandSanctuary"/> 
-    /// or <see cref="TerritoryIntendedUseType.Diadem"/>, otherwise <see langword="false"/>.</returns>
+    /// <returns><see langword="true"/> if <see cref="TerritoryIntendedUseType.Diadem"/>, otherwise <see langword="false"/>.</returns>
     public bool InIgnoredInstances()
     {
         var territory = GetSheet<TerritoryType>()?.GetRow(clientState.TerritoryType);
@@ -213,20 +212,25 @@ public partial class Utilities
         {
             return false;
         }
-        return (TerritoryIntendedUseType)territory.TerritoryIntendedUse is TerritoryIntendedUseType.IslandSanctuary or TerritoryIntendedUseType.Diadem;
+        return (TerritoryIntendedUseType)territory.TerritoryIntendedUse is TerritoryIntendedUseType.Diadem;
     }
 
     /// <summary>
     ///     Checks the player's <see cref="ConditionFlag" /> for different cutscene flags.
     /// </summary>
     /// <returns><see langword="true"/> if any matching flag is set, otherwise <see langword="false"/>.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool InCutscene()
-        => condition[ConditionFlag.OccupiedInCutSceneEvent] || condition[ConditionFlag.WatchingCutscene] || condition[ConditionFlag.WatchingCutscene78] || condition[ConditionFlag.Occupied38];
+        => condition[ConditionFlag.OccupiedInCutSceneEvent]
+        || condition[ConditionFlag.WatchingCutscene]
+        || condition[ConditionFlag.WatchingCutscene78]
+        || condition[ConditionFlag.Occupied38];
 
     /// <summary>
     ///     Check if the <paramref name="addon"/> can be safely accessed.
     /// </summary>
     /// <returns><see langword="true"/> if addon is initialized and ready for use, otherwise <see langword="false"/>.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public unsafe bool IsAddonReady(AtkUnitBase* addon)
         => addon is not null && addon->RootNode is not null && addon->RootNode->ChildNode is not null;
 
@@ -315,7 +319,7 @@ public partial class Utilities
     {
         try
         {
-            func.DynamicInvoke();
+            func.Invoke();
             return true;
         }
         catch
@@ -336,7 +340,7 @@ public partial class Utilities
                 }
                 try
                 {
-                    func.DynamicInvoke();
+                    func.Invoke();
                     ipcAvailable = true;
                     timer.Stop();
                 }

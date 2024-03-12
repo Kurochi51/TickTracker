@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Ipc;
 using Dalamud.Plugin.Services;
-using Dalamud.Game.ClientState.Objects.Types;
 
 namespace TickTracker.IPC;
 

@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 using FFXIVClientStructs.FFXIV.Component.GUI;
 
@@ -28,13 +29,18 @@ public static unsafe class NativeUi
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static AtkResNode* GetNodeByID(AtkUldManager* uldManager, uint nodeId, NodeType? type = null) => GetNodeByID<AtkResNode>(uldManager, nodeId, type);
+
     public static T* GetNodeByID<T>(AtkUldManager* uldManager, uint nodeId, NodeType? type = null) where T : unmanaged
     {
         for (var i = 0; i < uldManager->NodeListCount; i++)
         {
             var n = uldManager->NodeList[i];
-            if (n->NodeID != nodeId || (type != null && n->Type != type.Value)) continue;
+            if (n->NodeID != nodeId || (type != null && n->Type != type.Value))
+            {
+                continue;
+            }
             return (T*)n;
         }
         return null;

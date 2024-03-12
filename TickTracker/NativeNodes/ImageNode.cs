@@ -1,6 +1,7 @@
 using System;
 using System.Numerics;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 using Lumina.Data.Files;
 using Dalamud.Interface;
@@ -283,6 +284,7 @@ public sealed unsafe class ImageNode : IDisposable
         nodePosition.Y = imageNode->AtkResNode.GetY();
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetNodePosition(float X, float Y)
     {
         imageNode->AtkResNode.SetX(X);
