@@ -227,8 +227,8 @@ public sealed class TickTracker : IDalamudPlugin
 
     private void RegisterEvents()
     {
-        pluginInterface.UiBuilder.Draw += DrawUI;
-        pluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
+        pluginInterface.UiBuilder.Draw += WindowSystem.Draw;
+        pluginInterface.UiBuilder.OpenConfigUi += ConfigWindow.Toggle;
         framework.Update += OnFrameworkUpdate;
         clientState.TerritoryChanged += TerritoryChanged;
         gameConfig.SystemChanged += CheckResolutionChange;
@@ -305,14 +305,15 @@ public sealed class TickTracker : IDalamudPlugin
 
     private void ProcessTicks(double currentTime, PlayerCharacter player)
     {
+        var statusList = player.StatusList.ToList();
         // HP section
-        HPBarWindow.RegenActive = player.StatusList.Any(e => healthRegenSet.Contains(e.StatusId));
-        HPBarWindow.TickHalted = player.StatusList.Any(e => disabledHealthRegenSet.Contains(e.StatusId));
+        HPBarWindow.RegenActive = statusList.Exists(e => healthRegenSet.Contains(e.StatusId));
+        HPBarWindow.TickHalted = statusList.Exists(e => disabledHealthRegenSet.Contains(e.StatusId));
         var currentHP = player.CurrentHp;
         var fullHP = currentHP == player.MaxHp;
 
         // MP Section
-        MPBarWindow.RegenActive = player.StatusList.Any(e => manaRegenSet.Contains(e.StatusId));
+        MPBarWindow.RegenActive = statusList.Exists(e => manaRegenSet.Contains(e.StatusId));
         var blmGauge = player.ClassJob.Id == 25 ? jobGauges.Get<BLMGauge>() : null;
         MPBarWindow.TickHalted = blmGauge is not null && blmGauge.InAstralFire;
         var currentMP = player.CurrentMp;
@@ -606,6 +607,10 @@ public sealed class TickTracker : IDalamudPlugin
             DevWindow.Print(window.WindowName + ": " + player.CurrentHp.ToString() + " / " + player.MaxHp.ToString());
             var shieldValue = player.ShieldPercentage * player.MaxHp / 100;
             DevWindow.Print("Possible shield values for " + (player.Name.TextValue ?? "unknown") + " of " + shieldValue);
+            if (DevWindow.startBenchmark)
+            {
+                DevWindow.startBenchmark = false;
+            }
         }
         var cultureFormat = System.Globalization.CultureInfo.InvariantCulture;
         DevWindow.Print($"Window open? {window.IsOpen}");
@@ -751,28 +756,19 @@ public sealed class TickTracker : IDalamudPlugin
         commandManager.RemoveHandler(CommandName);
         DebugWindow.Dispose();
         WindowSystem.RemoveAllWindows();
+
         framework.Update -= OnFrameworkUpdate;
         addonLifecycle.UnregisterListener(AddonEvent.PreFinalize, "_ParameterWidget", NativeUiDisposeListener);
         addonLifecycle.UnregisterListener(AddonEvent.PostUpdate, addonsLookup, CheckBarCollision);
         primaryTickerNode.Dispose();
         secondaryTickerNode.Dispose();
-        pluginInterface.UiBuilder.Draw -= DrawUI;
         clientState.TerritoryChanged -= TerritoryChanged;
         gameConfig.SystemChanged -= CheckResolutionChange;
-        pluginInterface.UiBuilder.OpenConfigUi -= DrawConfigUI;
+        pluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
+        pluginInterface.UiBuilder.OpenConfigUi -= ConfigWindow.Toggle;
     }
 
     private void OnCommand(string command, string args)
-    {
-        ConfigWindow.Toggle();
-    }
-
-    private void DrawUI()
-    {
-        WindowSystem.Draw();
-    }
-
-    public void DrawConfigUI()
     {
         ConfigWindow.Toggle();
     }

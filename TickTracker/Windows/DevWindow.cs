@@ -31,6 +31,7 @@ public sealed class DevWindow : Window, IDisposable
     public string uldPath { get; set; } = GatchaUldPath;
     private int nodeX, nodeY;
     private ImageNode? devNode;
+    public bool startBenchmark { get; set; }
     private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
 
     public DevWindow(DalamudPluginInterface _pluginInterface, IDataManager _dataManager, IPluginLog _log, IGameGui _gameGui, Utilities _utilities) : base("DevWindow")
@@ -63,6 +64,10 @@ public sealed class DevWindow : Window, IDisposable
         var pId = partId;
         var pListIndex = partListIndex;
         var uld = uldPath;
+        if (ImGui.Button("Start Benchmark"))
+        {
+            startBenchmark = true;
+        }
         ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X / 3);
         if (ImGui.InputInt("ImageNode PartId", ref pId, 1))
         {
