@@ -57,7 +57,7 @@ public record struct TableStruct
             && Size.HasValue;
 
     /// <summary>
-    ///     Assign the <paramref name="newSize"/> to the struct's Size if it's not populated, or is different than <paramref name="newSize"/>.
+    ///     Assign the <paramref name="newSize"/> to the <see cref="Size"/> if it's not populated, or is different than <paramref name="newSize"/>.
     /// </summary>
     public void ResizeIfNeeded(Vector2 newSize)
     {

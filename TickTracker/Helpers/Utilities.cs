@@ -202,7 +202,7 @@ public partial class Utilities(DalamudPluginInterface _pluginInterface,
         => addon is not null && addon->RootNode is not null && addon->RootNode->ChildNode is not null;
 
     /// <summary>
-    ///     Check if <paramref name="sourceCharacter"/> is currently targetting <paramref name="targetCharacter"/>, whether it's manually set, or the result of using an action.
+    ///     Check if <paramref name="sourceCharacter"/> is currently targeting <paramref name="targetCharacter"/>, whether it's manually set, or the result of using an action.
     /// </summary>
     public unsafe bool IsTarget(PlayerCharacter targetCharacter, Character* sourceCharacter)
     {

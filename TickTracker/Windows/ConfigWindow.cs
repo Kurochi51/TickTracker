@@ -457,7 +457,7 @@ public class ConfigWindow : Window
         }
         else
         {
-            ImGui.TextUnformatted("Invalid EditConfigProperty invokation.");
+            ImGui.TextUnformatted("Invalid EditConfigProperty invocation.");
         }
     }
 }

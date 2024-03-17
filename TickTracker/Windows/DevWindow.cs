@@ -27,11 +27,11 @@ public sealed class DevWindow : Window, IDisposable
 
     private readonly uint devNodeImageId = NativeUi.Get("DevNode");
 
-    private const string GatchaUldPath = "ui/uld/Gacha.uld";
+    private const string GachaUldPath = "ui/uld/Gacha.uld";
     private static readonly List<string> PrintLines = [];
     public int partId { get; set; }
     public int partListIndex { get; set; }
-    public string uldPath { get; set; } = GatchaUldPath;
+    public string uldPath { get; set; } = GachaUldPath;
     private int nodeX, nodeY;
     private ImageNode? devNode;
     public bool startBenchmark { get; set; }

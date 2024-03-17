@@ -77,7 +77,7 @@ public sealed unsafe class ImageNode : IDisposable
     }
 
     /// <summary>
-    /// Creates a complete <see cref="AtkUldPartsList*[]"/> from the provided <see cref="UldWrapper"/>.
+    /// Creates a complete <see cref="AtkUldPartsList"/> pointer array from the provided <see cref="UldWrapper"/>.
     /// </summary>
     /// <remarks>
     /// <b>Must be disposed with <see cref="FreeResources(AtkUldPartsList*[])"/></b>
@@ -235,7 +235,8 @@ public sealed unsafe class ImageNode : IDisposable
     /// <remarks>
     /// The existing <see cref="imageNode"/> is destroyed if present.
     /// </remarks>
-    /// <param name="partsListIndex">The index of the <see cref="AtkUldPartsList"/> to fetch from the <see cref="atkUldPartsListArray"/></param>
+    /// <param name="partsListIndex">The index of the <see cref="AtkUldPartsList"/> to fetch from the <see cref="uldPartsListArray"/></param>
+    /// <param name="hqTexture"> Whether to retrieve the hr1 version of the contained textures, or the normal one.</param>
     /// <param name="parent">Optional <see cref="AtkComponentNode"/> that can be used to attach the created <see cref="imageNode"/></param>
     /// <param name="targetNode">The <see cref="AtkResNode"/> after the desired position to place our <see cref="imageNode"/></param>
     public void CreateCompleteImageNode(int partsListIndex, bool hqTexture = false, AtkResNode* parent = null, AtkResNode* targetNode = null)
@@ -386,7 +387,7 @@ public sealed unsafe class ImageNode : IDisposable
     }
 
     /// <summary>
-    /// Release a <see cref="AtkUldPartsList*[]"/> created by <see cref="CreateAtkUldPartsListArray"/> of your instance of <see cref="ImageNode"/>.
+    /// Release a <see cref="AtkUldPartsList"/> pointer array created by <see cref="CreateAtkUldPartsListArray"/> of your instance of <see cref="ImageNode"/>.
     /// </summary>
     /// <param name="atkUldPartsListArray"></param>
     public void FreeResources(AtkUldPartsList*[] atkUldPartsListArray)
