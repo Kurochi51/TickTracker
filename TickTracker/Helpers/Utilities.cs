@@ -376,6 +376,27 @@ public partial class Utilities(DalamudPluginInterface _pluginInterface,
     public static FrozenSet<T> CreateFrozenSet<T>(IEnumerable<T> collection)
         => collection.ToFrozenSet();
 
+    public void Benchmark(System.Action func, int iterations, string benchmarkName)
+    {
+        var stopwatch = new Stopwatch();
+        var innerSw = new Stopwatch();
+        List<double> timers = [];
+        stopwatch.Restart();
+        for (var i = 0; i < iterations; i++)
+        {
+            innerSw.Restart();
+            func.Invoke();
+            innerSw.Stop();
+            timers.Add(innerSw.Elapsed.TotalNanoseconds / 1000);
+        }
+        stopwatch.Stop();
+        log.Debug(benchmarkName + " benchmark took {t} ms", stopwatch.Elapsed.TotalMilliseconds);
+        log.Debug(benchmarkName + " Average: {a} µs - Min: {b} µs - Max: {c} µs", Truncate(timers.Average()), timers.Min(), timers.Max());
+
+        static double Truncate(double item)
+            => Math.Truncate(item * 1000) / 1000;
+    }
+
     [System.Text.RegularExpressions.GeneratedRegex("\\W+", System.Text.RegularExpressions.RegexOptions.Compiled, 500)]
     private static partial System.Text.RegularExpressions.Regex KeywordsRegex();
 }

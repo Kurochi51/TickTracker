@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Numerics;
 using System.Threading;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Collections.Frozen;
 using System.Collections.Generic;
@@ -92,8 +93,7 @@ public sealed class TickTracker : IDalamudPlugin
     private readonly FrozenSet<BarWindowBase> barWindows;
     private readonly uint primaryTickerImageID = NativeUi.Get("TickerImagePrimary");
     private readonly uint secondaryTickerImageID = NativeUi.Get("TickerImageSecondary");
-    private readonly ImageNode primaryTickerNode;
-    private readonly ImageNode secondaryTickerNode;
+    private readonly ImageNode primaryTickerNode, secondaryTickerNode;
     private readonly CancellationTokenSource cts;
 
     private double syncValue, regenValue, fastValue;
@@ -610,7 +610,13 @@ public sealed class TickTracker : IDalamudPlugin
             if (DevWindow.startBenchmark)
             {
                 DevWindow.startBenchmark = false;
+                _ = Task.Run(() => BenchmarkSpawner(player, 1_000_000), cts.Token);
             }
+        }
+        else if (DevWindow.startBenchmark)
+        {
+            DevWindow.startBenchmark = false;
+            log.Debug("Player and StatusManager is not available.");
         }
         var cultureFormat = System.Globalization.CultureInfo.InvariantCulture;
         DevWindow.Print($"Window open? {window.IsOpen}");
@@ -623,6 +629,90 @@ public sealed class TickTracker : IDalamudPlugin
         DevWindow.Print("Regen Value: " + regenValue.ToString(cultureFormat));
         DevWindow.Print("Fast Value: " + fastValue.ToString(cultureFormat));
         DevWindow.Print("Swapchain resolution: " + Resolution.X.ToString(cultureFormat) + "x" + Resolution.Y.ToString(cultureFormat));
+    }
+
+#endif
+#if DEBUG
+    private void BenchmarkSpawner(PlayerCharacter player, int iterations)
+    {
+        var testList = player.StatusList;
+        var actionDic = new Dictionary<string, Action>(StringComparer.Ordinal)
+        {
+            {
+                "StatusList shared-instance",
+                () =>
+                {
+                    var test = player.StatusList;
+                    _ = test.Any(status => healthRegenSet.Contains(status.StatusId));
+                    _ = test.Any(status => disabledHealthRegenSet.Contains(status.StatusId));
+                    _ = test.Any(status => manaRegenSet.Contains(status.StatusId));
+                }
+            },
+            {
+                "StatusList single-instance",
+                () =>
+                {
+                    _ = testList.Any(status => healthRegenSet.Contains(status.StatusId));
+                    _ = testList.Any(status => disabledHealthRegenSet.Contains(status.StatusId));
+                    _ = testList.Any(status => manaRegenSet.Contains(status.StatusId));
+                }
+            },
+            {
+                "StatusList direct access",
+                () =>
+                {
+                    _ = player.StatusList.Any(status => healthRegenSet.Contains(status.StatusId));
+                    _ = player.StatusList.Any(status => disabledHealthRegenSet.Contains(status.StatusId));
+                    _ = player.StatusList.Any(status => manaRegenSet.Contains(status.StatusId));
+                }
+            },
+            {
+                "StatusList.ToList",
+                () =>
+                {
+                    var test = player.StatusList.ToList();
+                    _ = test.Exists(status => healthRegenSet.Contains(status.StatusId));
+                    _ = test.Exists(status => disabledHealthRegenSet.Contains(status.StatusId));
+                    _ = test.Exists(status => manaRegenSet.Contains(status.StatusId));
+                }
+            },
+            {
+                "StatusList.ToArray",
+                () =>
+                {
+                    var test = player.StatusList.ToArray();
+                    _ = Array.Exists(test, status => healthRegenSet.Contains(status.StatusId));
+                    _ = Array.Exists(test, status => disabledHealthRegenSet.Contains(status.StatusId));
+                    _ = Array.Exists(test, status => manaRegenSet.Contains(status.StatusId));
+                }
+            },
+            {
+                "StatusList.ToFrozenSet",
+                () =>
+                {
+                    var test = player.StatusList.ToFrozenSet();
+                    _ = test.Any(status => healthRegenSet.Contains(status.StatusId));
+                    _ = test.Any(status => disabledHealthRegenSet.Contains(status.StatusId));
+                    _ = test.Any(status => manaRegenSet.Contains(status.StatusId));
+                }
+            },
+            {
+                "StatusList.ToHashSet",
+                () =>
+                {
+                    var test = player.StatusList.ToHashSet();
+                    _ = test.Any(status => healthRegenSet.Contains(status.StatusId));
+                    _ = test.Any(status => disabledHealthRegenSet.Contains(status.StatusId));
+                    _ = test.Any(status => manaRegenSet.Contains(status.StatusId));
+                }
+            },
+        };
+        log.Debug("Benchmark Started");
+        foreach (var test in actionDic)
+        {
+            utilities.Benchmark(test.Value, iterations, test.Key);
+        }
+        log.Debug("Benchmark Finished");
     }
 #endif
 
@@ -677,7 +767,7 @@ public sealed class TickTracker : IDalamudPlugin
         }
     }
 
-    private unsafe void HandleNativeNode(ImageNode tickerNode, uint gaugeBarNodeId, uint frameImageId, bool visibility, double progress, Vector4 Color, ref bool failed)
+    private unsafe void HandleNativeNode(in ImageNode tickerNode, uint gaugeBarNodeId, uint frameImageId, bool visibility, double progress, Vector4 Color, ref bool failed)
     {
         if (tickerNode.imageNode is not null)
         {

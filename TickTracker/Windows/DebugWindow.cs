@@ -165,7 +165,7 @@ public sealed class DebugWindow : Window, IDisposable
         ImGui.SetCursorPos(originPos);
     }
 
-    private static void GetTableContentAsText(ref StringBuilder text, TableStruct table)
+    private static void GetTableContentAsText(ref StringBuilder text, in TableStruct table)
     {
         text.Append(table.Column1Header.Trim());
         foreach (var item in table.Column1Content)
@@ -206,7 +206,7 @@ public sealed class DebugWindow : Window, IDisposable
         }
     }
 
-    private static unsafe void DrawTable(TableStruct table)
+    private static unsafe void DrawTable(in TableStruct table)
     {
         if (!table.IsValid())
         {
