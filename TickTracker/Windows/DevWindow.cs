@@ -1,6 +1,8 @@
 using System;
+using System.Linq;
 using System.Numerics;
 using System.Globalization;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
@@ -8,6 +10,7 @@ using ImGuiNET;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.Interface.Windowing;
+using Dalamud.Game.ClientState.Objects.SubKinds;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using TickTracker.Helpers;
 using TickTracker.NativeNodes;
@@ -156,6 +159,88 @@ public sealed class DevWindow : Window, IDisposable
             Print($"Part {i.ToString(CultureInfo.InvariantCulture)} Texture id: {devNode.imageNode->PartsList->Parts[i].UldAsset->Id}" +
                 $" ; Texture.Resource version: {devNode.imageNode->PartsList->Parts[i].UldAsset->AtkTexture.Resource->Version}");
         }
+    }
+
+    public void BenchmarkSpawner(PlayerCharacter player, int iterations, FrozenSet<uint> bag1, FrozenSet<uint> bag2, FrozenSet<uint> bag3)
+    {
+        var testList = player.StatusList;
+        var actionDic = new Dictionary<string, Action>(StringComparer.Ordinal)
+        {
+            {
+                "StatusList shared-instance",
+                () =>
+                {
+                    var test = player.StatusList;
+                    _ = test.Any(status => bag1.Contains(status.StatusId));
+                    _ = test.Any(status => bag2.Contains(status.StatusId));
+                    _ = test.Any(status => bag3.Contains(status.StatusId));
+                }
+            },
+            {
+                "StatusList single-instance",
+                () =>
+                {
+                    _ = testList.Any(status => bag1.Contains(status.StatusId));
+                    _ = testList.Any(status => bag2.Contains(status.StatusId));
+                    _ = testList.Any(status => bag3.Contains(status.StatusId));
+                }
+            },
+            {
+                "StatusList direct access",
+                () =>
+                {
+                    _ = player.StatusList.Any(status => bag1.Contains(status.StatusId));
+                    _ = player.StatusList.Any(status => bag2.Contains(status.StatusId));
+                    _ = player.StatusList.Any(status => bag3.Contains(status.StatusId));
+                }
+            },
+            {
+                "StatusList.ToList",
+                () =>
+                {
+                    var test = player.StatusList.ToList();
+                    _ = test.Exists(status => bag1.Contains(status.StatusId));
+                    _ = test.Exists(status => bag2.Contains(status.StatusId));
+                    _ = test.Exists(status => bag3.Contains(status.StatusId));
+                }
+            },
+            {
+                "StatusList.ToArray",
+                () =>
+                {
+                    var test = player.StatusList.ToArray();
+                    _ = Array.Exists(test, status => bag1.Contains(status.StatusId));
+                    _ = Array.Exists(test, status => bag2.Contains(status.StatusId));
+                    _ = Array.Exists(test, status => bag3.Contains(status.StatusId));
+                }
+            },
+            {
+                "StatusList.ToFrozenSet",
+                () =>
+                {
+                    var test = player.StatusList.ToFrozenSet();
+                    _ = test.Any(status => bag1.Contains(status.StatusId));
+                    _ = test.Any(status => bag2.Contains(status.StatusId));
+                    _ = test.Any(status => bag3.Contains(status.StatusId));
+                }
+            },
+            {
+                "StatusList.ToHashSet",
+                () =>
+                {
+                    var test = player.StatusList.ToHashSet();
+                    _ = test.Any(status => bag1.Contains(status.StatusId));
+                    _ = test.Any(status => bag2.Contains(status.StatusId));
+                    _ = test.Any(status => bag3.Contains(status.StatusId));
+                }
+            },
+        };
+        log.Debug("Benchmark Started");
+        foreach (var test in actionDic)
+        {
+            utilities.Benchmark(test.Value, iterations, test.Key);
+        }
+        log.Debug("Benchmark Finished");
     }
 
     public static void Print(string text)
