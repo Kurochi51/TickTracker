@@ -54,6 +54,10 @@ public sealed class DevWindow : Window, IDisposable
 
     public override void Draw()
     {
+        if (ImGui.Button("Start Benchmark"))
+        {
+            startBenchmark = true;
+        }
         ImageNodeStuff();
         foreach (var line in PrintLines)
         {
@@ -67,10 +71,6 @@ public sealed class DevWindow : Window, IDisposable
         var pId = partId;
         var pListIndex = partListIndex;
         var uld = uldPath;
-        if (ImGui.Button("Start Benchmark"))
-        {
-            startBenchmark = true;
-        }
         ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X / 3);
         if (ImGui.InputInt("ImageNode PartId", ref pId, 1))
         {
@@ -163,8 +163,18 @@ public sealed class DevWindow : Window, IDisposable
 
     public void BenchmarkSpawner(PlayerCharacter player, int iterations, FrozenSet<uint> bag1, FrozenSet<uint> bag2, FrozenSet<uint> bag3)
     {
+        log.Debug("Benchmark Started");
+        foreach (var test in GetActionDictionary(player, bag1, bag2, bag3))
+        {
+            utilities.Benchmark(test.Value, iterations, test.Key);
+        }
+        log.Debug("Benchmark Finished");
+    }
+
+    private static Dictionary<string, Action> GetActionDictionary(PlayerCharacter player, FrozenSet<uint> bag1, FrozenSet<uint> bag2, FrozenSet<uint> bag3)
+    {
         var testList = player.StatusList;
-        var actionDic = new Dictionary<string, Action>(StringComparer.Ordinal)
+        return new Dictionary<string, Action>(StringComparer.Ordinal)
         {
             {
                 "StatusList shared-instance",
@@ -235,12 +245,6 @@ public sealed class DevWindow : Window, IDisposable
                 }
             },
         };
-        log.Debug("Benchmark Started");
-        foreach (var test in actionDic)
-        {
-            utilities.Benchmark(test.Value, iterations, test.Key);
-        }
-        log.Debug("Benchmark Finished");
     }
 
     public static void Print(string text)
