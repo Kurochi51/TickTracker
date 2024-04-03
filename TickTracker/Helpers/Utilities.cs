@@ -37,27 +37,27 @@ public partial class Utilities(DalamudPluginInterface _pluginInterface,
     /// <summary>
     ///     A set of words that indicate regeneration
     /// </summary>
-    public FrozenSet<string> RegenKeywords { get; } = CreateFrozenSet(["regenerating", "restoring", "restore", "recovering"]);
+    public FrozenSet<string> RegenKeywords { get; } = CreateFrozenSet("regenerating", "restoring", "restore", "recovering");
 
     /// <summary>
     ///     A set of words that indicate an effect over time
     /// </summary>
-    public FrozenSet<string> TimeKeywords { get; } = CreateFrozenSet(["gradually", "over time"]);
+    public FrozenSet<string> TimeKeywords { get; } = CreateFrozenSet("gradually", "over time");
 
     /// <summary>
     ///     A set of words that indicate health
     /// </summary>
-    public FrozenSet<string> HealthKeywords { get; } = CreateFrozenSet(["hp", "health"]);
+    public FrozenSet<string> HealthKeywords { get; } = CreateFrozenSet("hp", "health");
 
     /// <summary>
     ///     A set of words that indicate mana
     /// </summary>
-    public FrozenSet<string> ManaKeywords { get; } = CreateFrozenSet(["mp", "mana"]);
+    public FrozenSet<string> ManaKeywords { get; } = CreateFrozenSet("mp", "mana");
 
     /// <summary>
     ///     A set of words that indicate the halt of regen
     /// </summary>
-    public FrozenSet<string> RegenNullKeywords { get; } = CreateFrozenSet(["null", "nullified", "stop", "stopped"]);
+    public FrozenSet<string> RegenNullKeywords { get; } = CreateFrozenSet("null", "nullified", "stop", "stopped");
 
     private readonly DalamudPluginInterface pluginInterface = _pluginInterface;
     private readonly Configuration config = _config;
@@ -369,12 +369,18 @@ public partial class Utilities(DalamudPluginInterface _pluginInterface,
     }
 
     /// <summary>
-    ///     Function that returns a <see cref="FrozenSet{T}"/> from the provided <see cref="IEnumerable{T}"/> <paramref name="collection"/>.
-    /// <para>This is used mostly to remove some boilerplate.</para>
+    ///     Function that returns a <see cref="FrozenSet{T}"/> from the provided <paramref name="item"/> and <paramref name="extraItems"/>.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static FrozenSet<T> CreateFrozenSet<T>(IEnumerable<T> collection)
-        => collection.ToFrozenSet();
+    public static FrozenSet<T> CreateFrozenSet<T>(T item, params T[] extraItems)
+        => extraItems.Prepend(item).ToFrozenSet();
+
+    /// <summary>
+    ///     Function that returns a <see cref="FrozenSet{T}"/> from the provided <paramref name="collections"/>.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static FrozenSet<T> CreateFrozenSet<T>(params IEnumerable<T>[] collections)
+        => collections.SelectMany(i => i).ToFrozenSet();
 
     public void Benchmark(System.Action func, int iterations, string benchmarkName)
     {

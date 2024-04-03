@@ -2,7 +2,6 @@ using System;
 using System.Linq;
 using System.Numerics;
 using System.Threading;
-using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Collections.Frozen;
 using System.Collections.Generic;
@@ -23,9 +22,9 @@ using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.JobGauge.Types;
 using Dalamud.Game.ClientState.Objects.SubKinds;
+using TickTracker.NativeNodes;
 using TickTracker.Windows;
 using TickTracker.Helpers;
-using TickTracker.NativeNodes;
 using TickTracker.IPC;
 
 namespace TickTracker;
@@ -35,7 +34,7 @@ public sealed class TickTracker : IDalamudPlugin
     /// <summary>
     /// A <see cref="FrozenSet{T}"/> of addons to fetch for collision checks.
     /// </summary>
-    private readonly FrozenSet<string> addonsLookup = Utilities.CreateFrozenSet(["Talk", "ActionDetail", "ItemDetail", "Inventory", "Character"]);
+    private readonly FrozenSet<string> addonsLookup = Utilities.CreateFrozenSet("Talk", "ActionDetail", "ItemDetail", "Inventory", "Character");
     /// <summary>
     /// A <see cref="FrozenSet{T}" /> of Status IDs that trigger HP regen
     /// </summary>
@@ -50,8 +49,8 @@ public sealed class TickTracker : IDalamudPlugin
     private FrozenSet<uint> disabledHealthRegenSet = FrozenSet<uint>.Empty;
 
     private readonly FrozenSet<string> meleeAndRangedAbbreviations = Utilities.CreateFrozenSet(
-        ["PGL", "LNC", "ARC", "MNK", "DRG", "BRD", "ROG", "NIN", "MCH", "SAM", "DNC", "RPR"]);
-    private readonly FrozenSet<string> discipleOfTheLandAbbreviations = Utilities.CreateFrozenSet(["MIN", "BTN", "FSH"]);
+        "PGL", "LNC", "ARC", "MNK", "DRG", "BRD", "ROG", "NIN", "MCH", "SAM", "DNC", "RPR");
+    private readonly FrozenSet<string> discipleOfTheLandAbbreviations = Utilities.CreateFrozenSet("MIN", "BTN", "FSH");
     private FrozenSet<uint> meleeAndRangedDPS = FrozenSet<uint>.Empty;
     private FrozenSet<uint> discipleOfTheLand = FrozenSet<uint>.Empty;
 
@@ -386,7 +385,7 @@ public sealed class TickTracker : IDalamudPlugin
         }
         meleeAndRangedDPS = bag1.ToFrozenSet();
         discipleOfTheLand = bag2.ToFrozenSet();
-        var bannedStatus = Utilities.CreateFrozenSet<uint>([135, 307, 751, 1419, 1465, 1730, 2326]);
+        var bannedStatus = Utilities.CreateFrozenSet<uint>(135, 307, 751, 1419, 1465, 1730, 2326);
         var filteredSheet = statusSheet.Where(s => !bannedStatus.Contains(s.RowId));
         ParseStatusSheet(filteredSheet, out var disabledHealthRegenBag, out var healthRegenBag, out var manaRegenBag);
         healthRegenSet = healthRegenBag.ToFrozenSet();
@@ -471,7 +470,7 @@ public sealed class TickTracker : IDalamudPlugin
         }
         catch (Exception e)
         {
-            log.Error(e, "An error has occured with the PrimaryActorTickUpdate detour.");
+            log.Error(e, e.Message + "\nAn error has occured with the PrimaryActorTickUpdate detour.");
         }
     }
 
