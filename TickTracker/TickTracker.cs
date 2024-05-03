@@ -313,13 +313,13 @@ public sealed class TickTracker : IDalamudPlugin
 
         // MP Section
         MPBarWindow.RegenActive = statusList.Exists(e => manaRegenSet.Contains(e.StatusId));
-        var blmGauge = player.ClassJob.Id == 25 ? jobGauges.Get<BLMGauge>() : null;
+        var blmGauge = player.ClassJob.Id is 25 ? jobGauges.Get<BLMGauge>() : null;
         MPBarWindow.TickHalted = blmGauge is not null && blmGauge.InAstralFire;
         var currentMP = player.CurrentMp;
         var fullMP = currentMP == player.MaxMp;
 
         // GP Section
-        GPBarWindow.TickHalted = condition[ConditionFlag.Gathering];
+        GPBarWindow.TickHalted = condition[ConditionFlag.Gathering] && (player.ClassJob.Id is not 18 || condition[ConditionFlag.Diving]);
         var currentGP = player.CurrentGp;
         var fullGP = currentGP == player.MaxGp;
 
