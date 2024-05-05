@@ -22,7 +22,7 @@ public sealed class PenumbraIpc : IDisposable
     ///     Key is directory name, Value is mod name.
     /// </summary>
     private readonly ICallGateSubscriber<Dictionary<string, string>> modList;
-    private readonly ICallGateSubscriber<Guid, string, string, bool, 
+    private readonly ICallGateSubscriber<Guid, string, string, bool,
         (PenumbraApiEc status, (bool modEnabled, int priority, Dictionary<string, List<string>> optionDetails, bool ignoreInheritance)? settings)> modSettings;
     private readonly ICallGateSubscriber<ModSettingChange, Guid, string, bool, Action?> modSettingsChanged;
     private readonly (Guid Id, string Name) interfaceCollection;
@@ -124,7 +124,7 @@ public sealed class PenumbraIpc : IDisposable
 
     private void CheckState(bool penumbraEnabled)
     {
-        NativeUiBanned = penumbraEnabled 
+        NativeUiBanned = penumbraEnabled
             && penumbraApiVersion.Breaking == 4 ? OldCheckMUIPresence(oldModList.InvokeFunc(), oldInterfaceCollection.InvokeFunc())
             : CheckMUIPresence(modList.InvokeFunc(), interfaceCollection.Id);
     }
@@ -147,7 +147,7 @@ public sealed class PenumbraIpc : IDisposable
         }
         foreach (var mod in modList)
         {
-            if (!mod.Value.Contains("Material UI", StringComparison.OrdinalIgnoreCase) 
+            if (!mod.Value.Contains("Material UI", StringComparison.OrdinalIgnoreCase)
                 && !mod.Key.Contains("Material UI", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
@@ -163,7 +163,7 @@ public sealed class PenumbraIpc : IDisposable
         return false;
     }
 
-    
+
     private void OldCheckModChanges(ModSettingChange type, string collectionName, string modDirectory, bool inherited)
     {
         if ((type is not ModSettingChange.EnableState && type is not ModSettingChange.Inheritance) || !oldInterfaceCollection.InvokeFunc().Equals(collectionName, StringComparison.Ordinal))
@@ -196,7 +196,7 @@ public sealed class PenumbraIpc : IDisposable
         }
         return false;
     }
-    
+
 
     private void PenumbraInit()
     {
