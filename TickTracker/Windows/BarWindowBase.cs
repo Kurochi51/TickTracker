@@ -18,7 +18,8 @@ public abstract class BarWindowBase : Window
     protected WindowType WindowType { get; set; }
     protected const ImGuiWindowFlags DefaultFlags = ImGuiWindowFlags.NoScrollbar |
                                               ImGuiWindowFlags.NoTitleBar |
-                                              ImGuiWindowFlags.NoCollapse;
+                                              ImGuiWindowFlags.NoCollapse |
+                                              ImGuiWindowFlags.NoFocusOnAppearing;
 
     protected const ImGuiWindowFlags LockedBarFlags = ImGuiWindowFlags.NoBackground |
                                                     ImGuiWindowFlags.NoMove |
