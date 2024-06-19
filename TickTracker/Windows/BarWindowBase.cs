@@ -36,6 +36,8 @@ public abstract class BarWindowBase : Window
     public double PreviousProgress { get; set; }
     public Vector2 WindowPosition { get; protected set; }
     public Vector2 WindowSize { get; protected set; }
+    protected Vector2 ConfigPos { get; set; }
+    protected Vector2 ConfigSize { get; set; }
 
     private const FontAwesomeIcon RegenIcon = FontAwesomeIcon.Forward;
     private const FontAwesomeIcon FastIcon = FontAwesomeIcon.FastForward;
@@ -143,5 +145,38 @@ public abstract class BarWindowBase : Window
         var pos = (topLeft + barFillPosOffset + bottomRight) / 2;
         pos = iconPair.Value == invalidSize ? pos : pos - (iconPair.Value / 2);
         drawList.AddText(UiBuilder.IconFont, currentFontSize * 0.85f, pos, color, iconPair.Key);
+    }
+
+    protected void UpdateWindow()
+    {
+        var windowPos = ImGui.GetWindowPos();
+        var windowSize = ImGui.GetWindowSize();
+        if (config.LockBar)
+        {
+            WindowPosition = windowPos;
+            WindowSize = windowSize;
+            return;
+        }
+        if (IsFocused)
+        {
+            if (utilities.UpdateWindowConfig(windowPos, windowSize, WindowType))
+            {
+                ConfigSize = windowSize;
+                ConfigPos = windowPos;
+            }
+        }
+        else
+        {
+            if (windowPos != ConfigPos)
+            {
+                ImGui.SetWindowPos(ConfigPos);
+            }
+            if (windowSize != ConfigSize)
+            {
+                ImGui.SetWindowSize(ConfigSize);
+            }
+        }
+        WindowPosition = windowPos;
+        WindowSize = windowSize;
     }
 }
