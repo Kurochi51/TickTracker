@@ -95,22 +95,19 @@ public partial class Utilities(DalamudPluginInterface _pluginInterface,
     /// <summary>
     ///     Saves the size and position for the indicated <paramref name="window"/>.
     /// </summary>
-    public bool UpdateWindowConfig(Vector2 currentPos, Vector2 currentSize, WindowType window)
+    public void UpdateWindowConfig(Vector2 currentPos, Vector2 currentSize, WindowType window)
     {
-        var configChanged = false;
         if (window is WindowType.HpWindow)
         {
             if (!currentPos.Equals(config.HPBarPosition))
             {
                 config.HPBarPosition = currentPos;
                 config.Save(pluginInterface);
-                configChanged = true;
             }
             if (!currentSize.Equals(config.HPBarSize))
             {
                 config.HPBarSize = currentSize;
                 config.Save(pluginInterface);
-                configChanged = true;
             }
         }
         if (window is WindowType.MpWindow)
@@ -119,13 +116,11 @@ public partial class Utilities(DalamudPluginInterface _pluginInterface,
             {
                 config.MPBarPosition = currentPos;
                 config.Save(pluginInterface);
-                configChanged = true;
             }
             if (!currentSize.Equals(config.MPBarSize))
             {
                 config.MPBarSize = currentSize;
                 config.Save(pluginInterface);
-                configChanged = true;
             }
         }
         if (window is WindowType.GpWindow)
@@ -134,16 +129,13 @@ public partial class Utilities(DalamudPluginInterface _pluginInterface,
             {
                 config.GPBarPosition = currentPos;
                 config.Save(pluginInterface);
-                configChanged = true;
             }
             if (!currentSize.Equals(config.GPBarSize))
             {
                 config.GPBarSize = currentSize;
                 config.Save(pluginInterface);
-                configChanged = true;
             }
         }
-        return configChanged;
     }
 
     /// <summary>

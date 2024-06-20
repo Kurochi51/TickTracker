@@ -36,8 +36,8 @@ public abstract class BarWindowBase : Window
     public double PreviousProgress { get; set; }
     public Vector2 WindowPosition { get; protected set; }
     public Vector2 WindowSize { get; protected set; }
-    protected Vector2 ConfigPos { get; set; }
-    protected Vector2 ConfigSize { get; set; }
+    protected abstract Vector2 ConfigPos { get; }
+    protected abstract Vector2 ConfigSize { get; }
 
     private const FontAwesomeIcon RegenIcon = FontAwesomeIcon.Forward;
     private const FontAwesomeIcon FastIcon = FontAwesomeIcon.FastForward;
@@ -159,11 +159,7 @@ public abstract class BarWindowBase : Window
         }
         if (IsFocused)
         {
-            if (utilities.UpdateWindowConfig(windowPos, windowSize, WindowType))
-            {
-                ConfigSize = windowSize;
-                ConfigPos = windowPos;
-            }
+            utilities.UpdateWindowConfig(windowPos, windowSize, WindowType);
         }
         else
         {
