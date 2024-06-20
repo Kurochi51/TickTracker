@@ -213,7 +213,7 @@ public sealed class TickTracker : IDalamudPlugin
             }
             else
             {
-                log.Error("Penumbra IPC failed. {ex}",ex.Message);
+                log.Error("Penumbra IPC failed. {ex}", ex.Message);
             }
         }
     }

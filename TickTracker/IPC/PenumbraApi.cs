@@ -19,7 +19,7 @@ public sealed class PenumbraApi : IDisposable
     private readonly ApiVersion apiVersion;
     private readonly GetEnabledState getEnabledState;
     private readonly GetModList getModList;
-    private readonly GetCurrentModSettings getCurrentModSettings;    
+    private readonly GetCurrentModSettings getCurrentModSettings;
     private readonly (Guid Id, string Name)? interfaceCollection;
 
     private readonly EventSubscriber init, disposed;
