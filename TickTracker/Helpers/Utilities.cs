@@ -300,6 +300,8 @@ public partial class Utilities(DalamudPluginInterface _pluginInterface,
         catch
         {
             var timer = new System.Timers.Timer();
+            var sw = new Stopwatch();
+            sw.Start();
             timer.Interval = msInterval;
             timer.AutoReset = true;
             timer.Elapsed += timerCheck;
@@ -321,8 +323,13 @@ public partial class Utilities(DalamudPluginInterface _pluginInterface,
                 }
                 catch
                 {
-                    log.Warning("IPC not available.");
                     ipcAvailable = false;
+                    if (sw.Elapsed >= TimeSpan.FromMinutes(5))
+                    {
+                        sw.Stop();
+                        timer.Stop();
+                        log.Error("Penumbra could not be found.");
+                    }
                 }
             }
 

@@ -100,7 +100,7 @@ public sealed class TickTracker : IDalamudPlugin
     private bool syncAvailable = true, nullSheet = true;
     private uint lastHPValue, lastMPValue, lastGPValue;
     private Task? loadingTask;
-    private PenumbraIpc? penumbraIpc;
+    private PenumbraApi? penumbraApi;
     private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
     private unsafe AtkUnitBase* ParamWidget => (AtkUnitBase*)gameGui.GetAddonByName("_ParameterWidget");
 
@@ -185,17 +185,17 @@ public sealed class TickTracker : IDalamudPlugin
             }
             if (plo.IsLoaded)
             {
-                penumbraIpc = new PenumbraIpc(pluginInterface, log);
+                penumbraApi = new PenumbraApi(pluginInterface, log);
                 return;
             }
             _ = Task.Run(async () =>
             {
                 penumbraAvailable = await utilities.CheckIPC(TimeSpan.FromSeconds(30).TotalMilliseconds,
-                    () => pluginInterface.GetIpcSubscriber<bool>("Penumbra.GetEnabledState").InvokeFunc(),
+                    () => new Penumbra.Api.IpcSubscribers.GetEnabledState(pluginInterface).Invoke(),
                     cts.Token).ConfigureAwait(false);
                 if (penumbraAvailable)
                 {
-                    penumbraIpc = new PenumbraIpc(pluginInterface, log);
+                    penumbraApi = new PenumbraApi(pluginInterface, log);
                 }
             }, cts.Token);
         }
@@ -206,14 +206,22 @@ public sealed class TickTracker : IDalamudPlugin
                 log.Error(ex.Message);
                 return;
             }
-            log.Error("Too many plogons for safe consumption. {ex}", ex.Message);
+
+            if (ex is InvalidOperationException)
+            {
+                log.Error("Too many plogons for safe consumption. {ex}", ex.Message);
+            }
+            else
+            {
+                log.Error("Penumbra IPC failed. {ex}",ex.Message);
+            }
         }
     }
 
     private void InitializeWindows()
     {
         DebugWindow = new DebugWindow(pluginInterface);
-        ConfigWindow = new ConfigWindow(pluginInterface, config, DebugWindow, penumbraIpc);
+        ConfigWindow = new ConfigWindow(pluginInterface, config, DebugWindow, penumbraApi);
         HPBarWindow = new HPBar(clientState, log, utilities, config);
         MPBarWindow = new MPBar(clientState, log, utilities, config);
         GPBarWindow = new GPBar(clientState, log, utilities, config);
@@ -491,7 +499,7 @@ public sealed class TickTracker : IDalamudPlugin
         HPBarWindow.IsOpen = !config.LockBar || (shouldShowHPBar && config.HPVisible);
         MPBarWindow.IsOpen = !config.LockBar || (shouldShowMPBar && config.MPVisible && !hideForGPBar);
         GPBarWindow.IsOpen = !config.LockBar || (shouldShowGPBar && config.GPVisible);
-        if (penumbraAvailable && penumbraIpc is not null && penumbraIpc.NativeUiBanned)
+        if (penumbraAvailable && penumbraApi is not null && penumbraApi.NativeUiBanned)
         {
             if (primaryTickerNode.imageNode is not null)
             {
@@ -755,7 +763,7 @@ public sealed class TickTracker : IDalamudPlugin
 #endif
         cts.Cancel();
         cts.Dispose();
-        penumbraIpc?.Dispose();
+        penumbraApi?.Dispose();
         receiveActorUpdateHook?.Disable();
         receiveActorUpdateHook?.Dispose();
         commandManager.RemoveHandler(CommandName);

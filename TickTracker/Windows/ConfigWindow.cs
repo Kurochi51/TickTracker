@@ -24,20 +24,20 @@ public class ConfigWindow : Window
     private readonly DalamudPluginInterface pluginInterface;
     private readonly DebugWindow debugWindow;
     private readonly Configuration config;
-    private readonly PenumbraIpc? penumbraIpc;
+    private readonly PenumbraApi? penumbraApi;
 
     private bool nativeDisabled;
 
     private const ImGuiColorEditFlags ColorEditFlags = ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.AlphaBar;
 
-    public ConfigWindow(DalamudPluginInterface _pluginInterface, Configuration _config, DebugWindow _debugWindow, PenumbraIpc? _penumbraIpc) : base("TickTracker Settings")
+    public ConfigWindow(DalamudPluginInterface _pluginInterface, Configuration _config, DebugWindow _debugWindow, PenumbraApi? _penumbraApi) : base("TickTracker Settings")
     {
         Size = new Vector2(320, 390);
         Flags = ImGuiWindowFlags.NoResize;
         pluginInterface = _pluginInterface;
         config = _config;
         debugWindow = _debugWindow;
-        penumbraIpc = _penumbraIpc;
+        penumbraApi = _penumbraApi;
     }
 
     public override void OnClose()
@@ -47,7 +47,7 @@ public class ConfigWindow : Window
 
     public override void Draw()
     {
-        nativeDisabled = penumbraIpc is not null && penumbraIpc.NativeUiBanned;
+        nativeDisabled = penumbraApi is not null && penumbraApi.NativeUiBanned;
         EditConfigProperty("Lock bar size and position", config, c => c.LockBar, (c, value) => c.LockBar = value, checkbox: true);
         using (var child = ImRaii.Child("TabBarChild", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y - (36f * ImGuiHelpers.GlobalScale)), border: false))
         {
