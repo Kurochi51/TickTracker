@@ -48,6 +48,6 @@ public class Configuration : IPluginConfiguration
     public Vector4 GPNativeUiColor { get; set; } = new(0f, 0.570f, 0.855f, 1f);
     public Vector4 GPIconColor { get; set; } = new(1f, 1f, 1f, 1f);
 
-    public void Save(DalamudPluginInterface pi) => pi.SavePluginConfig(this);
+    public void Save(IDalamudPluginInterface pi) => pi.SavePluginConfig(this);
 
 }

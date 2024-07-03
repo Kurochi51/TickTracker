@@ -60,7 +60,7 @@ public sealed class TickTracker : IDalamudPlugin
     [Signature("48 89 5C 24 ?? 48 89 6C 24 ?? 56 48 83 EC 20 83 3D ?? ?? ?? ?? ?? 41 0F B6 E8 48 8B DA 8B F1 0F 84 ?? ?? ?? ?? 48 89 7C 24 ??", DetourName = nameof(ActorTickUpdate))]
     private readonly Hook<ReceiveActorUpdateDelegate>? receiveActorUpdateHook = null;
 
-    private readonly DalamudPluginInterface pluginInterface;
+    private readonly IDalamudPluginInterface pluginInterface;
     private readonly Configuration config;
     private readonly Utilities utilities;
     private readonly IClientState clientState;
@@ -100,11 +100,11 @@ public sealed class TickTracker : IDalamudPlugin
     private bool syncAvailable = true, nullSheet = true;
     private uint lastHPValue, lastMPValue, lastGPValue;
     private Task? loadingTask;
-    private PenumbraApi? penumbraApi;
+    //private PenumbraApi? penumbraApi;
     private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
     private unsafe AtkUnitBase* ParamWidget => (AtkUnitBase*)gameGui.GetAddonByName("_ParameterWidget");
 
-    public TickTracker(DalamudPluginInterface _pluginInterface,
+    public TickTracker(IDalamudPluginInterface _pluginInterface,
         IClientState _clientState,
         IFramework _framework,
         IGameGui _gameGui,
@@ -135,16 +135,17 @@ public sealed class TickTracker : IDalamudPlugin
             throw new NotSupportedException("Hook not found in current game version. The plugin is non functional.");
         }
         receiveActorUpdateHook.Enable();
+
         cts = new CancellationTokenSource();
 
         var tickerUld = pluginInterface.UiBuilder.LoadUld(ParamWidgetUldPath);
         primaryTickerNode = new ImageNode(_dataManager, log, tickerUld)
         {
-            NodeID = primaryTickerImageID,
+            NodeId = primaryTickerImageID,
         };
         secondaryTickerNode = new ImageNode(_dataManager, log, tickerUld)
         {
-            NodeID = secondaryTickerImageID,
+            NodeId = secondaryTickerImageID,
         };
         tickerUld.Dispose();
 
@@ -176,6 +177,7 @@ public sealed class TickTracker : IDalamudPlugin
 
     private void PenumbraCheck()
     {
+        /*
         try
         {
             var plo = pluginInterface.InstalledPlugins.SingleOrDefault(gon => gon.InternalName.Equals("Penumbra", StringComparison.Ordinal));
@@ -216,12 +218,13 @@ public sealed class TickTracker : IDalamudPlugin
                 log.Error("Penumbra IPC failed. {ex}", ex.Message);
             }
         }
+        */
     }
 
     private void InitializeWindows()
     {
         DebugWindow = new DebugWindow(pluginInterface);
-        ConfigWindow = new ConfigWindow(pluginInterface, config, DebugWindow, penumbraApi);
+        ConfigWindow = new ConfigWindow(pluginInterface, config, DebugWindow);//, penumbraApi);
         HPBarWindow = new HPBar(clientState, log, utilities, config);
         MPBarWindow = new MPBar(clientState, log, utilities, config);
         GPBarWindow = new GPBar(clientState, log, utilities, config);
@@ -259,7 +262,7 @@ public sealed class TickTracker : IDalamudPlugin
     private void OnFrameworkUpdate(IFramework _framework)
     {
 #if DEBUG
-        DevWindowThings(clientState?.LocalPlayer, (DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds, MPBarWindow);
+        DevWindowThings(clientState?.LocalPlayer, (DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds, barWindows);
 #endif
         if (clientState is { IsLoggedIn: false } or { IsPvPExcludingDen: true } || nullSheet)
         {
@@ -310,7 +313,7 @@ public sealed class TickTracker : IDalamudPlugin
         UpdateBarState(player);
     }
 
-    private void ProcessTicks(double currentTime, PlayerCharacter player)
+    private void ProcessTicks(double currentTime, IPlayerCharacter player)
     {
         var statusList = player.StatusList.ToList();
         // HP section
@@ -456,16 +459,17 @@ public sealed class TickTracker : IDalamudPlugin
     /// HP = *(int*)packetData;
     /// MP = *((ushort*)packetData + 2);
     /// GP = *((short*)packetData + 3); // Goes up to 10000 and is tracked and updated at all times
-    private unsafe void ActorTickUpdate(uint objectId, uint* packetData, byte unkByte)
+    /// player.address + 0x2258 = accountId
+    private unsafe void ActorTickUpdate(uint entityId, uint* packetData, byte unkByte)
     {
-        receiveActorUpdateHook!.Original(objectId, packetData, unkByte);
+        receiveActorUpdateHook!.Original(entityId, packetData, unkByte);
         try
         {
             if (clientState is not { LocalPlayer: { } player })
             {
                 return;
             }
-            if (objectId != player.ObjectId)
+            if (entityId != player.EntityId)
             {
                 return;
             }
@@ -482,7 +486,7 @@ public sealed class TickTracker : IDalamudPlugin
         }
     }
 
-    private unsafe void UpdateBarState(PlayerCharacter player)
+    private unsafe void UpdateBarState(IPlayerCharacter player)
     {
         var jobId = player.ClassJob.Id;
         var althideForMeleeRangedDPS = meleeAndRangedDPS.Contains(jobId);
@@ -499,7 +503,7 @@ public sealed class TickTracker : IDalamudPlugin
         HPBarWindow.IsOpen = !config.LockBar || (shouldShowHPBar && config.HPVisible);
         MPBarWindow.IsOpen = !config.LockBar || (shouldShowMPBar && config.MPVisible && !hideForGPBar);
         GPBarWindow.IsOpen = !config.LockBar || (shouldShowGPBar && config.GPVisible);
-        if (penumbraAvailable && penumbraApi is not null && penumbraApi.NativeUiBanned)
+        /*if (penumbraAvailable && penumbraApi is not null && penumbraApi.NativeUiBanned)
         {
             if (primaryTickerNode.imageNode is not null)
             {
@@ -510,7 +514,7 @@ public sealed class TickTracker : IDalamudPlugin
                 secondaryTickerNode.DestroyNode();
             }
             return;
-        }
+        }*/
         if (utilities.IsAddonReady(ParamWidget) && ParamWidget->UldManager.LoadedState is AtkLoadState.Loaded && ParamWidget->IsVisible)
         {
             DrawNativePrimary(shouldShowHPBar);
@@ -602,40 +606,31 @@ public sealed class TickTracker : IDalamudPlugin
     }
 
 #if DEBUG
-    private unsafe void DevWindowThings(PlayerCharacter? player, double currentTime, BarWindowBase window)
+    private unsafe void DevWindowThings(IPlayerCharacter? player, double currentTime, FrozenSet<BarWindowBase> windowList)
     {
         DevWindow.IsOpen = true;
-        if (penumbraAvailable && penumbraIpc is not null)
+        /*if (penumbraAvailable && penumbraApi is not null)
         {
-            DevWindow.Print(nameof(penumbraIpc.NativeUiBanned) + " is " + penumbraIpc.NativeUiBanned);
-        }
-        if (player is not null)
+            DevWindow.Print(nameof(penumbraApi.NativeUiBanned) + " is " + penumbraApi.NativeUiBanned);
+        }*/
+        if (player is null)
         {
-            DevWindow.Print(window.WindowName + ": " + player.CurrentHp.ToString() + " / " + player.MaxHp.ToString());
-            var shieldValue = player.ShieldPercentage * player.MaxHp / 100;
-            DevWindow.Print("Possible shield values for " + (player.Name.TextValue ?? "unknown") + " of " + shieldValue);
-            if (DevWindow.startBenchmark)
-            {
-                DevWindow.startBenchmark = false;
-                _ = Task.Run(() => DevWindow.BenchmarkSpawner(player, 1_000_000, healthRegenSet, disabledHealthRegenSet, manaRegenSet), cts.Token);
-            }
-        }
-        else if (DevWindow.startBenchmark)
-        {
-            DevWindow.startBenchmark = false;
-            log.Debug("Player and StatusManager is not available.");
+            return;
         }
         var cultureFormat = System.Globalization.CultureInfo.InvariantCulture;
-        DevWindow.Print($"Window open? {window.IsOpen}");
-        DevWindow.Print("Current Time: " + currentTime.ToString(cultureFormat));
-        DevWindow.Print("RegenActive: " + window.RegenActive.ToString());
-        DevWindow.Print("Progress: " + window.Progress.ToString(cultureFormat));
-        DevWindow.Print("NormalTick: " + window.Tick.ToString(cultureFormat));
-        DevWindow.Print("NormalUpdate: " + window.TickUpdate.ToString());
-        DevWindow.Print("Sync Value: " + syncValue.ToString(cultureFormat));
-        DevWindow.Print("Regen Value: " + regenValue.ToString(cultureFormat));
-        DevWindow.Print("Fast Value: " + fastValue.ToString(cultureFormat));
-        DevWindow.Print("Swapchain resolution: " + Resolution.X.ToString(cultureFormat) + "x" + Resolution.Y.ToString(cultureFormat));
+        foreach (var window in windowList)
+        {
+            DevWindow.Print($"{window.WindowName} open: {window.IsOpen}");
+            DevWindow.Print("Current Time: " + currentTime.ToString(cultureFormat));
+            DevWindow.Print("RegenActive: " + window.RegenActive.ToString());
+            DevWindow.Print("Progress: " + window.Progress.ToString(cultureFormat));
+            DevWindow.Print("NormalTick: " + window.Tick.ToString(cultureFormat));
+            DevWindow.Print("NormalUpdate: " + window.TickUpdate.ToString());
+            DevWindow.Print("Sync Value: " + syncValue.ToString(cultureFormat));
+            DevWindow.Print("Regen Value: " + regenValue.ToString(cultureFormat));
+            DevWindow.Print("Fast Value: " + fastValue.ToString(cultureFormat));
+            DevWindow.Print("Swapchain resolution: " + Resolution.X.ToString(cultureFormat) + "x" + Resolution.Y.ToString(cultureFormat));
+        }
     }
 #endif
 
@@ -700,7 +695,7 @@ public sealed class TickTracker : IDalamudPlugin
                 {
                     tickerNode.imageNode->AtkResNode.SetWidth(0);
                 }
-                if (tickerNode.imageNode->AtkResNode.IsVisible)
+                if (tickerNode.imageNode->AtkResNode.IsVisible())
                 {
                     tickerNode.imageNode->AtkResNode.ToggleVisibility(visibility);
                 }
@@ -741,7 +736,7 @@ public sealed class TickTracker : IDalamudPlugin
             tickerNode.CreateCompleteImageNode(0, hq, gaugeBarNode, frameResNode);
             if (tickerNode.imageNode is null)
             {
-                log.Error("ImageNode {id} could not be created.", tickerNode.NodeID);
+                log.Error("ImageNode {id} could not be created.", tickerNode.NodeId);
                 failed = true;
                 return;
             }
@@ -763,7 +758,7 @@ public sealed class TickTracker : IDalamudPlugin
 #endif
         cts.Cancel();
         cts.Dispose();
-        penumbraApi?.Dispose();
+        //penumbraApi?.Dispose();
         receiveActorUpdateHook?.Disable();
         receiveActorUpdateHook?.Dispose();
         commandManager.RemoveHandler(CommandName);

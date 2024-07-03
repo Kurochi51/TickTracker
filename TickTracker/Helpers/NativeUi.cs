@@ -37,7 +37,7 @@ public static unsafe class NativeUi
         for (var i = 0; i < uldManager->NodeListCount; i++)
         {
             var n = uldManager->NodeList[i];
-            if (n->NodeID != nodeId || (type != null && n->Type != type.Value))
+            if (n->NodeId != nodeId || (type != null && n->Type != type.Value))
             {
                 continue;
             }

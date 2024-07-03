@@ -16,7 +16,7 @@ namespace TickTracker.NativeNodes;
 
 public sealed unsafe class ImageNode : IDisposable
 {
-    public required uint NodeID { get; set; }
+    public required uint NodeId { get; set; }
     public NodeType Type { get; } = NodeType.Image;
     public NodeFlags NodeFlags { get; set; } = NodeFlags.AnchorTop | NodeFlags.AnchorLeft | NodeFlags.Enabled | NodeFlags.Visible | NodeFlags.EmitsEvents;
     public uint DrawFlags { get; set; } = 1;
@@ -266,7 +266,7 @@ public sealed unsafe class ImageNode : IDisposable
         }
 
         imageNode->AtkResNode.Type = Type;
-        imageNode->AtkResNode.NodeID = NodeID;
+        imageNode->AtkResNode.NodeId = NodeId;
         imageNode->PartsList = atkPartsList;
 
         imageNode->PartId = 0;
@@ -282,15 +282,15 @@ public sealed unsafe class ImageNode : IDisposable
             imageNodeParent = parent;
             NativeUi.LinkNodeAfterTargetNode(&imageNode->AtkResNode, parent->GetAsAtkComponentNode(), targetNode);
         }
-        nodePosition.X = imageNode->AtkResNode.GetX();
-        nodePosition.Y = imageNode->AtkResNode.GetY();
+        nodePosition.X = imageNode->AtkResNode.GetXFloat();
+        nodePosition.Y = imageNode->AtkResNode.GetYFloat();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetNodePosition(float X, float Y)
     {
-        imageNode->AtkResNode.SetX(X);
-        imageNode->AtkResNode.SetY(Y);
+        imageNode->AtkResNode.SetXFloat(X);
+        imageNode->AtkResNode.SetYFloat(Y);
     }
 
     public void ResetNodePosition()
@@ -300,8 +300,8 @@ public sealed unsafe class ImageNode : IDisposable
             log.Error("Image node not initialised");
             return;
         }
-        imageNode->AtkResNode.SetX(nodePosition.X);
-        imageNode->AtkResNode.SetY(nodePosition.Y);
+        imageNode->AtkResNode.SetXFloat(nodePosition.X);
+        imageNode->AtkResNode.SetYFloat(nodePosition.Y);
     }
 
     /// <summary>

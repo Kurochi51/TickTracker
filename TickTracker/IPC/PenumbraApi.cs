@@ -11,10 +11,10 @@ using Dalamud.Plugin;
 
 namespace TickTracker.IPC;
 
-public sealed class PenumbraApi : IDisposable
+/*public sealed class PenumbraApi : IDisposable
 {
     private readonly IPluginLog log;
-    private readonly DalamudPluginInterface pluginInterface;
+    private readonly IDalamudPluginInterface pluginInterface;
 
     private readonly ApiVersion apiVersion;
     private readonly GetEnabledState getEnabledState;
@@ -58,7 +58,7 @@ public sealed class PenumbraApi : IDisposable
         }
     }
 
-    public PenumbraApi(DalamudPluginInterface _pluginInterface, IPluginLog _pluginLog)
+    public PenumbraApi(IDalamudPluginInterface _pluginInterface, IPluginLog _pluginLog)
     {
         log = _pluginLog;
         pluginInterface = _pluginInterface;
@@ -149,4 +149,4 @@ public sealed class PenumbraApi : IDisposable
         init.Dispose();
         disposed.Dispose();
     }
-}
+}*/

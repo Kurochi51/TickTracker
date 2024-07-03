@@ -37,7 +37,7 @@ public sealed class DebugWindow : Window, IDisposable
     /// </summary>
     public ConcurrentDictionary<uint, string> DisabledManaRegenDictionary { get; set; } = new();
 
-    private readonly DalamudPluginInterface pluginInterface;
+    private readonly IDalamudPluginInterface pluginInterface;
     private readonly CancellationTokenSource cts;
     private readonly CancellationToken cToken;
 
@@ -50,7 +50,7 @@ public sealed class DebugWindow : Window, IDisposable
     private TableStruct disabledRegenTable, regenTable;
     private bool invalidList, fontChange, firstTime = true;
 
-    public DebugWindow(DalamudPluginInterface _pluginInterface) : base("DebugWindow")
+    public DebugWindow(IDalamudPluginInterface _pluginInterface) : base("DebugWindow")
     {
         pluginInterface = _pluginInterface;
         cts = new CancellationTokenSource();

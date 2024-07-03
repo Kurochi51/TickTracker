@@ -19,7 +19,7 @@ namespace TickTracker.Windows;
 
 public sealed class DevWindow : Window, IDisposable
 {
-    private readonly DalamudPluginInterface pluginInterface;
+    private readonly IDalamudPluginInterface pluginInterface;
     private readonly IDataManager dataManager;
     private readonly IPluginLog log;
     private readonly IGameGui gameGui;
@@ -37,7 +37,7 @@ public sealed class DevWindow : Window, IDisposable
     public bool startBenchmark { get; set; }
     private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
 
-    public DevWindow(DalamudPluginInterface _pluginInterface, IDataManager _dataManager, IPluginLog _log, IGameGui _gameGui, Utilities _utilities) : base("DevWindow")
+    public DevWindow(IDalamudPluginInterface _pluginInterface, IDataManager _dataManager, IPluginLog _log, IGameGui _gameGui, Utilities _utilities) : base("DevWindow")
     {
         pluginInterface = _pluginInterface;
         dataManager = _dataManager;
@@ -95,7 +95,7 @@ public sealed class DevWindow : Window, IDisposable
                 devNode?.Dispose();
                 devNode = new ImageNode(dataManager, log, tempUld)
                 {
-                    NodeID = devNodeImageId,
+                    NodeId = devNodeImageId,
                 };
             }
             tempUld.Dispose();
@@ -150,7 +150,7 @@ public sealed class DevWindow : Window, IDisposable
         var height = isHighResolution ? currentPart.Height * 2 : currentPart.Height;
         devNode.imageNode->AtkResNode.SetHeight((ushort)height);
         devNode.imageNode->AtkResNode.SetWidth((ushort)width);
-        Print($"NodeId: {devNode.imageNode->AtkResNode.NodeID}\n" +
+        Print($"NodeId: {devNode.imageNode->AtkResNode.NodeId}\n" +
         $"Has {devNode.imageNode->PartsList->PartCount} Parts\n" +
         $"Current partsList: {devNode.imageNode->PartsList->Id}\n" +
         $"Current part: {devNode.imageNode->PartId}\n");
@@ -161,7 +161,7 @@ public sealed class DevWindow : Window, IDisposable
         }
     }
 
-    public void BenchmarkSpawner(PlayerCharacter player, int iterations, FrozenSet<uint> bag1, FrozenSet<uint> bag2, FrozenSet<uint> bag3)
+    public void BenchmarkSpawner(IPlayerCharacter player, int iterations, FrozenSet<uint> bag1, FrozenSet<uint> bag2, FrozenSet<uint> bag3)
     {
         log.Debug("Benchmark Started");
         foreach (var test in GetActionDictionary(player, bag1, bag2, bag3))
@@ -171,7 +171,7 @@ public sealed class DevWindow : Window, IDisposable
         log.Debug("Benchmark Finished");
     }
 
-    private static Dictionary<string, Action> GetActionDictionary(PlayerCharacter player, FrozenSet<uint> bag1, FrozenSet<uint> bag2, FrozenSet<uint> bag3)
+    private static Dictionary<string, Action> GetActionDictionary(IPlayerCharacter player, FrozenSet<uint> bag1, FrozenSet<uint> bag2, FrozenSet<uint> bag3)
     {
         var testList = player.StatusList;
         return new Dictionary<string, Action>(StringComparer.Ordinal)

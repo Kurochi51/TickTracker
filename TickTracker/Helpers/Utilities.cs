@@ -13,7 +13,7 @@ using Lumina.Excel;
 using Lumina.Excel.GeneratedSheets2;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
-using Dalamud;
+using Dalamud.Game;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.Game.ClientState.Conditions;
@@ -27,7 +27,7 @@ namespace TickTracker.Helpers;
 /// <summary>
 ///     A class that contains different helper functions necessary for this plugin's operation
 /// </summary>
-public partial class Utilities(DalamudPluginInterface _pluginInterface,
+public partial class Utilities(IDalamudPluginInterface _pluginInterface,
     Configuration _config,
     ICondition _condition,
     IDataManager _dataManager,
@@ -59,7 +59,7 @@ public partial class Utilities(DalamudPluginInterface _pluginInterface,
     /// </summary>
     public FrozenSet<string> RegenNullKeywords { get; } = CreateFrozenSet("null", "nullified", "stop", "stopped");
 
-    private readonly DalamudPluginInterface pluginInterface = _pluginInterface;
+    private readonly IDalamudPluginInterface pluginInterface = _pluginInterface;
     private readonly Configuration config = _config;
     private readonly ICondition condition = _condition;
     private readonly IDataManager dataManager = _dataManager;
@@ -179,7 +179,7 @@ public partial class Utilities(DalamudPluginInterface _pluginInterface,
         {
             return false;
         }
-        return (TerritoryIntendedUseType)territory.TerritoryIntendedUse is TerritoryIntendedUseType.Diadem;
+        return (TerritoryIntendedUseType)territory.TerritoryIntendedUse.Row is TerritoryIntendedUseType.Diadem;
     }
 
     /// <summary>
@@ -204,10 +204,10 @@ public partial class Utilities(DalamudPluginInterface _pluginInterface,
     /// <summary>
     ///     Check if <paramref name="sourceCharacter"/> is currently targeting <paramref name="targetCharacter"/>, whether it's manually set, or the result of using an action.
     /// </summary>
-    public unsafe bool IsTarget(PlayerCharacter targetCharacter, Character* sourceCharacter)
+    public unsafe bool IsTarget(IPlayerCharacter targetCharacter, Character* sourceCharacter)
     {
-        ITuple sourceTarget = (sourceCharacter->GetCastInfo()->CastTargetID, sourceCharacter->GetSoftTargetId().ObjectID, sourceCharacter->GetTargetId(), sourceCharacter->Gaze.Controller.GazesSpan[0].TargetInfo.TargetId.ObjectID);
-        var targetID = (object)targetCharacter.ObjectId;
+        ITuple sourceTarget = (sourceCharacter->GetCastInfo()->TargetId.ObjectId, sourceCharacter->GetSoftTargetId().ObjectId, sourceCharacter->GetTargetId(), sourceCharacter->LookAt.Controller.Params[0].TargetParam.TargetId.ObjectId);
+        var targetID = (object)targetCharacter.EntityId;
         for (var i = 0; i < sourceTarget.Length; i++)
         {
             var sourceTargetID = sourceTarget[i];
