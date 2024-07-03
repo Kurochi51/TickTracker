@@ -459,7 +459,6 @@ public sealed class TickTracker : IDalamudPlugin
     /// HP = *(int*)packetData;
     /// MP = *((ushort*)packetData + 2);
     /// GP = *((short*)packetData + 3); // Goes up to 10000 and is tracked and updated at all times
-    /// player.address + 0x2258 = accountId
     private unsafe void ActorTickUpdate(uint entityId, uint* packetData, byte unkByte)
     {
         receiveActorUpdateHook!.Original(entityId, packetData, unkByte);
