@@ -277,11 +277,15 @@ public sealed class TickTracker : IDalamudPlugin
             if (utilities.InCutscene() || player.IsDead)
             {
                 HPBarWindow.IsOpen = MPBarWindow.IsOpen = GPBarWindow.IsOpen = false;
+                DrawNativePrimary(false);
+                DrawNativeSecondary(false, false);
                 return;
             }
             if (!utilities.IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible)
             {
                 HPBarWindow.IsOpen = MPBarWindow.IsOpen = GPBarWindow.IsOpen = false;
+                DrawNativePrimary(false);
+                DrawNativeSecondary(false, false);
                 return;
             }
         }
