@@ -177,7 +177,7 @@ public sealed class TickTracker : IDalamudPlugin
 
     private void PenumbraCheck()
     {
-        
+
         try
         {
             var plo = pluginInterface.InstalledPlugins.SingleOrDefault(gon => gon.InternalName.Equals("Penumbra", StringComparison.Ordinal));
