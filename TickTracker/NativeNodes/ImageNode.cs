@@ -293,6 +293,15 @@ public sealed unsafe class ImageNode : IDisposable
         imageNode->AtkResNode.SetYFloat(Y);
     }
 
+    public void HideNode()
+    {
+        if (imageNode is null || !imageNode->AtkResNode.IsVisible())
+        {
+            return;
+        }
+        imageNode->AtkResNode.ToggleVisibility(enable: false);
+    }
+
     public void ResetNodePosition()
     {
         if (nodePosition == new Vector2(-1, -1))

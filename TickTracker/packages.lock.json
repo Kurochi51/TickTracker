@@ -10,15 +10,15 @@
       },
       "Meziantou.Analyzer": {
         "type": "Direct",
-        "requested": "[2.0.159, )",
-        "resolved": "2.0.159",
-        "contentHash": "+Lu4NktCK98/PkPCluTA+uRHS7uvMXa/Z2WLPE8TDsS/ybYtaOhfq8Wi745fO26wI8rNGaJlKsfFskcKWC5eDQ=="
+        "requested": "[2.0.160, )",
+        "resolved": "2.0.160",
+        "contentHash": "KTvB5q8Sx6aieSyBcX/jgzMRj8a66NN5JbdMXXKdQeuIvzVNtzCOJHFpU0nI//FvlBn5VYZAy1xCZCFu94pafQ=="
       },
       "Penumbra.Api": {
         "type": "Direct",
-        "requested": "[5.1.0, )",
-        "resolved": "5.1.0",
-        "contentHash": "gpTdA1+MKFN1AueyBnDO8Y7bpDfmKw57a+YTpwiNK6mw4lEdO9cSeknkyjWbVrmyB2p2IanhX6c1arS8dTAMtw=="
+        "requested": "[5.2.0, )",
+        "resolved": "5.2.0",
+        "contentHash": "fi36rbPTR76MTtC++0dMXmycidpGnMU2OGt+Wf/ckaEs5qmWJbIW9RE8O+rCOEFhtmzWcXIjKAMYJSSyb9nU8g=="
       }
     }
   }

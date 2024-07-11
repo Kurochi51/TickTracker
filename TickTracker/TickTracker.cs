@@ -100,7 +100,7 @@ public sealed class TickTracker : IDalamudPlugin
     private bool syncAvailable = true, nullSheet = true;
     private uint lastHPValue, lastMPValue, lastGPValue;
     private Task? loadingTask;
-    //private PenumbraApi? penumbraApi;
+    private PenumbraApi? penumbraApi;
     private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
     private unsafe AtkUnitBase* ParamWidget => (AtkUnitBase*)gameGui.GetAddonByName("_ParameterWidget");
 
@@ -177,7 +177,7 @@ public sealed class TickTracker : IDalamudPlugin
 
     private void PenumbraCheck()
     {
-        /*
+        
         try
         {
             var plo = pluginInterface.InstalledPlugins.SingleOrDefault(gon => gon.InternalName.Equals("Penumbra", StringComparison.Ordinal));
@@ -218,13 +218,12 @@ public sealed class TickTracker : IDalamudPlugin
                 log.Error("Penumbra IPC failed. {ex}", ex.Message);
             }
         }
-        */
     }
 
     private void InitializeWindows()
     {
         DebugWindow = new DebugWindow(pluginInterface);
-        ConfigWindow = new ConfigWindow(pluginInterface, config, DebugWindow);//, penumbraApi);
+        ConfigWindow = new ConfigWindow(pluginInterface, config, DebugWindow, penumbraApi);
         HPBarWindow = new HPBar(clientState, log, utilities, config);
         MPBarWindow = new MPBar(clientState, log, utilities, config);
         GPBarWindow = new GPBar(clientState, log, utilities, config);
@@ -277,15 +276,15 @@ public sealed class TickTracker : IDalamudPlugin
             if (utilities.InCutscene() || player.IsDead)
             {
                 HPBarWindow.IsOpen = MPBarWindow.IsOpen = GPBarWindow.IsOpen = false;
-                DrawNativePrimary(false);
-                DrawNativeSecondary(false, false);
+                primaryTickerNode.HideNode();
+                secondaryTickerNode.HideNode();
                 return;
             }
             if (!utilities.IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible)
             {
                 HPBarWindow.IsOpen = MPBarWindow.IsOpen = GPBarWindow.IsOpen = false;
-                DrawNativePrimary(false);
-                DrawNativeSecondary(false, false);
+                primaryTickerNode.HideNode();
+                secondaryTickerNode.HideNode();
                 return;
             }
         }
@@ -506,7 +505,7 @@ public sealed class TickTracker : IDalamudPlugin
         HPBarWindow.IsOpen = !config.LockBar || (shouldShowHPBar && config.HPVisible);
         MPBarWindow.IsOpen = !config.LockBar || (shouldShowMPBar && config.MPVisible && !hideForGPBar);
         GPBarWindow.IsOpen = !config.LockBar || (shouldShowGPBar && config.GPVisible);
-        /*if (penumbraAvailable && penumbraApi is not null && penumbraApi.NativeUiBanned)
+        if (penumbraAvailable && penumbraApi is not null && penumbraApi.NativeUiBanned)
         {
             if (primaryTickerNode.imageNode is not null)
             {
@@ -517,7 +516,7 @@ public sealed class TickTracker : IDalamudPlugin
                 secondaryTickerNode.DestroyNode();
             }
             return;
-        }*/
+        }
         if (utilities.IsAddonReady(ParamWidget) && ParamWidget->UldManager.LoadedState is AtkLoadState.Loaded && ParamWidget->IsVisible)
         {
             DrawNativePrimary(shouldShowHPBar);
@@ -612,10 +611,10 @@ public sealed class TickTracker : IDalamudPlugin
     private unsafe void DevWindowThings(IPlayerCharacter? player, double currentTime, FrozenSet<BarWindowBase> windowList)
     {
         DevWindow.IsOpen = true;
-        /*if (penumbraAvailable && penumbraApi is not null)
+        if (penumbraAvailable && penumbraApi is not null)
         {
             DevWindow.Print(nameof(penumbraApi.NativeUiBanned) + " is " + penumbraApi.NativeUiBanned);
-        }*/
+        }
         if (player is null)
         {
             return;
@@ -761,7 +760,7 @@ public sealed class TickTracker : IDalamudPlugin
 #endif
         cts.Cancel();
         cts.Dispose();
-        //penumbraApi?.Dispose();
+        penumbraApi?.Dispose();
         receiveActorUpdateHook?.Disable();
         receiveActorUpdateHook?.Dispose();
         commandManager.RemoveHandler(CommandName);

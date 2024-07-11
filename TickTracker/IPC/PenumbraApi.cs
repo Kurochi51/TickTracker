@@ -11,7 +11,7 @@ using Dalamud.Plugin;
 
 namespace TickTracker.IPC;
 
-/*public sealed class PenumbraApi : IDisposable
+public sealed class PenumbraApi : IDisposable
 {
     private readonly IPluginLog log;
     private readonly IDalamudPluginInterface pluginInterface;
@@ -85,7 +85,7 @@ namespace TickTracker.IPC;
         modSettingsChanged.Enable();
     }
 
-    private bool CheckMUIPresence(Dictionary<string, string> modList, Guid collection)
+    private bool CheckBannedUIPresence(Dictionary<string, string> modList, Guid collection)
     {
         if (modList.Count < 1)
         {
@@ -95,6 +95,11 @@ namespace TickTracker.IPC;
         {
             if (!mod.Value.Contains("Material UI", StringComparison.OrdinalIgnoreCase)
                 && !mod.Key.Contains("Material UI", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+            if (!mod.Value.Contains("Frost UI", StringComparison.OrdinalIgnoreCase)
+                && !mod.Key.Contains("frost_ui", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -111,7 +116,7 @@ namespace TickTracker.IPC;
 
     private void CheckState(bool penumbraEnabled)
     {
-        NativeUiBanned = penumbraEnabled && CheckMUIPresence(getModList.Invoke(), interfaceCollection!.Value.Id);
+        NativeUiBanned = penumbraEnabled && CheckBannedUIPresence(getModList.Invoke(), interfaceCollection!.Value.Id);
     }
 
     private void CheckModChanges(ModSettingChange type, Guid collectionId, string modDirectory, bool inherited)
@@ -121,7 +126,7 @@ namespace TickTracker.IPC;
             return;
         }
         var currentMods = getModList.Invoke().Where(currentMod => currentMod.Key.Equals(modDirectory, StringComparison.Ordinal)).ToDictionary(StringComparer.Ordinal);
-        NativeUiBanned = CheckMUIPresence(currentMods, collectionId);
+        NativeUiBanned = CheckBannedUIPresence(currentMods, collectionId);
     }
 
     private void PenumbraInit()
@@ -132,7 +137,7 @@ namespace TickTracker.IPC;
         modSettingsChanged.Enable();
         if (penumbraModsEnabled)
         {
-            NativeUiBanned = CheckMUIPresence(getModList.Invoke(), interfaceCollection!.Value.Id);
+            NativeUiBanned = CheckBannedUIPresence(getModList.Invoke(), interfaceCollection!.Value.Id);
         }
     }
 
@@ -149,4 +154,4 @@ namespace TickTracker.IPC;
         init.Dispose();
         disposed.Dispose();
     }
-}*/
+}
