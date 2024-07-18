@@ -95,15 +95,7 @@ public sealed unsafe class ImageNode : IDisposable
             var currentAtkPartsList = (AtkUldPartsList*)IMemorySpace.GetUISpace()->Malloc((ulong)sizeof(AtkUldPartsList), 8);
             if (currentAtkPartsList is null)
             {
-                for (var j = i - 1; j >= 0; j--)
-                {
-                    for (var k = 0; k < atkUldPartsListArray[j]->PartCount; k++)
-                    {
-                        IMemorySpace.Free(atkUldPartsListArray[j]->Parts[k].UldAsset, (ulong)sizeof(AtkUldAsset));
-                    }
-                    IMemorySpace.Free(atkUldPartsListArray[j]->Parts, (ulong)(sizeof(AtkUldPart) * atkUldPartsListArray[j]->PartCount));
-                    IMemorySpace.Free(atkUldPartsListArray[j], (ulong)sizeof(AtkUldPartsList));
-                }
+                FreeResources(atkUldPartsListArray, i - 1, increase: false);
                 return null;
             }
             currentAtkPartsList->Id = uldPartsListArray[i].Id;
@@ -112,15 +104,7 @@ public sealed unsafe class ImageNode : IDisposable
             if (currentAtkPartList is null)
             {
                 IMemorySpace.Free(currentAtkPartsList, (ulong)sizeof(AtkUldPartsList));
-                for (var j = i - 1; j >= 0; j--)
-                {
-                    for (var k = 0; k < atkUldPartsListArray[j]->PartCount; k++)
-                    {
-                        IMemorySpace.Free(atkUldPartsListArray[j]->Parts[k].UldAsset, (ulong)sizeof(AtkUldAsset));
-                    }
-                    IMemorySpace.Free(atkUldPartsListArray[j]->Parts, (ulong)(sizeof(AtkUldPart) * atkUldPartsListArray[j]->PartCount));
-                    IMemorySpace.Free(atkUldPartsListArray[j], (ulong)sizeof(AtkUldPartsList));
-                }
+                FreeResources(atkUldPartsListArray, i - 1, increase: false);
                 return null;
             }
             currentAtkPartsList->Parts = currentAtkPartList;
@@ -128,15 +112,7 @@ public sealed unsafe class ImageNode : IDisposable
             {
                 IMemorySpace.Free(currentAtkPartList, (ulong)(sizeof(AtkUldPart) * currentAtkPartsList->PartCount));
                 IMemorySpace.Free(currentAtkPartsList, (ulong)sizeof(AtkUldPartsList));
-                for (var j = i - 1; j >= 0; j--)
-                {
-                    for (var k = 0; k < atkUldPartsListArray[j]->PartCount; k++)
-                    {
-                        IMemorySpace.Free(atkUldPartsListArray[j]->Parts[k].UldAsset, (ulong)sizeof(AtkUldAsset));
-                    }
-                    IMemorySpace.Free(atkUldPartsListArray[j]->Parts, (ulong)(sizeof(AtkUldPart) * atkUldPartsListArray[j]->PartCount));
-                    IMemorySpace.Free(atkUldPartsListArray[j], (ulong)sizeof(AtkUldPartsList));
-                }
+                FreeResources(atkUldPartsListArray, i - 1, increase: false);
                 return null;
             }
             atkUldPartsListArray[i] = currentAtkPartsList;
@@ -153,6 +129,8 @@ public sealed unsafe class ImageNode : IDisposable
             {
                 for (var j = i - 1; j >= 0; j--)
                 {
+                    currentPartsList->Parts[j].UldAsset->AtkTexture.ReleaseTexture();
+                    currentPartsList->Parts[j].UldAsset->AtkTexture.Destroy(free: false);
                     IMemorySpace.Free(currentPartsList->Parts[j].UldAsset, (ulong)sizeof(AtkUldAsset));
                 }
                 return false;
@@ -202,6 +180,8 @@ public sealed unsafe class ImageNode : IDisposable
                 log.Error("Memory for the node AtkUldAsset of AtkUldPart {i} could not be allocated.", i);
                 for (var j = i - 1; j >= 0; j--)
                 {
+                    imageNodePartsList->Parts[j].UldAsset->AtkTexture.ReleaseTexture();
+                    imageNodePartsList->Parts[j].UldAsset->AtkTexture.Destroy(free: false);
                     IMemorySpace.Free(imageNodePartsList->Parts[j].UldAsset, (ulong)sizeof(AtkUldAsset));
                 }
                 IMemorySpace.Free(imageNodePartsList->Parts, (ulong)(sizeof(AtkUldPart) * imageNodePartsList->PartCount));
@@ -364,6 +344,8 @@ public sealed unsafe class ImageNode : IDisposable
     {
         for (var i = 0; i < imageNode->PartsList->PartCount; i++)
         {
+            imageNode->PartsList->Parts[i].UldAsset->AtkTexture.ReleaseTexture();
+            imageNode->PartsList->Parts[i].UldAsset->AtkTexture.Destroy(free: false);
             IMemorySpace.Free(imageNode->PartsList->Parts[i].UldAsset, (ulong)sizeof(AtkUldAsset));
         }
         IMemorySpace.Free(imageNode->PartsList->Parts, (ulong)(sizeof(AtkUldPart) * imageNode->PartsList->PartCount));
@@ -383,12 +365,7 @@ public sealed unsafe class ImageNode : IDisposable
         {
             NativeUi.UnlinkNode(imageNode, imageNodeParent->GetComponent());
         }
-        for (var i = 0; i < imageNode->PartsList->PartCount; i++)
-        {
-            IMemorySpace.Free(imageNode->PartsList->Parts[i].UldAsset, (ulong)sizeof(AtkUldAsset));
-        }
-        IMemorySpace.Free(imageNode->PartsList->Parts, (ulong)(sizeof(AtkUldPart) * imageNode->PartsList->PartCount));
-        IMemorySpace.Free(imageNode->PartsList, (ulong)sizeof(AtkUldPartsList));
+        DestroyImagePartsList();
         imageNode->AtkResNode.Destroy(free: false);
         IMemorySpace.Free(imageNode, (ulong)sizeof(AtkImageNode));
         imageNode = null;
@@ -399,12 +376,19 @@ public sealed unsafe class ImageNode : IDisposable
     /// Release a <see cref="AtkUldPartsList"/> pointer array created by <see cref="CreateAtkUldPartsListArray"/> of your instance of <see cref="ImageNode"/>.
     /// </summary>
     /// <param name="atkUldPartsListArray"></param>
-    public void FreeResources(AtkUldPartsList*[] atkUldPartsListArray)
+    public void FreeResources(AtkUldPartsList*[] atkUldPartsListArray, int start = 0, bool increase = true)
     {
-        for (var i = 0; i < atkUldPartsListArray.Length; i++)
+        void Operator(ref int i)
+            => i = increase ? i + 1 : i - 1;
+        bool Comparison(int a, int b)
+            => increase ? a < b : a >= 0;
+
+        for (var i = start; Comparison(i, atkUldPartsListArray.Length); Operator(ref i))
         {
             for (var j = 0; j < atkUldPartsListArray[i]->PartCount; j++)
             {
+                atkUldPartsListArray[i]->Parts[j].UldAsset->AtkTexture.ReleaseTexture();
+                atkUldPartsListArray[i]->Parts[j].UldAsset->AtkTexture.Destroy(free: false);
                 IMemorySpace.Free(atkUldPartsListArray[i]->Parts[j].UldAsset, (ulong)sizeof(AtkUldAsset));
             }
             IMemorySpace.Free(atkUldPartsListArray[i]->Parts, (ulong)(sizeof(AtkUldPart) * atkUldPartsListArray[i]->PartCount));
