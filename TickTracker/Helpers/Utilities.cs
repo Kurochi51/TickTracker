@@ -198,8 +198,15 @@ public partial class Utilities(IDalamudPluginInterface _pluginInterface,
     /// </summary>
     /// <returns><see langword="true"/> if addon is initialized and ready for use, otherwise <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe bool IsAddonReady(AtkUnitBase* addon)
-        => addon is not null && addon->RootNode is not null && addon->RootNode->ChildNode is not null;
+    public unsafe bool IsAddonReady<T>(T* addon) where T : unmanaged
+    {
+        if (addon is null)
+        {
+            return false;
+        }
+        var unitBase = (AtkUnitBase*)addon;
+        return unitBase->RootNode is not null && unitBase->RootNode->ChildNode is not null;
+    }
 
     /// <summary>
     ///     Check if <paramref name="sourceCharacter"/> is currently targeting <paramref name="targetCharacter"/>, whether it's manually set, or the result of using an action.

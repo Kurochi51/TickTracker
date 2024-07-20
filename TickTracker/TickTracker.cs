@@ -7,6 +7,7 @@ using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 
+using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
 using Dalamud.Plugin;
@@ -517,6 +518,7 @@ public sealed class TickTracker : IDalamudPlugin
             return;
         }
         if (utilities.IsAddonReady(ParamWidget) && ParamWidget->UldManager.LoadedState is AtkLoadState.Loaded && ParamWidget->IsVisible)
+        //if (utilities.IsAddonReady(ParamWidget2) && ParamWidget2->UldManager.LoadedState is AtkLoadState.Loaded && ParamWidget2->IsVisible)
         {
             DrawNativePrimary(shouldShowHPBar);
             DrawNativeSecondary(shouldShowMPBar && !isDiscipleOfTheLand, shouldShowGPBar);
@@ -618,6 +620,8 @@ public sealed class TickTracker : IDalamudPlugin
         {
             return;
         }
+        DevWindow.Print("Player Entity Id: " + player.EntityId.ToString());
+        DevWindow.Print("Player Class Job Id " + player.ClassJob.Id.ToString());
         var cultureFormat = System.Globalization.CultureInfo.InvariantCulture;
         foreach (var window in windowList)
         {
@@ -686,6 +690,55 @@ public sealed class TickTracker : IDalamudPlugin
         }
     }
 
+    /*private unsafe AddonParameterWidget* ParamWidget2 => (AddonParameterWidget*)gameGui.GetAddonByName("_ParameterWidget");
+
+    private unsafe void HandleNativeNode(in ImageNode tickerNode, AtkComponentGaugeBar* gaugeBase, bool visibility, double progress, Vector4 Color, ref bool failed)
+    {
+        if (tickerNode.imageNode is not null)
+        {
+            if (!visibility)
+            {
+                if (tickerNode.imageNode->AtkResNode.Width is not 0)
+                {
+                    tickerNode.imageNode->AtkResNode.SetWidth(0);
+                }
+                if (tickerNode.imageNode->AtkResNode.IsVisible())
+                {
+                    tickerNode.imageNode->AtkResNode.ToggleVisibility(visibility);
+                }
+                return;
+            }
+            progress = Math.Clamp(progress, 0, 1);
+            tickerNode.imageNode->AtkResNode.SetWidth(progress > 0 ? (ushort)((progress * 152) + 4) : (ushort)0);
+            tickerNode.ChangeNodeColorAndAlpha(Color);
+            tickerNode.imageNode->AtkResNode.ToggleVisibility(visibility);
+            return;
+        }
+        var frameNode = NativeUi.AttemptRetrieveNativeNode(
+            gaugeBase->UldManager,
+            NodeType.Image,
+            (AtkImageNode node) => { return node.PartId == 0; });
+        if (frameNode is null)
+        {
+            log.Error("Couldn't retrieve the target ImageNode of the gauge bar.");
+            failed = true;
+            return;
+        }
+        if (tickerNode.imageNode is null && !failed)
+        {
+            var hq = frameNode->PartsList->Parts[frameNode->PartId].UldAsset->AtkTexture.Resource->Version == 2;
+            tickerNode.CreateCompleteImageNode(0, hq, (AtkResNode*)gaugeBase->AtkComponentBase.OwnerNode, &frameNode->AtkResNode);
+            if (tickerNode.imageNode is null)
+            {
+                log.Error("ImageNode {id} could not be created.", tickerNode.NodeId);
+                failed = true;
+                return;
+            }
+            tickerNode.imageNode->AtkResNode.SetWidth(160);
+            tickerNode.imageNode->AtkResNode.SetHeight(20);
+        }
+    }*/
+
     private unsafe void HandleNativeNode(in ImageNode tickerNode, uint gaugeBarNodeId, uint frameImageId, bool visibility, double progress, Vector4 Color, ref bool failed)
     {
         if (tickerNode.imageNode is not null)
@@ -729,7 +782,6 @@ public sealed class TickTracker : IDalamudPlugin
             failed = true;
             return;
         }
-
         if (tickerNode.imageNode is null && !failed)
         {
             var frameImageNode = frameResNode->GetAsAtkImageNode();

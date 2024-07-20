@@ -172,4 +172,45 @@ public static unsafe class NativeUi
 
         unitBase->UldManager.UpdateDrawNodeList();
     }
+
+    /// <summary>
+    /// Returns the <typeparamref name="T"/> node that matches the <paramref name="nodeType"/>, while attempting to exclude custom nodes.
+    /// </summary>
+    /// <remarks>Component nodes are not recursively checked due to potential ambiguity of matching nodes inside and outside the component.</remarks>
+    /// <typeparam name="T">Type of node to return.</typeparam>
+    /// <param name="uldManager">The <see cref="AtkUldManager"/> of the parent node.</param>
+    /// <param name="nodeType">The <see cref="NodeType"/> used for finding the <typeparamref name="T"/> node.</param>
+    /// <param name="extraCheck">Optional check the returned node must pass.</param>
+    /// <returns></returns>
+    public static T* AttemptRetrieveNativeNode<T>(AtkUldManager uldManager, NodeType nodeType, Func<T, bool>? extraCheck = null) where T : unmanaged
+    {
+        T* node = null;
+        for (var i = 0; i < uldManager.NodeListCount; i++)
+        {
+            var child = uldManager.NodeList[i];
+            if (child->Type != nodeType)
+            {
+                continue;
+            }
+            if (child->NodeId >= 10000u) // Possible dupe or custom node
+            {
+                var dupeNodeId = (int)child->Type switch
+                {
+                    1025 => (child->NodeId % 10000u) - 1000u, // ListItemRenderer is funny like that, adding 1000 before its own id
+                    _ => child->NodeId % 10000u, // Duped nodes take the original node, multiply it by 10000, then add their own id at the end
+                };
+                if (dupeNodeId >= 1000u || child->NodeId / 10000u > 1000u) // Most likely custom node
+                {
+                    continue;
+                }
+            }
+            var targetNode = (T*)child;
+            if (extraCheck is not null && !extraCheck.Invoke(*targetNode))
+            {
+                continue;
+            }
+            node = targetNode;
+        }
+        return node;
+    }
 }
