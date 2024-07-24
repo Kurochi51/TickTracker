@@ -87,7 +87,6 @@ public sealed class TickTracker : IDalamudPlugin
     public WindowSystem WindowSystem { get; } = new("TickTracker");
     private const string CommandName = "/tick";
     private const float RegularTickInterval = 3, FastTickInterval = 1.5f;
-    private const uint PrimaryGaugeNodeID = 3, SecondaryGaugeNodeID = 4, ParamFrameImageNode = 4;
     private const string ParamWidgetUldPath = "ui/uld/parameter.uld";
 
     private readonly FrozenSet<BarWindowBase> barWindows;
@@ -103,7 +102,7 @@ public sealed class TickTracker : IDalamudPlugin
     private Task? loadingTask;
     private PenumbraApi? penumbraApi;
     private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
-    private unsafe AtkUnitBase* ParamWidget => (AtkUnitBase*)gameGui.GetAddonByName("_ParameterWidget");
+    private unsafe AddonParameterWidget* ParamWidget => (AddonParameterWidget*)gameGui.GetAddonByName("_ParameterWidget");
 
     public TickTracker(IDalamudPluginInterface _pluginInterface,
         IClientState _clientState,
@@ -518,7 +517,6 @@ public sealed class TickTracker : IDalamudPlugin
             return;
         }
         if (utilities.IsAddonReady(ParamWidget) && ParamWidget->UldManager.LoadedState is AtkLoadState.Loaded && ParamWidget->IsVisible)
-        //if (utilities.IsAddonReady(ParamWidget2) && ParamWidget2->UldManager.LoadedState is AtkLoadState.Loaded && ParamWidget2->IsVisible)
         {
             DrawNativePrimary(shouldShowHPBar);
             DrawNativeSecondary(shouldShowMPBar && !isDiscipleOfTheLand, shouldShowGPBar);
@@ -650,8 +648,7 @@ public sealed class TickTracker : IDalamudPlugin
             return;
         }
         HandleNativeNode(primaryTickerNode,
-            PrimaryGaugeNodeID,
-            ParamFrameImageNode,
+            ParamWidget->HealthGaugeBar,
             hpVisible,
             HPBarWindow.Progress,
             config.HPNativeUiColor,
@@ -671,8 +668,7 @@ public sealed class TickTracker : IDalamudPlugin
         if (!gpVisible)
         {
             HandleNativeNode(secondaryTickerNode,
-            SecondaryGaugeNodeID,
-            ParamFrameImageNode,
+            ParamWidget->ManaGaugeBar,
             mpVisible && config.MPNativeUiVisible,
             MPBarWindow.Progress,
             config.MPNativeUiColor,
@@ -681,16 +677,13 @@ public sealed class TickTracker : IDalamudPlugin
         if (!mpVisible)
         {
             HandleNativeNode(secondaryTickerNode,
-            SecondaryGaugeNodeID,
-            ParamFrameImageNode,
+            ParamWidget->ManaGaugeBar,
             gpVisible && config.GPNativeUiVisible,
             GPBarWindow.Progress,
             config.GPNativeUiColor,
             ref secondaryNodeCreationFailed);
         }
     }
-
-    /*private unsafe AddonParameterWidget* ParamWidget2 => (AddonParameterWidget*)gameGui.GetAddonByName("_ParameterWidget");
 
     private unsafe void HandleNativeNode(in ImageNode tickerNode, AtkComponentGaugeBar* gaugeBase, bool visibility, double progress, Vector4 Color, ref bool failed)
     {
@@ -737,67 +730,7 @@ public sealed class TickTracker : IDalamudPlugin
             tickerNode.imageNode->AtkResNode.SetWidth(160);
             tickerNode.imageNode->AtkResNode.SetHeight(20);
         }
-    }*/
-
-    private unsafe void HandleNativeNode(in ImageNode tickerNode, uint gaugeBarNodeId, uint frameImageId, bool visibility, double progress, Vector4 Color, ref bool failed)
-    {
-        if (tickerNode.imageNode is not null)
-        {
-            if (!visibility)
-            {
-                if (tickerNode.imageNode->AtkResNode.Width is not 0)
-                {
-                    tickerNode.imageNode->AtkResNode.SetWidth(0);
-                }
-                if (tickerNode.imageNode->AtkResNode.IsVisible())
-                {
-                    tickerNode.imageNode->AtkResNode.ToggleVisibility(visibility);
-                }
-                return;
-            }
-            progress = Math.Clamp(progress, 0, 1);
-            tickerNode.imageNode->AtkResNode.SetWidth(progress > 0 ? (ushort)((progress * 152) + 4) : (ushort)0);
-            tickerNode.ChangeNodeColorAndAlpha(Color);
-            tickerNode.imageNode->AtkResNode.ToggleVisibility(visibility);
-            return;
-        }
-        var gaugeBarNode = ParamWidget->GetNodeById(gaugeBarNodeId);
-        if (gaugeBarNode is null)
-        {
-            log.Error("Couldn't locate the gauge bar node {nodeId}.", gaugeBarNodeId);
-            failed = true;
-            return;
-        }
-        var gaugeBar = gaugeBarNode->GetComponent();
-        if (gaugeBar is null)
-        {
-            log.Error("Couldn't retrieve the ComponentBase of the gauge bar.");
-            failed = true;
-            return;
-        }
-        var frameResNode = NativeUi.GetNodeByID(&gaugeBar->UldManager, frameImageId);
-        if (frameResNode is null || frameResNode->GetAsAtkImageNode() is null)
-        {
-            log.Error("Couldn't retrieve the target ImageNode of the gauge bar.");
-            failed = true;
-            return;
-        }
-        if (tickerNode.imageNode is null && !failed)
-        {
-            var frameImageNode = frameResNode->GetAsAtkImageNode();
-            var hq = frameImageNode->PartsList->Parts[frameImageNode->PartId].UldAsset->AtkTexture.Resource->Version == 2;
-            tickerNode.CreateCompleteImageNode(0, hq, gaugeBarNode, frameResNode);
-            if (tickerNode.imageNode is null)
-            {
-                log.Error("ImageNode {id} could not be created.", tickerNode.NodeId);
-                failed = true;
-                return;
-            }
-            tickerNode.imageNode->AtkResNode.SetWidth(160);
-            tickerNode.imageNode->AtkResNode.SetHeight(20);
-        }
     }
-
     private unsafe void NativeUiDisposeListener(AddonEvent type, AddonArgs args)
     {
         primaryTickerNode.DestroyNode();
