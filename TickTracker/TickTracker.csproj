@@ -3,7 +3,7 @@
     <PropertyGroup>
         <Authors></Authors>
         <Company></Company>
-        <Version>1.6.0.0</Version>
+        <Version>1.6.1.0</Version>
         <Description>A plugin that keeps track of HP/MP/GP ticks.</Description>
         <Copyright></Copyright>
         <PackageProjectUrl>https://github.com/Kurochi51/TickTracker</PackageProjectUrl>
@@ -39,11 +39,11 @@
 
     <ItemGroup>
         <PackageReference Include="DalamudPackager" Version="2.1.13" />
-        <PackageReference Include="Meziantou.Analyzer" Version="2.0.160">
+        <PackageReference Include="Meziantou.Analyzer" Version="2.0.163">
           <PrivateAssets>all</PrivateAssets>
           <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Penumbra.Api" Version="5.2.0" />
+        <PackageReference Include="Penumbra.Api" Version="5.3.0" />
         <Reference Include="FFXIVClientStructs">
             <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
             <Private>false</Private>

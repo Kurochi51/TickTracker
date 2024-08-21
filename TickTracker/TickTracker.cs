@@ -69,7 +69,6 @@ public sealed class TickTracker : IDalamudPlugin
     private readonly IGameGui gameGui;
     private readonly ICommandManager commandManager;
     private readonly ICondition condition;
-    private readonly IJobGauges jobGauges;
     private readonly IPluginLog log;
     private readonly IGameConfig gameConfig;
     private readonly IAddonLifecycle addonLifecycle;
@@ -94,6 +93,7 @@ public sealed class TickTracker : IDalamudPlugin
     private readonly uint secondaryTickerImageID = NativeUi.Get("TickerImageSecondary");
     private readonly ImageNode primaryTickerNode, secondaryTickerNode;
     private readonly CancellationTokenSource cts;
+    private readonly BLMGauge blmGauge;
 
     private double syncValue, regenValue, fastValue;
     private bool finishedLoading, primaryNodeCreationFailed, secondaryNodeCreationFailed, penumbraAvailable;
@@ -123,7 +123,6 @@ public sealed class TickTracker : IDalamudPlugin
         gameGui = _gameGui;
         commandManager = _commandManager;
         condition = _condition;
-        jobGauges = _jobGauges;
         log = _pluginLog;
         gameConfig = _gameConfig;
         addonLifecycle = _addonLifecycle;
@@ -137,6 +136,7 @@ public sealed class TickTracker : IDalamudPlugin
         receiveActorUpdateHook.Enable();
 
         cts = new CancellationTokenSource();
+        blmGauge = _jobGauges.Get<BLMGauge>();
 
         var tickerUld = pluginInterface.UiBuilder.LoadUld(ParamWidgetUldPath);
         primaryTickerNode = new ImageNode(_dataManager, log, tickerUld)
@@ -158,17 +158,9 @@ public sealed class TickTracker : IDalamudPlugin
         PenumbraCheck();
         InitializeWindows();
 
-        var barWindowList = new List<BarWindowBase>();
-        foreach (var window in WindowSystem.Windows.OfType<BarWindowBase>())
-        {
-            barWindowList.Add(window);
-        }
-        barWindows = barWindowList is not [] ? barWindowList.ToFrozenSet() : FrozenSet<BarWindowBase>.Empty;
-
-        commandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
-        {
-            HelpMessage = "Open or close Tick Tracker's config window.",
-        });
+        barWindows = WindowSystem.Windows.OfType<BarWindowBase>().Any() 
+            ? WindowSystem.Windows.OfType<BarWindowBase>().ToFrozenSet() 
+            : FrozenSet<BarWindowBase>.Empty;
 
         RegisterEvents();
         _ = Task.Run(InitializeLuminaSheets, cts.Token);
@@ -235,6 +227,11 @@ public sealed class TickTracker : IDalamudPlugin
 
     private void RegisterEvents()
     {
+        commandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
+        {
+            HelpMessage = "Open or close Tick Tracker's config window.",
+        });
+
         pluginInterface.UiBuilder.Draw += WindowSystem.Draw;
         pluginInterface.UiBuilder.OpenConfigUi += ConfigWindow.Toggle;
         framework.Update += OnFrameworkUpdate;
@@ -326,8 +323,7 @@ public sealed class TickTracker : IDalamudPlugin
 
         // MP Section
         MPBarWindow.RegenActive = statusList.Exists(e => manaRegenSet.Contains(e.StatusId));
-        var blmGauge = player.ClassJob.Id is 25 ? jobGauges.Get<BLMGauge>() : null;
-        MPBarWindow.TickHalted = blmGauge is not null && blmGauge.InAstralFire;
+        MPBarWindow.TickHalted = player.ClassJob.Id is 25 && blmGauge.InAstralFire;
         var currentMP = player.CurrentMp;
         var fullMP = currentMP == player.MaxMp;
 
@@ -618,8 +614,6 @@ public sealed class TickTracker : IDalamudPlugin
         {
             return;
         }
-        DevWindow.Print("Player Entity Id: " + player.EntityId.ToString());
-        DevWindow.Print("Player Class Job Id " + player.ClassJob.Id.ToString());
         var cultureFormat = System.Globalization.CultureInfo.InvariantCulture;
         foreach (var window in windowList)
         {
