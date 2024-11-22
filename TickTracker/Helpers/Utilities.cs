@@ -10,7 +10,8 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 using Lumina.Excel;
-using Lumina.Excel.GeneratedSheets2;
+using Lumina.Excel.Sheets;
+using Lumina.Text.ReadOnly;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using Dalamud.Game;
@@ -179,7 +180,7 @@ public partial class Utilities(IDalamudPluginInterface _pluginInterface,
         {
             return false;
         }
-        return (TerritoryIntendedUseType)territory.TerritoryIntendedUse.Row is TerritoryIntendedUseType.Diadem;
+        return (TerritoryIntendedUseType)territory.Value.TerritoryIntendedUse.Value.RowId is TerritoryIntendedUseType.Diadem;
     }
 
     /// <summary>
@@ -346,7 +347,7 @@ public partial class Utilities(IDalamudPluginInterface _pluginInterface,
     ///     Attempt to retrieve an <see cref="ExcelSheet{T}"/>, optionally in a specific <paramref name="language"/>.
     /// </summary>
     /// <returns><see cref="ExcelSheet{T}"/> or <see langword="null"/> if <see cref="IDataManager.GetExcelSheet{T}(ClientLanguage)"/> returns an invalid sheet.</returns>
-    public ExcelSheet<T>? GetSheet<T>(ClientLanguage language = ClientLanguage.English) where T : ExcelRow
+    public ExcelSheet<T>? GetSheet<T>(ClientLanguage language = ClientLanguage.English) where T : struct, IExcelRow<T>
     {
         try
         {
@@ -419,4 +420,10 @@ public partial class Utilities(IDalamudPluginInterface _pluginInterface,
 
     [System.Text.RegularExpressions.GeneratedRegex("\\W+", System.Text.RegularExpressions.RegexOptions.Compiled, 500)]
     private static partial System.Text.RegularExpressions.Regex KeywordsRegex();
+}
+
+public static class ReadOnlySeStringExtension
+{
+    public static string GetText(this ReadOnlySeString sestring)
+        => sestring.ExtractText();
 }

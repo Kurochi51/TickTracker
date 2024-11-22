@@ -158,8 +158,8 @@ public sealed class TickTracker : IDalamudPlugin
         PenumbraCheck();
         InitializeWindows();
 
-        barWindows = WindowSystem.Windows.OfType<BarWindowBase>().Any() 
-            ? WindowSystem.Windows.OfType<BarWindowBase>().ToFrozenSet() 
+        barWindows = WindowSystem.Windows.OfType<BarWindowBase>().Any()
+            ? WindowSystem.Windows.OfType<BarWindowBase>().ToFrozenSet()
             : FrozenSet<BarWindowBase>.Empty;
 
         RegisterEvents();
@@ -323,12 +323,12 @@ public sealed class TickTracker : IDalamudPlugin
 
         // MP Section
         MPBarWindow.RegenActive = statusList.Exists(e => manaRegenSet.Contains(e.StatusId));
-        MPBarWindow.TickHalted = player.ClassJob.Id is 25 && blmGauge.InAstralFire;
+        MPBarWindow.TickHalted = player.ClassJob.RowId is 25 && blmGauge.InAstralFire;
         var currentMP = player.CurrentMp;
         var fullMP = currentMP == player.MaxMp;
 
         // GP Section
-        GPBarWindow.TickHalted = condition[ConditionFlag.Gathering] && (player.ClassJob.Id is not 18 || condition[ConditionFlag.Diving]);
+        GPBarWindow.TickHalted = condition[ConditionFlag.Gathering] && (player.ClassJob.RowId is not 18 || condition[ConditionFlag.Diving]);
         var currentGP = player.CurrentGp;
         var fullGP = currentGP == player.MaxGp;
 
@@ -371,8 +371,8 @@ public sealed class TickTracker : IDalamudPlugin
 
     private void InitializeLuminaSheets()
     {
-        var statusSheet = utilities.GetSheet<Lumina.Excel.GeneratedSheets2.Status>();
-        var jobSheet = utilities.GetSheet<Lumina.Excel.GeneratedSheets2.ClassJob>();
+        var statusSheet = utilities.GetSheet<Lumina.Excel.Sheets.Status>();
+        var jobSheet = utilities.GetSheet<Lumina.Excel.Sheets.ClassJob>();
         if (statusSheet is null || jobSheet is null)
         {
             return;
@@ -381,7 +381,7 @@ public sealed class TickTracker : IDalamudPlugin
         var bag2 = new HashSet<uint>();
         foreach (var row in jobSheet)
         {
-            var name = row.Abbreviation.ToDalamudString().TextValue;
+            var name = row.Abbreviation.GetText();
             if (meleeAndRangedAbbreviations.Contains(name))
             {
                 bag1.Add(row.RowId);
@@ -405,7 +405,7 @@ public sealed class TickTracker : IDalamudPlugin
         log.Debug("MP regen list generated with {MPcount} status effects.", manaRegenSet.Count);
     }
 
-    private void ParseStatusSheet(IEnumerable<Lumina.Excel.GeneratedSheets2.Status> sheet, out ConcurrentBag<uint> disabledHealthRegenBag, out ConcurrentBag<uint> healthRegenBag, out ConcurrentBag<uint> manaRegenBag)
+    private void ParseStatusSheet(IEnumerable<Lumina.Excel.Sheets.Status> sheet, out ConcurrentBag<uint> disabledHealthRegenBag, out ConcurrentBag<uint> healthRegenBag, out ConcurrentBag<uint> manaRegenBag)
     {
         var bag1 = new ConcurrentBag<uint>();
         var bag2 = new ConcurrentBag<uint>();
@@ -416,31 +416,32 @@ public sealed class TickTracker : IDalamudPlugin
         };
         Parallel.ForEach(sheet, parallelOptions, stat =>
         {
-            var text = stat.Description.ToDalamudString().TextValue;
+            var text = stat.Description.GetText();
             if (text.IsNullOrWhitespace())
             {
                 return;
             }
+            var statName = stat.Name.GetText();
             if (Utilities.WholeKeywordMatch(text, utilities.RegenNullKeywords) && Utilities.WholeKeywordMatch(text, utilities.HealthKeywords))
             {
                 bag1.Add(stat.RowId);
-                DebugWindow.DisabledHealthRegenDictionary.TryAdd(stat.RowId, stat.Name);
+                DebugWindow.DisabledHealthRegenDictionary.TryAdd(stat.RowId, statName);
             }
             if (Utilities.WholeKeywordMatch(text, utilities.RegenNullKeywords) && Utilities.WholeKeywordMatch(text, utilities.ManaKeywords))
             {
-                DebugWindow.DisabledManaRegenDictionary.TryAdd(stat.RowId, stat.Name);
+                DebugWindow.DisabledManaRegenDictionary.TryAdd(stat.RowId, statName);
             }
             if (Utilities.KeywordMatch(text, utilities.RegenKeywords) && Utilities.KeywordMatch(text, utilities.TimeKeywords))
             {
                 if (Utilities.KeywordMatch(text, utilities.HealthKeywords))
                 {
                     bag2.Add(stat.RowId);
-                    DebugWindow.HealthRegenDictionary.TryAdd(stat.RowId, stat.Name);
+                    DebugWindow.HealthRegenDictionary.TryAdd(stat.RowId, statName);
                 }
                 if (Utilities.KeywordMatch(text, utilities.ManaKeywords))
                 {
                     bag3.Add(stat.RowId);
-                    DebugWindow.ManaRegenDictionary.TryAdd(stat.RowId, stat.Name);
+                    DebugWindow.ManaRegenDictionary.TryAdd(stat.RowId, statName);
                 }
             }
         });
@@ -485,7 +486,7 @@ public sealed class TickTracker : IDalamudPlugin
 
     private unsafe void UpdateBarState(IPlayerCharacter player)
     {
-        var jobId = player.ClassJob.Id;
+        var jobId = player.ClassJob.RowId;
         var althideForMeleeRangedDPS = meleeAndRangedDPS.Contains(jobId);
         var isDiscipleOfTheLand = discipleOfTheLand.Contains(jobId);
         var Enemy = player.TargetObject?.ObjectKind == Dalamud.Game.ClientState.Objects.Enums.ObjectKind.BattleNpc;
