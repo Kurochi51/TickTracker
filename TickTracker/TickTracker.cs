@@ -39,21 +39,21 @@ public sealed class TickTracker : IDalamudPlugin
     /// <summary>
     /// A <see cref="FrozenSet{T}" /> of Status IDs that trigger HP regen
     /// </summary>
-    private FrozenSet<uint> healthRegenSet = FrozenSet<uint>.Empty;
+    private FrozenSet<uint> healthRegenSet = [];
     /// <summary>
     /// A <see cref="FrozenSet{T}" /> of Status IDs that trigger MP regen
     /// </summary>
-    private FrozenSet<uint> manaRegenSet = FrozenSet<uint>.Empty;
+    private FrozenSet<uint> manaRegenSet = [];
     /// <summary>
     /// A <see cref="FrozenSet{T}" /> of Status IDs that stop HP regen
     /// </summary>
-    private FrozenSet<uint> disabledHealthRegenSet = FrozenSet<uint>.Empty;
+    private FrozenSet<uint> disabledHealthRegenSet = [];
 
     private readonly FrozenSet<string> meleeAndRangedAbbreviations = Utilities.CreateFrozenSet(
         "PGL", "LNC", "ARC", "MNK", "DRG", "BRD", "ROG", "NIN", "MCH", "SAM", "DNC", "RPR");
     private readonly FrozenSet<string> discipleOfTheLandAbbreviations = Utilities.CreateFrozenSet("MIN", "BTN", "FSH");
-    private FrozenSet<uint> meleeAndRangedDPS = FrozenSet<uint>.Empty;
-    private FrozenSet<uint> discipleOfTheLand = FrozenSet<uint>.Empty;
+    private FrozenSet<uint> meleeAndRangedDPS = [];
+    private FrozenSet<uint> discipleOfTheLand = [];
 
     // Function that triggers when client receives a network packet with an update for nearby actors
     private unsafe delegate void ReceiveActorUpdateDelegate(uint objectId, uint* packetData, byte unkByte);
@@ -160,7 +160,7 @@ public sealed class TickTracker : IDalamudPlugin
 
         barWindows = WindowSystem.Windows.OfType<BarWindowBase>().Any()
             ? WindowSystem.Windows.OfType<BarWindowBase>().ToFrozenSet()
-            : FrozenSet<BarWindowBase>.Empty;
+            : [];
 
         RegisterEvents();
         _ = Task.Run(InitializeLuminaSheets, cts.Token);
