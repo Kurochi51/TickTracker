@@ -3,11 +3,11 @@ using System.Linq;
 using System.Numerics;
 using System.Collections.Generic;
 
-using ImGuiNET;
 using Dalamud.Interface;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
+using Dalamud.Bindings.ImGui;
 using TickTracker.Enums;
 using TickTracker.Helpers;
 

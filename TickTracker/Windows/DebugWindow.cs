@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 
-using ImGuiNET;
 using Dalamud.Plugin;
 using Dalamud.Interface;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Utility.Raii;
@@ -222,7 +222,7 @@ public sealed class DebugWindow : Window, IDisposable
         }
 
         var clipperCount = Math.Max(table.Column1Content.Count, table.Column2Content.Count);
-        var clipper = new ImGuiListClipperPtr(ImGuiNative.ImGuiListClipper_ImGuiListClipper());
+        var clipper = new ImGuiListClipperPtr(ImGuiNative.ImGuiListClipper());
         clipper.Begin(clipperCount, ImGui.GetTextLineHeightWithSpacing());
 
         ImGui.TableSetupColumn(table.Column1Header, ImGuiTableColumnFlags.WidthFixed, table.Column1Width);

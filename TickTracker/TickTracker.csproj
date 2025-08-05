@@ -31,7 +31,7 @@
     <!--D:\yes\Dalamud\bin\Release\-->
     <!--$(appdata)\XIVLauncher\addon\Hooks\dev\-->
     <PropertyGroup>
-        <DalamudLibPath Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
+        <DalamudLibPath Condition="$([MSBuild]::IsOSPlatform('Windows'))">D:\yes\Dalamud\bin\Release\</DalamudLibPath>
         <DalamudLibPath Condition="$([MSBuild]::IsOSPlatform('Linux'))">$(HOME)/.xlcore/dalamud/Hooks/dev/</DalamudLibPath>
         <DalamudLibPath Condition="$([MSBuild]::IsOSPlatform('OSX'))">$(HOME)/Library/Application Support/XIV on Mac/dalamud/Hooks/dev/</DalamudLibPath>
         <DalamudLibPath Condition="$(DALAMUD_HOME) != ''">$(DALAMUD_HOME)/</DalamudLibPath>
@@ -60,8 +60,16 @@
             <HintPath>$(DalamudLibPath)Dalamud.dll</HintPath>
             <Private>false</Private>
         </Reference>
-        <Reference Include="ImGui.NET">
-            <HintPath>$(DalamudLibPath)ImGui.NET.dll</HintPath>
+        <Reference Include="Dalamud.Bindings.ImGui">
+            <HintPath>$(DalamudLibPath)Dalamud.Bindings.ImGui.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="Dalamud.Bindings.ImPlot">
+            <HintPath>$(DalamudLibPath)Dalamud.Bindings.ImPlot.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="Dalamud.Bindings.ImGuizmo">
+            <HintPath>$(DalamudLibPath)Dalamud.Bindings.ImGuizmo.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="Lumina">

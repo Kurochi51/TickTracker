@@ -6,8 +6,8 @@ using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
-using ImGuiNET;
 using Dalamud.Plugin;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Plugin.Services;
 using Dalamud.Interface.Windowing;
 using Dalamud.Game.ClientState.Objects.SubKinds;
@@ -35,7 +35,7 @@ public sealed class DevWindow : Window, IDisposable
     private int nodeX, nodeY;
     private ImageNode? devNode;
     public bool startBenchmark { get; set; }
-    private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
+    private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate").Address;
 
     public DevWindow(IDalamudPluginInterface _pluginInterface, IDataManager _dataManager, IPluginLog _log, IGameGui _gameGui, Utilities _utilities) : base("DevWindow")
     {
