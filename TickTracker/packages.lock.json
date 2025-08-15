@@ -10,9 +10,9 @@
       },
       "Meziantou.Analyzer": {
         "type": "Direct",
-        "requested": "[2.0.211, )",
-        "resolved": "2.0.211",
-        "contentHash": "DaiJFk7ItD0PQF20Lw8oCFwd+LISCaqj+hJWgAr1EB7qpcPWva6u3y03+VKOAF+Q7agkse3t/sJBSVSr6fZxRg=="
+        "requested": "[2.0.212, )",
+        "resolved": "2.0.212",
+        "contentHash": "U91ktjjTRTccUs3Lk+hrLD9vW+2+lhnsOf4G1GpRSJi1pLn3uK5CU6wGP9Bmz1KlJs6Oz1GGoMhxQBoqQsmAuQ=="
       },
       "Penumbra.Api": {
         "type": "Direct",
