@@ -101,8 +101,8 @@ public sealed class TickTracker : IDalamudPlugin
     private uint lastHPValue, lastMPValue, lastGPValue;
     private Task? loadingTask;
     private PenumbraApi? penumbraApi;
-    private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
-    private unsafe AddonParameterWidget* ParamWidget => (AddonParameterWidget*)gameGui.GetAddonByName("_ParameterWidget");
+    private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate").Address;
+    private unsafe AddonParameterWidget* ParamWidget => (AddonParameterWidget*)gameGui.GetAddonByName("_ParameterWidget").Address;
 
     public TickTracker(IDalamudPluginInterface _pluginInterface,
         IClientState _clientState,
@@ -591,7 +591,7 @@ public sealed class TickTracker : IDalamudPlugin
         {
             return;
         }
-        var currentAddon = (AtkUnitBase*)args.Addon;
+        var currentAddon = (AtkUnitBase*)args.Addon.Address;
         if (!currentAddon->IsVisible)
         {
             return;
