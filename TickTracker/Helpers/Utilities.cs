@@ -17,6 +17,7 @@ using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using Dalamud.Game;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using Dalamud.Game.NativeWrapper;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Interface.Windowing;
@@ -234,10 +235,10 @@ public partial class Utilities(IDalamudPluginInterface _pluginInterface,
     /// <summary>
     ///     Check if <paramref name="window"/> is overlapping <paramref name="addon"/>
     /// </summary>
-    public unsafe bool AddonOverlap(AtkUnitBase* addon, BarWindowBase window, bool scaledAddon)
+    public static unsafe bool AddonOverlap(AtkUnitBasePtr addon, BarWindowBase window, bool scaledAddon)
     {
-        var addonPos = (X: addon->X, Y: addon->Y);
-        var addonSize = (width: addon->GetScaledWidth(scaledAddon) - OffsetX, height: addon->GetScaledHeight(scaledAddon) - OffsetY);
+        var addonPos = (addon.X, addon.Y);
+        var addonSize = (width: ScaledWidth(addon, scaledAddon) - OffsetX, height: ScaledHeight(addon, scaledAddon) - OffsetY);
 
         var topLeft = (window.WindowPosition.X, window.WindowPosition.Y);
         var topRight = (X: window.WindowPosition.X + window.WindowSize.X, window.WindowPosition.Y);
@@ -396,6 +397,12 @@ public partial class Utilities(IDalamudPluginInterface _pluginInterface,
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static FrozenSet<T> CreateFrozenSet<T>(params IEnumerable<T>[] collections)
         => collections.SelectMany(i => i).ToFrozenSet();
+
+    public static float ScaledWidth(AtkUnitBasePtr addon, bool scaled)
+        => scaled ? addon.ScaledWidth : addon.Width;
+
+    public static float ScaledHeight(AtkUnitBasePtr addon, bool scaled)
+        => scaled ? addon.ScaledHeight : addon.Height;
 
     public void Benchmark(System.Action func, int iterations, string benchmarkName)
     {

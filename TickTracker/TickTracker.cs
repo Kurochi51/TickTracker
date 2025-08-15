@@ -18,6 +18,7 @@ using Dalamud.Utility.Signatures;
 using Dalamud.Interface.Windowing;
 using Dalamud.Game.Config;
 using Dalamud.Game.Command;
+using Dalamud.Game.NativeWrapper;
 using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using Dalamud.Game.ClientState.Conditions;
@@ -101,8 +102,9 @@ public sealed class TickTracker : IDalamudPlugin
     private uint lastHPValue, lastMPValue, lastGPValue;
     private Task? loadingTask;
     private PenumbraApi? penumbraApi;
-    private unsafe AtkUnitBase* NameplateAddon => (AtkUnitBase*)gameGui.GetAddonByName("NamePlate");
-    private unsafe AddonParameterWidget* ParamWidget => (AddonParameterWidget*)gameGui.GetAddonByName("_ParameterWidget");
+    private unsafe AtkUnitBasePtr NameplateAddon => gameGui.GetAddonByName("NamePlate");
+    private unsafe AddonParameterWidget* ParamWidget => (AddonParameterWidget*)gameGui.GetAddonByName("_ParameterWidget").Address;
+
 
     public TickTracker(IDalamudPluginInterface _pluginInterface,
         IClientState _clientState,
@@ -276,7 +278,7 @@ public sealed class TickTracker : IDalamudPlugin
                 secondaryTickerNode.HideNode();
                 return;
             }
-            if (!utilities.IsAddonReady(NameplateAddon) || !NameplateAddon->IsVisible)
+            if (!NameplateAddon.IsReady || !NameplateAddon.IsVisible)
             {
                 HPBarWindow.IsOpen = MPBarWindow.IsOpen = GPBarWindow.IsOpen = false;
                 primaryTickerNode.HideNode();
@@ -591,13 +593,13 @@ public sealed class TickTracker : IDalamudPlugin
         {
             return;
         }
-        var currentAddon = (AtkUnitBase*)args.Addon;
-        if (!currentAddon->IsVisible)
+        var currentAddon = args.Addon;
+        if (!currentAddon.IsVisible)
         {
             return;
         }
-        var scaled = (int)currentAddon->Scale != 100;
-        foreach (var barWindow in barWindows.Where(window => utilities.AddonOverlap(currentAddon, window, scaled)))
+        var scaled = (int)currentAddon.Scale != 100;
+        foreach (var barWindow in barWindows.Where(window => Utilities.AddonOverlap(currentAddon, window, scaled)))
         {
             barWindow.IsOpen = false;
         }

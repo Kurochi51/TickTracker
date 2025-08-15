@@ -4,21 +4,21 @@
     "net9.0-windows7.0": {
       "DalamudPackager": {
         "type": "Direct",
-        "requested": "[12.0.0, )",
-        "resolved": "12.0.0",
-        "contentHash": "J5TJLV3f16T/E2H2P17ClWjtfEBPpq3yxvqW46eN36JCm6wR+EaoaYkqG9Rm5sHqs3/nK/vKjWWyvEs/jhKoXw=="
+        "requested": "[13.0.0, )",
+        "resolved": "13.0.0",
+        "contentHash": "Mb3cUDSK/vDPQ8gQIeuCw03EMYrej1B4J44a1AvIJ9C759p9XeqdU9Hg4WgOmlnlPe0G7ILTD32PKSUpkQNa8w=="
       },
       "Meziantou.Analyzer": {
         "type": "Direct",
-        "requested": "[2.0.189, )",
-        "resolved": "2.0.189",
-        "contentHash": "/e+dh95vDdvCTbViV2cWpXJEXAj+VHq7FsBXCTTTsLcffV0bkgXDFAPY0zMpy+Vt91Cl2cBoSOfaAoSdtn796Q=="
+        "requested": "[2.0.211, )",
+        "resolved": "2.0.211",
+        "contentHash": "DaiJFk7ItD0PQF20Lw8oCFwd+LISCaqj+hJWgAr1EB7qpcPWva6u3y03+VKOAF+Q7agkse3t/sJBSVSr6fZxRg=="
       },
       "Penumbra.Api": {
         "type": "Direct",
-        "requested": "[5.6.1, )",
-        "resolved": "5.6.1",
-        "contentHash": "pZesXuBB9cMXKN10EfLJclLay3vjRYQy376PXXcPdx33kNI0jHwgPXGcy6BtVmoaMvn4UvK+EqGVYlt2b/Ns9Q=="
+        "requested": "[5.10.0, )",
+        "resolved": "5.10.0",
+        "contentHash": "ZRIIXQCluNlLoI4I4gNYuYXqb7p48OR1P2/LcL27owToR/A/IG0mH8Ks2HguB/Kjq4RpCinaVkyufpGxGspbTA=="
       }
     }
   }

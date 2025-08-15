@@ -38,12 +38,12 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="DalamudPackager" Version="12.0.0" />
-        <PackageReference Include="Meziantou.Analyzer" Version="2.0.189">
+        <PackageReference Include="DalamudPackager" Version="13.0.0" />
+        <PackageReference Include="Meziantou.Analyzer" Version="2.0.211">
           <PrivateAssets>all</PrivateAssets>
           <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Penumbra.Api" Version="5.6.1" />
+        <PackageReference Include="Penumbra.Api" Version="5.10.0" />
         <Reference Include="FFXIVClientStructs">
             <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
             <Private>false</Private>
