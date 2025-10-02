@@ -51,7 +51,7 @@ public sealed class TickTracker : IDalamudPlugin
     private FrozenSet<uint> disabledHealthRegenSet = [];
 
     private readonly FrozenSet<string> meleeAndRangedAbbreviations = Utilities.CreateFrozenSet(
-        "PGL", "LNC", "ARC", "MNK", "DRG", "BRD", "ROG", "NIN", "MCH", "SAM", "DNC", "RPR");
+        "PGL", "LNC", "ARC", "MNK", "DRG", "BRD", "ROG", "NIN", "MCH", "SAM", "DNC", "RPR", "VPR");
     private readonly FrozenSet<string> discipleOfTheLandAbbreviations = Utilities.CreateFrozenSet("MIN", "BTN", "FSH");
     private FrozenSet<uint> meleeAndRangedDPS = [];
     private FrozenSet<uint> discipleOfTheLand = [];
