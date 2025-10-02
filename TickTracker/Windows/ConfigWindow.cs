@@ -68,7 +68,7 @@ public class ConfigWindow : Window
             return;
         }
         ImGui.Spacing();
-        var disabled = !config.HPVisible;
+        var barDisabled = !config.HPVisible;
 
         EditConfigProperty("Show HP Bar", config, c => c.HPVisible, (c, value) => c.HPVisible = value, checkbox: true);
         ImGui.BeginDisabled(nativeDisabled);
@@ -77,21 +77,21 @@ public class ConfigWindow : Window
         ImGuiComponents.HelpMarker("This will make the frame around the game's native HP Bar to fill up to represent the tick progress.");
         ImGui.EndDisabled();
         ImGui.Spacing();
-        DrawOptionsHP(ColorEditFlags, disabled);
+        DrawOptionsHP(ColorEditFlags, barDisabled);
         ImGui.Spacing();
 
         var HPBarPosition = config.HPBarPosition;
         var HPBarSize = config.HPBarSize;
         if (config.LockBar)
         {
-            disabled = true;
+            barDisabled = true;
         }
-        if (DragInput2(ref HPBarPosition, "HPPositionX", "HPPositionY", "HP Bar Position", disabled))
+        if (DragInput2(ref HPBarPosition, "HPPositionX", "HPPositionY", "HP Bar Position", barDisabled))
         {
             config.HPBarPosition = HPBarPosition;
             config.Save(pluginInterface);
         }
-        if (DragInput2(ref HPBarSize, "HPSizeX", "HPSizeY", "HP Bar Size", disabled, size: true))
+        if (DragInput2(ref HPBarSize, "HPSizeX", "HPSizeY", "HP Bar Size", barDisabled, size: true))
         {
             config.HPBarSize = HPBarSize;
             config.Save(pluginInterface);
@@ -106,7 +106,8 @@ public class ConfigWindow : Window
             return;
         }
         ImGui.Spacing();
-        var disabled = !config.MPVisible;
+        var barDisabled = !config.MPVisible;
+        var fullyDisabled = barDisabled && !config.MPNativeUiVisible;
 
         EditConfigProperty("Show MP Bar", config, c => c.MPVisible, (c, value) => c.MPVisible = value, checkbox: true);
         ImGui.BeginDisabled(nativeDisabled);
@@ -114,26 +115,26 @@ public class ConfigWindow : Window
         ImGui.SameLine();
         ImGuiComponents.HelpMarker("This will make the frame around the game's native MP Bar to fill up to represent the tick progress.");
         ImGui.EndDisabled();
-        ImGui.BeginDisabled(disabled);
-        EditConfigProperty("Hide MP bar on melee and ranged DPS", config, c => c.HideMpBarOnMeleeRanged, (c, value) => c.HideMpBarOnMeleeRanged = value, checkbox: true);
+        ImGui.BeginDisabled(fullyDisabled);
+        EditConfigProperty("Hide MP bar on physical DPS", config, c => c.HideMpBarOnPhysicalDPS, (c, value) => c.HideMpBarOnPhysicalDPS = value, checkbox: true);
         ImGui.EndDisabled();
         ImGui.Spacing();
 
-        DrawOptionsMP(ColorEditFlags, disabled);
+        DrawOptionsMP(ColorEditFlags, barDisabled);
         ImGui.Spacing();
 
         var MPBarPosition = config.MPBarPosition;
         var MPBarSize = config.MPBarSize;
         if (config.LockBar)
         {
-            disabled = true;
+            barDisabled = true;
         }
-        if (DragInput2(ref MPBarPosition, "MPPositionX", "MPPositionY", "MP Bar Position", disabled))
+        if (DragInput2(ref MPBarPosition, "MPPositionX", "MPPositionY", "MP Bar Position", barDisabled))
         {
             config.MPBarPosition = MPBarPosition;
             config.Save(pluginInterface);
         }
-        if (DragInput2(ref MPBarSize, "MPSizeX", "MPSizeY", "MP Bar Size", disabled, size: true))
+        if (DragInput2(ref MPBarSize, "MPSizeX", "MPSizeY", "MP Bar Size", barDisabled, size: true))
         {
             config.MPBarSize = MPBarSize;
             config.Save(pluginInterface);
@@ -148,7 +149,7 @@ public class ConfigWindow : Window
             return;
         }
         ImGui.Spacing();
-        var disabled = !config.GPVisible;
+        var barDisabled = !config.GPVisible;
 
         EditConfigProperty("Show GP Bar", config, c => c.GPVisible, (c, value) => c.GPVisible = value, checkbox: true);
         ImGui.SameLine();
@@ -160,22 +161,22 @@ public class ConfigWindow : Window
         ImGui.EndDisabled();
         ImGui.Spacing();
 
-        DrawOptionsGP(ColorEditFlags, disabled);
+        DrawOptionsGP(ColorEditFlags, barDisabled);
         ImGui.Spacing();
 
         var GPBarPosition = config.GPBarPosition;
         var GPBarSize = config.GPBarSize;
         if (config.LockBar)
         {
-            disabled = true;
+            barDisabled = true;
         }
-        if (DragInput2(ref GPBarPosition, "GPPositionX", "GPPositionY", "GP Bar Position", disabled))
+        if (DragInput2(ref GPBarPosition, "GPPositionX", "GPPositionY", "GP Bar Position", barDisabled))
         {
             config.GPBarPosition = GPBarPosition;
             config.Save(pluginInterface);
         }
 
-        if (DragInput2(ref GPBarSize, "GPSizeX", "GPSizeY", "GP Bar Size", disabled, size: true))
+        if (DragInput2(ref GPBarSize, "GPSizeX", "GPSizeY", "GP Bar Size", barDisabled, size: true))
         {
             config.GPBarSize = GPBarSize;
             config.Save(pluginInterface);
@@ -235,7 +236,7 @@ public class ConfigWindow : Window
     {
         if (disabled)
         {
-            ImGui.BeginDisabled();
+            ImGui.BeginDisabled(disabled);
         }
 
         EditConfigProperty("HP Bar Background Color", config, c => c.HPBarBackgroundColor, (c, value) => c.HPBarBackgroundColor = value, checkbox: false, button: false, colorEdit: true, flags);
