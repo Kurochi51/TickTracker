@@ -565,7 +565,7 @@ public sealed class TickTracker : IDalamudPlugin
         return showBar;
     }
 
-    private void TerritoryChanged(ushort e)
+    private void TerritoryChanged(uint e)
     {
         loadingTask = Task.Run(async () => await utilities.Loading(1000).ConfigureAwait(false), cts.Token);
     }

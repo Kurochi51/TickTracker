@@ -376,7 +376,7 @@ public partial class Utilities(IDalamudPluginInterface _pluginInterface,
     {
         if (window.SizeConstraints.HasValue)
         {
-            window.SizeConstraints = new Window.WindowSizeConstraints
+            window.SizeConstraints = new WindowSizeConstraints
             {
                 MinimumSize = window.SizeConstraints.Value.MinimumSize,
                 MaximumSize = sizeLimit,

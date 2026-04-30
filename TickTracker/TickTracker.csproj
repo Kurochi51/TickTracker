@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Project Sdk="Dalamud.NET.Sdk/14.0.1">
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
     <PropertyGroup>
         <Authors></Authors>
         <Company></Company>
-        <Version>1.6.5.0</Version>
+        <Version>1.6.6.0</Version>
         <Description>A plugin that keeps track of HP/MP/GP ticks.</Description>
         <Copyright></Copyright>
         <PackageProjectUrl>https://github.com/Kurochi51/TickTracker</PackageProjectUrl>
@@ -29,11 +29,15 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Meziantou.Analyzer" Version="2.0.212">
+        <PackageReference Include="Meziantou.Analyzer" Version="3.0.58">
           <PrivateAssets>all</PrivateAssets>
           <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Penumbra.Api" Version="5.10.0" />
+        <PackageReference Include="Penumbra.Api" Version="5.13.1" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Update="DalamudPackager" Version="15.0.0" />
     </ItemGroup>
 
     <!--
