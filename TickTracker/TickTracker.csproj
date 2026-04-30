@@ -36,10 +36,6 @@
         <PackageReference Include="Penumbra.Api" Version="5.13.1" />
     </ItemGroup>
 
-    <ItemGroup>
-      <PackageReference Update="DalamudPackager" Version="15.0.0" />
-    </ItemGroup>
-
     <!--
     <ItemGroup>
         <Reference Include="Dalamud">
